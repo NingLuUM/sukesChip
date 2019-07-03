@@ -1,0 +1,109 @@
+# .gitignore for sukesChip
+
+software/*
+*.img
+
+
+# Typical Stuff:
+.DS_Store
+*~$*
+*.tmp
+
+# Visual Studio:
+.vs/*
+*.obj
+*.db
+*.filters
+*.user
+Debug/*
+Release/*
+**vscode**
+
+# MATLAB:
+*.asv
+
+# Python:
+__pycache__/*
+*.npy
+
+# Quartus Stuff:
+# #--------------
+# db files
+# #--------------
+*.ammdb
+*.bpm
+*.cdb
+*.dat
+*.ddb
+*.flock
+*.hdb
+*.hier_info
+*.hif
+*.hsd
+*.idb
+*.logdb
+*.rdb
+*.tdb
+*.wrk
+*.cmp
+*.kpt
+*.tdf
+*.d_info
+*.sci 
+*.qmsg
+*.tmw_info
+*.stp
+
+# #--------------
+# #output files
+# #--------------
+*.rpt
+*.done
+*.smsg
+*.summary
+*.jdi
+*.pin
+*.sld
+
+# #--------------
+# # other files
+# #--------------
+*.tcl
+ddr2_phy_autodetectedpins.tcl
+alt_sld_fab_wrapper_hw.tcl
+# *.csv
+*.rpt
+!*.fit.rpt
+# *.txt
+*.qws
+*.qarlog
+*.qar
+*.json
+*.bak
+*.html
+*.xml
+
+# #--------------
+# # Modelsim files
+# #--------------
+*.wlf
+
+# #--------------
+# # generated folders
+# #--------------
+simulation/*
+incremental_db/*
+workspace/*
+source_library/*
+db/*
+greybox_tmp/*
+soc_system/*
+ip/*
+output_files/*
+# ignore all Quartus .jic (very large - we will keep these elsewhere)
+*.jic
+*.map
+*.src
+
+# ignore all Quartus .sof files (fairly large)
+*.sof
