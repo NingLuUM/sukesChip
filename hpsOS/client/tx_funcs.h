@@ -1,10 +1,63 @@
 
 
-void parseRecvdPhaseCharges(TXvars *TX){
+void parseRecvdPhaseCharges(TXsys *TX){
     
 }
 
-void setupLoops_tx(TXvars *TX){
+void populateActionLists_tx(TXsys *TX){
+    uint32_t *instr;
+    instr = (uint32_t *)TX->instructionBuff;
+    int i,j;
+
+    uint16_t masterLoop, curLoop, nestLoop;
+
+    uint8_t loopNum;
+    uint32_t loopTracker;
+    TX_LoopVars_t **loopPtr;
+    loopPtr = *(TX->loops);
+
+    loopNum=0;
+    while( loopPtr[loopNum]->is.active ){
+        if( ( *(loopPtr[loopNum]->actionList) ) != NULL ){
+            free( *(loopPtr[loopNum]->actionList) );
+        }
+        *(loopPtr[loopNum]->actionList) = malloc((loopPtr[loopNum]->nActions)*sizeof(void *));
+    }
+    
+    loopNum = 0;
+    loopTracker = 0;
+    while( ( loopPtr[loopNum]->is.active ) && ( loopPtr[loopNum]->currentAction < loopPtr[loopNum]->nActions ) ){
+        for( i = 0 ; i < (TX->nInstructions) ; i+=2 ) {
+            
+            if ( instr[i] & FPGA_LOOP_START ){
+                *(loopPtr[loopNum]->actionList)[ loopPtr[loopNum].currentAction ] = 
+                loopPtr[loopNum].currentAction++;
+                loopTracker |= ( 1 << ( instr[i+1] & 0xf ) );
+                j=i+4;
+                i+=2;
+
+                while( ( ( instr[j] ^ FPGA_LOOP_END_POINT ) | loopTracker ) && ( j < TX->nInstructions ) ){
+                    if ( instr[j] & FPGA_LOOP_START ){
+                        loopTracker |= ( 1 << ( instr[j+1] & 0xf ) );
+                        j+=4;
+                    } else if ( ( instr[j] & FPGA_LOOP_END_POINT ) && ( ( 1 << (instr[j+1] & 0xf) ) & loopTracker ) ) {
+                        loopTracker &= ~( 1 << (instr[j+1] & 0xf) );
+                    } else {
+                        j+=2;
+                    }
+                }
+            } else if ( instr[i] & ( FPGA_FIRE_CMD | FPGA_FIREAT_CMD | FPGA_SETLOC_CMD ) ){
+                loopTmp[0].nActions++;
+                i+=2;
+            } else {
+                i+=2;
+            }
+        
+        }
+    }
+}
+
+void setupLoops_tx(TXsys *TX){
 
     uint32_t *instr;
     instr = (uint32_t *)TX->instructionBuff;
@@ -12,16 +65,19 @@ void setupLoops_tx(TXvars *TX){
 
     uint16_t masterLoop, curLoop, nestLoop;
     free(*(TX->loopDefs));
-    *(TX->loopDefs) = (loopVars *)malloc((MAX_LOOPS+1)*sizeof(loopVars));
+    *(TX->loopDefs) = (TX_LoopVars_t *)malloc((MAX_LOOPS+1)*sizeof(TX_LoopVars_t));
     free(*(*(TX->loops)));
-    *(TX->loops) = (loopVars **)malloc((MAX_LOOPS+1)*sizeof(loopVars *));
- 
+    *(TX->loops) = (TX_LoopVars_t **)malloc((MAX_LOOPS+1)*sizeof(TX_LoopVars_t *));
+
+    // bitField to keep track of whether or not current instr exists within a loop 
     uint32_t loopTracker;
 
+    // user might define loops out of order: start_loop(3), start_loop(2), start_loop(4)
+    // logical order of the given loop nums is:  [logical](given): [0](3), [1](2), [2](4)
     uint8_t logicalLoopNum;
-    loopVars *loopTmp;
+    TX_LoopVars_t *loopTmp;
     loopTmp = *(TX->loopDefs);
-    loopVars **loopPtr;
+    TX_LoopVars_t **loopPtr;
     loopPtr = *(TX->loops);
 
     for( i=0 ; i < (MAX_LOOPS+1) ; i++ ){
@@ -30,6 +86,8 @@ void setupLoops_tx(TXvars *TX){
         loopTmp[i].is.topLevel = 0;
         loopTmp[i].is.iterator = 0;
         loopTmp[i].is.fireCmd = 0;
+        loopTmp[i].is.reversed = 0;
+        loopTmp[i].is.active = 0;
         loopTmp[i].start.loc = 0;
         loopTmp[i].end.loc = 0;
         loopTmp[i].increment = 0;
@@ -38,6 +96,7 @@ void setupLoops_tx(TXvars *TX){
         loopTmp[i].currentAction = 0;
     }
     loopTmp[0].is.topLevel = 1;
+    loopTmp[0].is.active = 1;
 
     for( i=0 ; i < (TX->nInstructions) ; i+=2 ) {
         if ( instr[i] & ARM_SETUP_ITERATOR ){
@@ -51,7 +110,8 @@ void setupLoops_tx(TXvars *TX){
             i+=2;
         }
     }
-    
+   
+    // 'loop[0]' is resevered for the program as a whole 
     loopPtr[0] = &loopTmp[0];
     loopTmp[0].loopNum.logical = 0;
     loopTracker = 0;
@@ -60,6 +120,7 @@ void setupLoops_tx(TXvars *TX){
             loopTmp[0].nActions++;
             loopTracker |= ( 1 << ( instr[i+1] & 0xf ) );
             j=i+4;
+            i+=2;
 
             while( ( ( instr[j] ^ FPGA_LOOP_END_POINT ) | loopTracker ) && ( j < TX->nInstructions ) ){
                 if ( instr[j] & FPGA_LOOP_START ){
@@ -86,13 +147,26 @@ void setupLoops_tx(TXvars *TX){
             masterLoop = curLoop+1;
             loopPtr[logicalLoopNumber] = &loopTmp[masterLoop];
             loopTmp[masterLoop].loopNum.logical = logicalLoopNumber;
+            loopTmp[masterLoop].is.active = 1;
 
             if  ( !loopTmp[masterLoop].is.iterator ){
                 loopTmp[masterLoop].start.pulse = instr[i+2] & 0xffff;
                 loopTmp[masterLoop].end.pulse = ( instr[i+2]>>16 ) & 0xffff;
 
                 if ( instr[i+3] ){
-                    loopTmp[masterLoop] = instr[i+3];
+                    if ( (int32_t)instr[i+3] < 0 ) {
+                        if( loopTmp[masterLoop].start.pulse > loopTmp[masterLoop].end.pulse ){
+                            loopTmp[masterLoop] = instr[i+3];
+                        } else {
+                            loopTmp[masterLoop] = ( instr[i+3] & ~(1<<31) );
+                        }
+                    } else {
+                        if( loopTmp[masterLoop].start.pulse > loopTmp[masterLoop].end.pulse ){
+                            loopTmp[masterLoop] = ( instr[i+3] | (1<<31) );
+                        } else {
+                            loopTmp[masterLoop] = instr[i+3];
+                        }
+                    }
                     loopTmp[masterLoop].is.reversed = ( loopTmp[masterLoop].start.pulse > loopTmp[masterLoop].end.pulse ) ? 1 : 0;
                 } else {
                     if ( loopTmp[masterLoop].start.pulse > loopTmp[masterLoop].end.pulse ){
@@ -136,23 +210,14 @@ void setupLoops_tx(TXvars *TX){
             loopTmp[masterLoop].nActions++;
             logicalLoopNumber++;
             i+=2;
-            
-
         }
     }
         
-    for( i = 0 ; i<logicalLoopNumber ; i++ ){
-        if( ( loopPtr[i]->actionList ) != NULL ){
-            free( *(loopPtr[i]->actionList) );
-        }
-        *(loopPtr[i]->actionList) = (TXactions_t *)malloc((loopPtr[i]->nActions)*sizeof(TXactions_t));
-    }
-
-    // TODO: space for TXactions has been allocated, needs to be populated now
+    TX->populateActionLists(TX);
 
 }
 
-void parseRecvdInstructions(TXvars *TX){
+void parseRecvdInstructions(TXsys *TX){
     
     uint32_t nLocs;
     uint32_t nCommands = 2;
@@ -265,23 +330,23 @@ void parseRecvdInstructions(TXvars *TX){
 
 
 
-void setChannelMask_tx(TXvars *TX, uint32_t chMask){
+void setChannelMask_tx(TXsys *TX, uint32_t chMask){
     DREF32(TX->channelMask) = chMask;
 }
 
-void setNumberOfLocations_tx(TXvars *TX, uint32_t nLocs){
+void setNumberOfLocations_tx(TXsys *TX, uint32_t nLocs){
     TX->nLocs = nLocs;
 	free(*(TX->phaseChargeBuff));
 	*(TX->phaseChargeBuff) = (char *)malloc(8*(TX->nLocs)*sizeof(uint32_t));
 }
 
-void setNumberOfInstructions_tx(TXvars *TX, uint32_t nInstructions){
+void setNumberOfInstructions_tx(TXsys *TX, uint32_t nInstructions){
     TX->nInstructions = nInstructions;
 	free(*(TX->instructionBuff));
 	*(TX->instructionBuff) = (char *)malloc(2*(TX->nInstructions)*sizeof(uint32_t));
 }
 
-void TX_Settings(TXvars *TX, ENETsock **ENET, ENETsock *INTR, uint32_t *msg){	
+void TX_Settings(TXsys *TX, ENETsock **ENET, ENETsock *INTR, uint32_t *msg){	
 	
 	switch(msg[0]){
 

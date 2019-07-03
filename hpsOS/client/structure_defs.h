@@ -5,21 +5,23 @@ struct BOARDsettings_;
 struct FPGAvars_;
 struct ADCchip_;
 struct RCVsys_;
-struct TXvars_;
-struct loopVars_;
-struct loopEnum_;
-union loopIncCntr_;
-struct TXactions_; 
+struct TXsys_;
+struct TX_LoopVars_;
+struct TX_LoopEnum_;
+union TX_LoopCntrs_;
+struct TX_Actions_; 
+struct TX_LoopFlags_;
 typedef struct ENETsock_ ENETsock;
 typedef struct BOARDsettings_ BOARDsettings;
 typedef struct FPGAvars_ FPGAvars;
 typedef struct ADCchip_ ADCchip;
 typedef struct RCVsys_ RCVsys;
-typedef struct TXvars_ TXvars;
-typedef struct loopVars_ loopVars_t;
-typedef struct loopEnum_ loopEnum_t;
-typedef union loopIncCntr_ loopIncCntr_t;
-typedef struct TXactions_ TXactions_t;
+typedef struct TXsys_ TXsys;
+typedef struct TX_LoopVars_ TX_LoopVars_t;
+typedef struct TX_LoopEnum_ TX_LoopEnum_t;
+typedef union TX_LoopCntrs_ TX_LoopCntrs_t;
+typedef struct TX_Actions_ TX_Actions_t;
+typedef struct TX_LoopFlags_ TX_LoopFlags_t;
 
 // function prototypes for ADC
 void powerOn_adc(RCVsys *RCV);
@@ -179,45 +181,57 @@ typedef struct RCVsys_{
 	uint32_t (*getInterruptMsg)(RCVsys *);
 } RCVsys;
 
-typedef struct loopEnum_{
+typedef struct TX_LoopEnum_{
     uint16_t logical : 8;
     uint16_t given : 8; 
-} loopEnum_t;
+} TX_LoopEnum_t;
 
-typedef struct loopFlags_{
+typedef struct TX_LoopFlags_{
     uint16_t topLevel : 1;
     uint16_t iterator : 1;
     uint16_t fireCmd : 1;
     uint16_t reversed : 1;
-} loopFlags_t;
+    uint16_t active : 1;
+} TX_LoopFlags_t;
 
-typedef union loopIncCntr_{
+typedef union TX_LoopCntrs_{
     uint32_t loc;
     uint32_t pulse; 
-} loopIncCntr_t;
+} TX_LoopCntrs_t;
 
-typedef struct TXactions_{
+typedef struct TX_Actions_{
 
-    void (*enterControlLoop)(TXvars *TX, uint32_t);
-    void (*updateFireCmdBuffer)(TXvars *TX, uint32_t);
-    void (*updateFireAtCmdBuffer)(TXvars *TX, uint32_t);
-} TXactions_t;
+    void (*enterControlLoop)(TXsys *TX, uint32_t);
+    void (*updateFireCmdBuffer)(TXsys *TX, uint32_t);
+    void (*updateFireAtCmdBuffer)(TXsys *TX, uint32_t);
+} TX_Actions_t;
 
-typedef struct loopVars_{
-    loopEnum_t loopNum;
-    loopFlags_t is;
-    loopIncCntr_t start;
-    loopIncCntr_t end;
+typedef struct TX_PhaseChargeReg_{
+	uint32_t volatile *ch0;
+	uint32_t volatile *ch1;
+	uint32_t volatile *ch2;
+	uint32_t volatile *ch3;
+	uint32_t volatile *ch4;
+	uint32_t volatile *ch5;
+	uint32_t volatile *ch6;
+	uint32_t volatile *ch7;
+} TX_PhaseChargeReg_t;
+
+typedef struct TX_LoopVars_{
+    TX_LoopEnum_t loopNum;
+    TX_LoopFlags_t is;
+    TX_LoopCntrs_t start;
+    TX_LoopCntrs_t end;
     int32_t increment;
-    loopIncCntr_t current;
+    TX_LoopCntrs_t current;
 
-    TXactions_t **actionList;
+    void ***actionList;
     uint32_t currentAction;
     uint32_t nActions;
      
-} loopVars_t;
+} TX_LoopVars_t;
  
-typedef struct TXvars_{
+typedef struct TXsys_{
 	uint32_t volatile *controlComms;
 	uint32_t volatile *channelMask;
 	uint32_t volatile *setInstructionReadAddr;
@@ -231,24 +245,10 @@ typedef struct TXvars_{
 	uint32_t volatile *interrupt1;
 	
 	uint32_t volatile **fireCmdPhaseCharge;
-	uint32_t volatile *fireCmdPhaseCharge0;
-	uint32_t volatile *fireCmdPhaseCharge1;
-	uint32_t volatile *fireCmdPhaseCharge2;
-	uint32_t volatile *fireCmdPhaseCharge3;
-	uint32_t volatile *fireCmdPhaseCharge4;
-	uint32_t volatile *fireCmdPhaseCharge5;
-	uint32_t volatile *fireCmdPhaseCharge6;
-	uint32_t volatile *fireCmdPhaseCharge7;
+    TX_PhaseChargeReg_t fire;
 	
 	uint32_t volatile **fireAtCmdPhaseCharge;
-	uint32_t volatile *fireAtCmdPhaseCharge0;
-	uint32_t volatile *fireAtCmdPhaseCharge1;
-	uint32_t volatile *fireAtCmdPhaseCharge2;
-	uint32_t volatile *fireAtCmdPhaseCharge3;
-	uint32_t volatile *fireAtCmdPhaseCharge4;
-	uint32_t volatile *fireAtCmdPhaseCharge5;
-	uint32_t volatile *fireAtCmdPhaseCharge6;
-	uint32_t volatile *fireAtCmdPhaseCharge7;
+    TX_PhaseChargeReg_t fireAt;
 	
 	uint16_t volatile *instructionTypeReg;
 	uint32_t volatile *instructionReg;
@@ -270,13 +270,13 @@ typedef struct TXvars_{
     char **phaseChargeBuff;
     char **instructionBuff;
 
-    loopVars_t **loopDefs;
-    loopVars_t ***loops;
+    TX_LoopVars_t **loopDefs;
+    TX_LoopVars_t ***loops;
 	
-	void (*resetTX_vars)(struct TXvars *);
-    void (*setChannelMask)(struct TXvars *, uint32_t);
-    void (*setupLoops)(struct TXvars *);
-} TXvars;
+	void (*resetTX_vars)(struct TXsys *);
+    void (*setChannelMask)(struct TXsys *, uint32_t);
+    void (*setupLoops)(struct TXsys *);
+} TXsys;
 
 
 typedef struct UserProgram_{
@@ -383,7 +383,7 @@ int RCV_setup(FPGAvars *FPGA, RCVsys *RCV, ADCchip *ADC, BOARDsettings *board){
 }
 
 
-int TX_init(FPGAvars *FPGA, TXvars *TX){
+int TX_init(FPGAvars *FPGA, TXsys *TX){
 	
 	TX->interrupt0 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_TX_INTERRUPT_GENERATOR_0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	TX->interrupt1 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_TX_INTERRUPT_GENERATOR_1_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
@@ -447,7 +447,7 @@ int TX_init(FPGAvars *FPGA, TXvars *TX){
 }
 
 
-void loadBoardData(RCVsys *RCV, TXvars *TX){ // load the boards specific data from files stored on SoC		
+void loadBoardData(RCVsys *RCV, TXsys *TX){ // load the boards specific data from files stored on SoC		
 	char const* const fileName = "boardData";
     FILE* file = fopen(fileName, "r");
     char line[256];
