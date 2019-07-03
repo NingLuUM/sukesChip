@@ -1,0 +1,341 @@
+
+
+def genTransducerOutputControl():
+	file = open("tx_transducerOutputControl.v","w")
+	for n in range(0,8):
+		
+		file.write('{}{}{}{}{}'.format('if ( !transducerSafetyTimer[',n,'] && !otxPinOutput[',n,'] ) begin\n'))
+		file.write('{}{}{}{}{}'.format('\ttransducerChargeTimeSafetyMask[',n,'] <= itxDisableTransducerSafetyControls[',n,'];\n'))
+		file.write('{}{}{}{}{}'.format('\ttransducerSafetyTimer[',n,'] <= ( transducerSafetyTimer[',n,']+1\'b1 );\n'))
+		file.write('end\n')
+		file.write('{}{}{}'.format('else if ( transducerSafetyTimer[',n,'] < transducerSafetyTimeout )\n'))
+		file.write('begin\n')
+		file.write('{}{}{}{}{}'.format('\ttransducerSafetyTimer[',n,'] <= ( transducerSafetyTimer[',n,']+1\'b1 );\n'))
+		file.write('end\n')
+		file.write('{}{}{}'.format('else if ( transducerSafetyTimer[',n,'] == transducerSafetyTimeout )\n'))
+		file.write('begin\n')
+		file.write('{}{}{}{}{}'.format('\tif ( otxPinOutput[',n,'] & !itxDisableTransducerSafetyControls[',n,'] ) begin\n'))
+		file.write('{}{}{}'.format('\t\totxPinOutput[',n,'] <= 0;\n'))
+		file.write('{}{}{}'.format('\t\ttransducerChargeTimeSafetyMask[',n,'] <= 0;\n'))
+		file.write('{}{}{}'.format('\t\ttransducerSafetyTimer[',n,'] <= 9\'b0;\n'))
+		file.write('\tend else begin\n')
+		file.write('{}{}{}'.format('\t\ttransducerChargeTimeSafetyMask[',n,'] <= 1;\n'))
+		file.write('\tend\n')
+		file.write('end\n\n')
+	file.close()
+
+genTransducerOutputControl()
+
+def genUpdateReadAddr():
+	file = open("tx_updateReadAddr.v","w")
+	
+	file.write('if ( !txIsLoopEndPoint ) begin\n')
+	file.write('\totxReadAddr <= ( otxReadAddr + 1\'b1 );\n')
+	file.write('end else begin\n')
+	for n in range(0,16):
+		if n==0:
+			file.write('{}{}{}{}{}'.format('\tif ( loopEndAddr[',n,'] && ( loopEndAddr[',n,'] == otxReadAddr ) ) begin\n'))
+		else:
+			file.write('{}{}{}{}{}'.format('\tend else if ( loopEndAddr[',n,'] && ( loopEndAddr[',n,'] == otxReadAddr ) ) begin\n'))
+		file.write('{}{}{}'.format('\t\tif ( loopCounter[',n,'] > 1 ) begin\n'))
+		file.write('{}{}{}'.format('\t\t\tcurrentlyInLoop[',n,'] <= 1;\n'))
+		file.write('{}{}{}{}{}'.format('\t\t\tloopCounter[',n,'] <= ( loopCounter[',n,'] - 1\'b1 );\n'))
+		file.write('{}{}{}'.format('\t\t\totxReadAddr <= loopStartAddr[',n,'];\n'))
+		file.write('\t\tend else begin\n')
+		file.write('{}{}{}'.format('\t\t\tcurrentlyInLoop[',n,'] <= 0;\n'))
+		file.write('{}{}{}{}{}'.format('\t\t\tloopCounter[',n,'] <= loopCounterRef[',n,'];\n'))
+		file.write('\t\t\totxReadAddr <= ( otxReadAddr + 1\'b1 );\n')
+		file.write('\t\tend\n\n')
+		
+	file.write('\tend else begin\n')
+	file.write('\t\terrorState0 <= 0;\n')
+	file.write('\t\terrorState1 <= loopEndAddr_isLoopEndPoint_Mismatch;\n')
+	file.write('\t\tstate <= errorDetected;\n')
+	file.write('\tend\n')
+	file.write('end\n')
+	file.close()
+	
+#~ genUpdateReadAddr()
+
+
+
+
+def genOutputBufferShiftNew():
+	file = open("tx_shiftOutputBuffer.v","w")
+	file.write('if ( currentBufferDepth ) begin\n')
+	
+	file.write('\tif ( itxOutputControlReg && ( itxOutputControlReg ^ lastOutputControlRegLoadedToBuffer ) || ( itxTimingReg ^ lastTimingRegLoadedToBuffer ) ) begin\n')
+	file.write('\t\tendInBuffer <= ( txFinishedMaster ) ? 1\'b1 : endInBuffer;\n')
+	file.write('\t\toutputControlRegBuffer[currentBufferDepth] <= itxOutputControlReg;\n')
+	file.write('\t\ttimingRegBuffer[currentBufferDepth] <= itxTimingReg;\n')
+	file.write('\t\tlastOutputControlRegLoadedToBuffer <= itxOutputControlReg;\n')
+	file.write('\t\tlastTimingRegLoadedToBuffer <= itxTimingReg;\n')
+	
+	file.write('\tend else if ( !itxOutputControlReg && ( itxOutputControlReg ^ lastOutputControlRegLoadedToBuffer ) || ( itxTimingReg ^ lastTimingRegLoadedToBuffer ) ) begin\n')
+	file.write('\t\tendInBuffer <= 1\'b1;\n')
+	file.write('\t\toutputControlRegBuffer[currentBufferDepth] <= (1\'b1 << 31);\n')
+	file.write('\t\ttimingRegBuffer[currentBufferDepth] <= 0;\n')
+	file.write('\t\tlastOutputControlRegLoadedToBuffer <= (1\'b1 << 31);\n')
+	file.write('\t\tlastTimingRegLoadedToBuffer <= 0;\n')
+	
+	file.write('\tend else begin\n')
+	file.write('\t\toutputControlRegBuffer[currentBufferDepth] <= 0;\n')
+	file.write('\t\ttimingRegBuffer[currentBufferDepth] <= 0;\n')
+	file.write('\t\tcurrentBufferDepth <= ( currentBufferDepth - 1\'b1 );\n')
+	file.write('\tend\n\n')
+
+	file.write('\tif ( outputControlRegBuffer[1][txWaitForExternalTrigBit] || outputControlRegBuffer[1][txArmProcessorHookBit] ) begin\n')
+	file.write('\t\toutputControlRegHoldBuffer <= outputControlRegBuffer[1];\n')
+	file.write('\t\ttimingRegHoldBuffer <= timingRegBuffer[1];\n')
+	file.write('\t\twaitForTrigFlag <= outputControlRegBuffer[1][txWaitForExternalTrigBit];\n')
+	file.write('\t\twaitForArmFlag <= outputControlRegBuffer[1][txArmProcessorHookBit];\n')
+	file.write('\tend else begin\n')
+	file.write('\t\toutputControlRegBuffer[0] <= outputControlRegBuffer[1];\n')
+	file.write('\t\ttimingRegBuffer[0] <= timingRegBuffer[1];\n')
+	file.write('\tend\n')
+	
+	for n in range(1,31):
+		file.write('{}{}{}'.format('\tif ( currentBufferDepth > ',n,' ) begin\n'))
+		file.write('{}{}{}{}{}'.format('\t\toutputControlRegBuffer[',n,'] <= outputControlRegBuffer[',n+1,'];\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttimingRegBuffer[',n,'] <= timingRegBuffer[',n+1,'];\n'))
+		file.write('\tend\n')
+	
+	
+	file.write('\nend else if ( !currentBufferDepth ) begin\n')
+	file.write('\tif ( ( itxOutputControlReg ^ lastOutputControlRegLoadedToBuffer ) || ( itxTimingReg ^ lastTimingRegLoadedToBuffer ) ) begin\n')
+	file.write('\t\tif ( txFinishedMaster || !itxOutputControlReg ) \n')
+	file.write('\t\t\tbegin\n')
+	file.write('\t\t\t\tstate <= programDone;\n')
+	file.write('\t\t\tend\n')
+	file.write('\t\telse\n')
+	file.write('\t\t\tbegin\n')
+	file.write('\t\t\t\tif ( itxOutputControlReg[txWaitForExternalTrigBit] || itxOutputControlReg[txArmProcessorHookBit] ) begin\n')
+	file.write('\t\t\t\t\toutputControlRegHoldBuffer <= itxOutputControlReg;\n')
+	file.write('\t\t\t\t\ttimingRegHoldBuffer <= itxTimingReg;\n')
+	file.write('\t\t\t\t\twaitForTrigFlag <= itxOutputControlReg[txWaitForExternalTrigBit];\n')
+	file.write('\t\t\t\t\twaitForArmFlag <= itxOutputControlReg[txArmProcessorHookBit];\n')
+	file.write('\t\t\t\tend else begin\n')
+	file.write('\t\t\t\t\toutputControlRegBuffer[0] <= itxOutputControlReg;\n')
+	file.write('\t\t\t\t\ttimingRegBuffer[0] <= itxTimingReg;\n')
+	file.write('\t\t\t\tend\n')
+	file.write('\t\t\t\tlastOutputControlRegLoadedToBuffer <= itxOutputControlReg;\n')
+	file.write('\t\t\t\tlastTimingRegLoadedToBuffer <= itxTimingReg;\n')
+	file.write('\t\t\tend\n')
+	file.write('\tend else begin\n')
+	file.write('\t\toutputControlRegBuffer[0] <= 0;\n')
+	file.write('\t\ttimingRegBuffer[0] <= 0;\n')
+	file.write('\t\temptyBufferFlag <= 1\'b1;\n')
+	file.write('\tend\n')
+	file.write('end\n')
+
+#~ genOutputBufferShiftNew()
+
+
+def genOutputBufferShift():
+	file = open("tx_shiftOutputBuffer.v","w")
+	file.write('if ( currentBufferDepth ) begin\n')
+	file.write('\tif ( outputControlRegBuffer[1][txWaitForExternalTrigBit] || outputControlRegBuffer[1][txArmProcessorHookBit] ) begin \n')
+	file.write('\t\toutputControlRegHoldBuffer <= outputControlRegBuffer[1];\n')
+	file.write('\t\ttimingRegHoldBuffer <= timingRegBuffer[1];\n')
+	file.write('\t\twaitForTrigFlag <= outputControlRegBuffer[1][txWaitForExternalTrigBit];\n')
+	file.write('\t\twaitForArmFlag <= outputControlRegBuffer[1][txArmProcessorHookBit];\n')
+	file.write('\tend else begin\n')
+	file.write('\t\toutputControlRegBuffer[0] <= outputControlRegBuffer[1];\n')
+	file.write('\t\ttimingRegBuffer[0] <= timingRegBuffer[1];\n')
+	file.write('\tend\n')
+		
+	file.write('end else if ( !currentBufferDepth && ( ( itxOutputControlReg ^ lastOutputControlRegLoadedToBuffer ) || ( itxTimingReg ^ lastTimingRegLoadedToBuffer ) ) ) begin\n')
+	file.write('\tif ( itxOutputControlReg[txWaitForExternalTrigBit] || itxOutputControlReg[txArmProcessorHookBit] ) begin\n')
+	file.write('\t\toutputControlRegHoldBuffer <= itxOutputControlReg;\n')
+	file.write('\t\ttimingRegHoldBuffer <= itxTimingReg;\n')
+	file.write('\t\twaitForTrigFlag <= itxOutputControlReg[txWaitForExternalTrigBit];\n')
+	file.write('\t\twaitForArmFlag <= itxOutputControlReg[txArmProcessorHookBit];\n')
+	file.write('\tend else begin\n')
+	file.write('\t\toutputControlRegBuffer[0] <= itxOutputControlReg;\n')
+	file.write('\t\ttimingRegBuffer[0] <= itxTimingReg;\n')
+	file.write('\tend\n')
+	file.write('\tlastOutputControlRegLoadedToBuffer <= itxOutputControlReg;\n')
+	file.write('\tlastTimingRegLoadedToBuffer <= itxTimingReg;\n')
+	file.write('end else begin\n')
+	file.write('\toutputControlRegBuffer[0] <= 0;\n')
+	file.write('\ttimingRegBuffer[0] <= 0;\n')
+	file.write('\temptyBufferFlag <= 1\'b1;\n')
+	file.write('end\n\n')
+	for n in range(1,63):
+		file.write('{}{}{}'.format('if ( currentBufferDepth > ',n,' ) begin\n'))
+		file.write('{}{}{}{}{}'.format('\toutputControlRegBuffer[',n,'] <= outputControlRegBuffer[',n+1,'];\n'))
+		file.write('{}{}{}{}{}'.format('\ttimingRegBuffer[',n,'] <= timingRegBuffer[',n+1,'];\n'))
+		
+		file.write('{}{}{}'.format('end else if ( ( currentBufferDepth == ',n,' ) && ( ( itxOutputControlReg ^ lastOutputControlRegLoadedToBuffer ) || ( itxTimingReg ^ lastTimingRegLoadedToBuffer ) ) ) begin\n'))
+		file.write('\toutputControlRegBuffer[currentBufferDepth] <= itxOutputControlReg;\n')
+		file.write('\ttimingRegBuffer[currentBufferDepth] <= itxTimingReg;\n')
+		file.write('\tlastOutputControlRegLoadedToBuffer <= itxOutputControlReg;\n')
+		file.write('\tlastTimingRegLoadedToBuffer <= itxTimingReg;\n')
+		
+		file.write('{}{}{}'.format('end else if ( ( currentBufferDepth == ',n,' ) && ( itxOutputControlReg == lastOutputControlRegLoadedToBuffer ) && ( itxTimingReg == lastTimingRegLoadedToBuffer ) ) begin\n'))
+		file.write('\toutputControlRegBuffer[currentBufferDepth] <= 0;\n')
+		file.write('\ttimingRegBuffer[currentBufferDepth] <= 0;\n')
+		file.write('\tcurrentBufferDepth <= ( currentBufferDepth - 1\'b1 );\n')
+		
+		file.write('{}{}{}'.format('end else if ( currentBufferDepth < ',n,' ) begin\n'))
+		file.write('{}{}{}{}{}'.format('\toutputControlRegBuffer[',n,'] <= ',0,';\n'))
+		file.write('{}{}{}{}{}'.format('\ttimingRegBuffer[',n,'] <= ',0,';\nend\n\n'))
+	
+	file.write('if ( ( currentBufferDepth == maxBufferAddr ) && ( ( itxOutputControlReg ^ lastOutputControlRegLoadedToBuffer ) || ( itxTimingReg ^ lastTimingRegLoadedToBuffer ) ) ) begin\n')
+	file.write('\toutputControlRegBuffer[currentBufferDepth] <= itxOutputControlReg;\n')
+	file.write('\ttimingRegBuffer[currentBufferDepth] <= itxTimingReg;\n')
+	file.write('\tlastOutputControlRegLoadedToBuffer <= itxOutputControlReg;\n')
+	file.write('\tlastTimingRegLoadedToBuffer <= itxTimingReg;\n')
+	file.write('end else if ( ( currentBufferDepth == maxBufferAddr ) && ( itxOutputControlReg == lastOutputControlRegLoadedToBuffer ) && ( itxTimingReg == lastTimingRegLoadedToBuffer ) ) begin\n')
+	file.write('\toutputControlRegBuffer[currentBufferDepth] <= 0;\n')
+	file.write('\ttimingRegBuffer[currentBufferDepth] <= 0;\n')
+	file.write('\tcurrentBufferDepth <= ( currentBufferDepth - 1\'b1 );\n')
+	file.write('end\n')
+	file.close()
+
+
+#~ genOutputBufferShift()
+
+
+
+
+
+
+def genTransducerOutputControl1():
+	file = open("tx_transducerOutputControl.v","w")
+	for n in range(0,8):
+		
+		file.write('{}{}{}{}{}{}{}'.format('if ( ( transducerSafetyTimer[',n,'] < transducerSafetyTimeout ) && transducerLastSetTo[',n,'] && transducerOutput[',n,'] )\n'))	
+		file.write('\tbegin\n')
+		file.write('{}{}{}{}{}'.format('\t\ttransducerSafetyTimer[',n,'] <= transducerSafetyTimer[',n,']+1\'b1;\n'))	
+		file.write('\tend\n')
+
+		file.write('{}{}{}{}{}{}{}'.format('else if ( ( transducerSafetyTimer[',n,'] < transducerSafetyTimeout ) && transducerLastSetTo[',n,'] && !transducerOutput[',n,'] )\n')) 
+		file.write('\tbegin\n')
+		file.write('{}{}{}{}{}{}{}'.format('\t\totxPinOutput[',n,'] <= ( transducerOutput[',n,'] & transducerUserMask[',n,'] );\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastInputValue[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastSetTo[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}'.format('\t\ttransducerSafetyTimer[',n,'] <= 0;\n'))
+		file.write('\tend\n')
+	
+		file.write('{}{}{}{}{}'.format('else if ( ( transducerSafetyTimer[',n,'] < transducerSafetyTimeout ) && !transducerLastSetTo[',n,'] )\n'))
+		file.write('\tbegin\n')
+		file.write('{}{}{}{}{}'.format('\t\ttransducerSafetyTimer[',n,'] <= transducerSafetyTimer[',n,']+1\'b1;\n'))
+		file.write('{}{}{}{}{}'.format('\t\tif ( transducerLastInputValue[',n,'] ^ transducerOutput[',n,'] ) begin\n'))
+		file.write('{}{}{}'.format('\t\t\ttransducerChargeTimeExceededFlag[',n,'] <= 0;\n'))
+		file.write('\t\tend\n')
+		file.write('\tend\n')
+		
+		file.write('{}{}{}{}{}'.format('else if ( ( transducerSafetyTimer[',n,'] == transducerSafetyTimeout ) && transducerChargeTimeExceededFlag[',n,'] )\n')) 
+		file.write('\tbegin\n')
+		file.write('{}{}{}{}{}'.format('\t\tif( transducerLastInputValue[',n,'] ^ transducerOutput[',n,'] ) begin\n'))
+		file.write('{}{}{}{}{}'.format('\t\t\ttransducerLastInputValue[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}'.format('\t\t\ttransducerChargeTimeExceededFlag[',n,'] <= 0;\n'))
+		file.write('\t\tend\n')
+		file.write('\tend\n')
+	
+		file.write('{}{}{}{}{}{}{}'.format('else if ( ( transducerSafetyTimer[',n,'] == transducerSafetyTimeout ) && transducerLastSetTo[',n,'] && transducerOutput[',n,'] )\n'))
+		file.write('\tbegin\n')
+		file.write('{}{}{}{}{}'.format('\t\totxPinOutput[',n,'] <= ( 1\'b0 & transducerUserMask[',n,'] );\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastInputValue[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}'.format('\t\ttransducerLastSetTo[',n,'] <= 0;\n'))
+		file.write('{}{}{}'.format('\t\ttransducerSafetyTimer[',n,'] <= 0;\n'))
+		file.write('{}{}{}'.format('\t\ttransducerChargeTimeExceededFlag[',n,'] <= 1;\n'))
+		file.write('\tend\n')
+
+		file.write('{}{}{}{}{}{}{}{}{}'.format('else if ( ( transducerSafetyTimer[',n,'] == transducerSafetyTimeout ) && !transducerLastSetTo[',n,'] && transducerOutput[',n,'] && !transducerChargeTimeExceededFlag[',n,'] )\n'))
+		file.write('\tbegin\n')
+		file.write('{}{}{}{}{}{}{}'.format('\t\totxPinOutput[',n,'] <= ( transducerOutput[',n,'] & transducerUserMask[',n,'] );\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastInputValue[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastSetTo[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}'.format('\t\ttransducerSafetyTimer[',n,'] <= 0;\n'))
+		file.write('\tend\n')
+
+		file.write('{}{}{}{}{}{}{}'.format('else if ( ( transducerSafetyTimer[',n,'] == transducerSafetyTimeout ) && transducerLastSetTo[',n,'] && !transducerOutput[',n,'] ) \n')) 
+		file.write('\tbegin\n')
+		file.write('{}{}{}'.format('\t\ttransducerChargeTimeExceededFlag[',n,'] <= 0;\n'))
+		file.write('{}{}{}{}{}{}{}'.format('\t\totxPinOutput[',n,'] <= ( transducerOutput[',n,'] & transducerUserMask[',n,'] );\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastInputValue[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastSetTo[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}'.format('\t\ttransducerSafetyTimer[',n,'] <= 0;\n'))
+		file.write('\tend\n\n')
+		
+	file.write('if ( ledsLastSetTo ^ ledOutput ) begin\n')
+	file.write('\totxPinOutput[15:8] <= ledOutput;\n')
+	file.write('\tledsLastSetTo <= ledOutput;\n')
+	file.write('end\n')
+	file.close()
+
+#~ genTransducerOutputControl()
+
+def genTransducerOutputControl2():
+	file = open("tx_transducerOutputControl.v","w")
+	for n in range(0,8):
+		file.write('{}{}{}'.format('if ( transducerSafetyTimer[',n,'] < transducerSafetyTimeout ) \n'))
+		file.write('begin\n')
+		file.write('{}{}{}{}{}'.format('\tif ( transducerLastSetTo[',n,'] && transducerOutput[',n,'] )\n'))
+		file.write('\tbegin\n')
+		file.write('{}{}{}{}{}'.format('\t\ttransducerSafetyTimer[',n,'] <= transducerSafetyTimer[',n,']+1\'b1;\n'))
+		file.write('\tend\n')
+
+		file.write('{}{}{}{}{}'.format('\telse if ( transducerLastSetTo[',n,'] && !transducerOutput[',n,'] ) \n'))
+		file.write('\tbegin\n')
+		file.write('{}{}{}{}{}{}{}'.format('\t\totxPinOutput[',n,'] <= ( transducerOutput[',n,'] & transducerUserMask[',n,'] );\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastInputValue[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastSetTo[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}'.format('\t\ttransducerSafetyTimer[',n,'] <= 0;\n'))
+		file.write('\tend\n')
+		file.write('\telse \n')
+		file.write('\tbegin\n')
+		file.write('{}{}{}{}{}'.format('\t\ttransducerSafetyTimer[',n,'] <= transducerSafetyTimer[',n,']+1\'b1;\n'))
+		file.write('{}{}{}{}{}'.format('\t\tif ( transducerLastInputValue[',n,'] ^ transducerOutput[',n,'] ) begin\n'))
+		file.write('{}{}{}'.format('\t\t\ttransducerChargeTimeExceededFlag[',n,'] <= 0;\n'))
+		file.write('\t\tend\n')
+		file.write('\tend\n')
+		file.write('end\n')
+		file.write('{}{}{}'.format('else if ( transducerSafetyTimer[',n,'] == transducerSafetyTimeout )\n'))
+		file.write('begin\n')
+		file.write('{}{}{}'.format('\tif ( transducerChargeTimeExceededFlag[',n,'] )\n'))
+		file.write('\tbegin\n')
+		file.write('{}{}{}{}{}'.format('\t\tif( transducerLastInputValue[',n,'] ^ transducerOutput[',n,'] ) begin\n'))
+		file.write('{}{}{}{}{}'.format('\t\t\ttransducerLastInputValue[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}'.format('\t\t\ttransducerChargeTimeExceededFlag[',n,'] <= 0;\n'))
+		file.write('\t\tend\n')
+		file.write('\tend\n')
+
+		file.write('{}{}{}{}{}'.format('\telse if ( transducerLastSetTo[',n,'] && transducerOutput[',n,'] )\n'))
+		file.write('\tbegin\n')
+		file.write('{}{}{}{}{}'.format('\t\totxPinOutput[',n,'] <= ( 1\'b0 & transducerUserMask[',n,'] );\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastInputValue[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}'.format('\t\ttransducerLastSetTo[',n,'] <= 0;\n'))
+		file.write('{}{}{}'.format('\t\ttransducerSafetyTimer[',n,'] <= 0;\n'))
+		file.write('{}{}{}'.format('\t\ttransducerChargeTimeExceededFlag[',n,'] <= 1;\n'))
+		file.write('\tend\n')
+
+		file.write('{}{}{}{}{}'.format('\telse if ( !transducerLastSetTo[',n,'] && transducerOutput[',n,'] )\n'))
+		file.write('\tbegin\n')
+		file.write('{}{}{}{}{}{}{}'.format('\t\totxPinOutput[',n,'] <= ( transducerOutput[',n,'] & transducerUserMask[',n,'] );\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastInputValue[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastSetTo[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}'.format('\t\ttransducerSafetyTimer[',n,'] <= 0;\n'))
+		file.write('\tend\n')
+
+		file.write('{}{}{}{}{}'.format('\telse if ( transducerLastSetTo[',n,'] && !transducerOutput[',n,'] ) \n'))
+		file.write('\tbegin\n')
+		file.write('{}{}{}'.format('\t\ttransducerChargeTimeExceededFlag[',n,'] <= 0;\n'))
+		file.write('{}{}{}{}{}{}{}'.format('\t\totxPinOutput[',n,'] <= ( transducerOutput[',n,'] & transducerUserMask[',n,'] );\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastInputValue[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}{}{}'.format('\t\ttransducerLastSetTo[',n,'] <= transducerOutput[',n,'];\n'))
+		file.write('{}{}{}'.format('\t\ttransducerSafetyTimer[',n,'] <= 0;\n'))
+		file.write('\tend\n')
+		file.write('end\n\n')
+		
+	file.write('if ( ledsLastSetTo ^ ledOutput ) begin\n')
+	file.write('\totxPinOutput[15:8] <= ledOutput;\n')
+	file.write('\tledsLastSetTo <= ledOutput;\n')
+	file.write('end\n')
+	file.close()
+	
+#~ genTransducerOutputControl2()
+
+
