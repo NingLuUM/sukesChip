@@ -6,22 +6,25 @@ struct FPGAvars_;
 struct ADCchip_;
 struct RCVsys_;
 struct TXsys_;
-struct TX_LoopVars_;
-struct TX_LoopEnum_;
-union TX_LoopCntrs_;
-struct TX_Actions_; 
-struct TX_LoopFlags_;
+struct TX_OutputControlProgram_;
+struct TX_OCProgEnum_;
+union TX_OCProgLoopCntrs_;
+struct TX_OCProgStatusFlags_;
+struct TX_OCProgControlFlags_;
 typedef struct ENETsock_ ENETsock;
 typedef struct BOARDsettings_ BOARDsettings;
 typedef struct FPGAvars_ FPGAvars;
 typedef struct ADCchip_ ADCchip;
 typedef struct RCVsys_ RCVsys;
 typedef struct TXsys_ TXsys;
-typedef struct TX_LoopVars_ TX_LoopVars_t;
-typedef struct TX_LoopEnum_ TX_LoopEnum_t;
-typedef union TX_LoopCntrs_ TX_LoopCntrs_t;
-typedef struct TX_Actions_ TX_Actions_t;
-typedef struct TX_LoopFlags_ TX_LoopFlags_t;
+typedef struct TX_OutputControlProgram_ TX_OutputControlProgram_t;
+typedef struct TX_OCProgEnum_ TX_OCProgEnum_t;
+typedef union TX_OCProgLoopCntrs_ TX_OCProgLoopCntrs_t;
+typedef struct TX_OCProgStatusFlags_ TX_OCProgStatusFlags_t;
+typedef struct TX_OCProgControlFlags_ TX_OCProgControlFlags_t;
+
+// prototype of TX_Action function pointers
+typedef void (*TX_Action_f)(TXsys *,uint32_t);
 
 // function prototypes for ADC
 void powerOn_adc(RCVsys *RCV);
@@ -181,30 +184,26 @@ typedef struct RCVsys_{
 	uint32_t (*getInterruptMsg)(RCVsys *);
 } RCVsys;
 
-typedef struct TX_LoopEnum_{
+typedef struct TX_OCProgEnum_{
     uint16_t logical : 8;
     uint16_t given : 8; 
-} TX_LoopEnum_t;
+} TX_OCProgEnum_t;
 
-typedef struct TX_LoopFlags_{
+typedef struct TX_OCProgControlFlags_{
     uint16_t topLevel : 1;
     uint16_t iterator : 1;
     uint16_t fireCmd : 1;
     uint16_t reversed : 1;
     uint16_t active : 1;
-} TX_LoopFlags_t;
+    uint16_t updateFire : 1;
+    uint16_t updateFireAt : 1;
+    uint16_t reloadFireAt : 1;
+} TX_OCProgControlFlags_t;
 
-typedef union TX_LoopCntrs_{
+typedef union TX_OCProgLoopCntrs_{
     uint32_t loc;
     uint32_t pulse; 
-} TX_LoopCntrs_t;
-
-typedef struct TX_Actions_{
-
-    void (*enterControlLoop)(TXsys *TX, uint32_t);
-    void (*updateFireCmdBuffer)(TXsys *TX, uint32_t);
-    void (*updateFireAtCmdBuffer)(TXsys *TX, uint32_t);
-} TX_Actions_t;
+} TX_OCProgLoopCntrs_t;
 
 typedef struct TX_PhaseChargeReg_{
 	uint32_t volatile *ch0;
@@ -217,19 +216,47 @@ typedef struct TX_PhaseChargeReg_{
 	uint32_t volatile *ch7;
 } TX_PhaseChargeReg_t;
 
-typedef struct TX_LoopVars_{
-    TX_LoopEnum_t loopNum;
-    TX_LoopFlags_t is;
-    TX_LoopCntrs_t start;
-    TX_LoopCntrs_t end;
-    int32_t increment;
-    TX_LoopCntrs_t current;
+typedef struct TX_OutputControlProgram_{
 
-    void ***actionList;
-    uint32_t currentAction;
+    // loops are treated as numbered sub-programs that can call each other, progNum is the identifier 
+    // 16bit - [7:0]=logical (order of appearance in program), [15:8]=given (user-declared loopNum)
+    TX_OCProgEnum_t progNum;
+
+    // contains information about what type of loop this is, whether it's active, and how it should run
+    // anon union is just for linguistic convenience when refering to/accessing fields later 
+    union {
+        TX_OCProgControlFlags_t is;
+        TX_OCProgControlFlags_t has;
+        TX_OCProgControlFlags_t atExit;
+        TX_OCProgControlFlags_t atLoopEnd;
+    };
+
+    // loop counters
+    TX_OCProgLoopCntrs_t start;
+    TX_OCProgLoopCntrs_t end;
+    TX_OCProgLoopCntrs_t current;
+    int32_t increment;
+
+    // fireAt can exist across loops, these keep track of where it is 
+    struct {
+        uint32_t first;
+        uint32_t last;
+        uint32_t *current;
+    } fireAt;
+
+    // pointer to loop from which current loop was called
+    TX_OutputControlProgram_t *parent;
+
+    // pointer(s) to all loops called from within this one
+    uint32_t nChildren;
+    TX_OutputControlProgram_t **children;
+
+    // list of actions to be taken within the current loop
     uint32_t nActions;
+    uint32_t currentAction;
+    TX_Action_f **actionList;
      
-} TX_LoopVars_t;
+} TX_OutputControlProgram_t;
  
 typedef struct TXsys_{
 	uint32_t volatile *controlComms;
@@ -244,34 +271,34 @@ typedef struct TXsys_{
 	uint32_t volatile *interrupt0;
 	uint32_t volatile *interrupt1;
 	
-	uint32_t volatile **fireCmdPhaseCharge;
-    TX_PhaseChargeReg_t fire;
+    // mapped FPGA memory for output pins
+    TX_PhaseChargeReg_t fireReg;
+    TX_PhaseChargeReg_t fireAtReg;
 	
-	uint32_t volatile **fireAtCmdPhaseCharge;
-    TX_PhaseChargeReg_t fireAt;
-	
-	uint16_t volatile *instructionTypeReg;
+    // mapped FPGA memory regions
+	uint32_t volatile *instructionTypeReg;
 	uint32_t volatile *instructionReg;
 	uint32_t volatile *timingReg;
 	uint32_t volatile *loopAddressReg;
 	uint32_t volatile *loopCounterReg;
 
-	
-	uint16_t **instructionTypeReg_local;
+    // local storage to hold user program	
+	uint32_t **instructionTypeReg_local;
 	uint32_t **instructionReg_local;
 	uint32_t **timingReg_local;
 	uint32_t **loopAddressReg_local;
 	uint32_t **loopCounterReg_local;
 
+    // variables used to setup ENET to recv phaseCharge data and user defined program
     uint32_t recvType;
     uint32_t nLocs;
     uint32_t nInstructions;
-    
     char **phaseChargeBuff;
     char **instructionBuff;
 
-    TX_LoopVars_t **loopDefs;
-    TX_LoopVars_t ***loops;
+    // 
+    TX_OutputControlProgram_t **progDefs; // holds loop variables in user-given order
+    TX_OutputControlProgram_t ***progs; // points to progDefs, but in a logically ordered way
 	
 	void (*resetTX_vars)(struct TXsys *);
     void (*setChannelMask)(struct TXsys *, uint32_t);
