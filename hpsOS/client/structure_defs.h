@@ -26,6 +26,15 @@ typedef struct TX_OCProgControlFlags_ TX_OCProgControlFlags_t;
 // prototype of TX_Action function pointers
 typedef void (*TX_Action_f)(TXsys *,uint32_t);
 
+
+
+// function prototypes for TX
+void minimizeRedundantInterrupts_tx(TXsys *TX);
+void defineSubPrograms_tx(TXsys *TX);
+void parseRecvdInstructions_tx(TXsys *TX);
+void populateActionLists_tx(TXsys *TX);
+
+
 // function prototypes for ADC
 void powerOn_adc(RCVsys *RCV);
 void powerOff_adc(RCVsys *RCV);
@@ -33,6 +42,7 @@ void sync_adc(RCVsys *RCV);
 void initializeSettings_adc(RCVsys *RCV);
 void issueDirectSerialCommand_adc(RCVsys *RCV, uint32_t addr, uint32_t cmd);
 void setGain_adc(RCVsys *RCV, uint32_t coarseGain, uint32_t fineGain);
+
 
 // function prototypes for RCV subsystem
 void resetVars_rcv(RCVsys *RCV);	
@@ -193,28 +203,18 @@ typedef struct TX_OCProgControlFlags_{
     uint16_t topLevel : 1;
     uint16_t iterator : 1;
     uint16_t fireCmd : 1;
+    uint16_t fireAtCmd : 1;
     uint16_t reversed : 1;
     uint16_t active : 1;
-    uint16_t updateFire : 1;
-    uint16_t updateFireAt : 1;
-    uint16_t reloadFireAt : 1;
+    uint16_t exit_UpdateFire : 1;
+    uint16_t exit_UpdateFireAt : 1;
+    uint16_t loopEnd_ReloadFireAt : 1;
 } TX_OCProgControlFlags_t;
 
 typedef union TX_OCProgLoopCntrs_{
     uint32_t loc;
     uint32_t pulse; 
 } TX_OCProgLoopCntrs_t;
-
-typedef struct TX_PhaseChargeReg_{
-	uint32_t volatile *ch0;
-	uint32_t volatile *ch1;
-	uint32_t volatile *ch2;
-	uint32_t volatile *ch3;
-	uint32_t volatile *ch4;
-	uint32_t volatile *ch5;
-	uint32_t volatile *ch6;
-	uint32_t volatile *ch7;
-} TX_PhaseChargeReg_t;
 
 typedef struct TX_OutputControlProgram_{
 
@@ -227,8 +227,8 @@ typedef struct TX_OutputControlProgram_{
     union {
         TX_OCProgControlFlags_t is;
         TX_OCProgControlFlags_t has;
-        TX_OCProgControlFlags_t atExit;
-        TX_OCProgControlFlags_t atLoopEnd;
+        TX_OCProgControlFlags_t at;
+        uint16_t ocpFlags;
     };
 
     // loop counters
@@ -249,15 +249,27 @@ typedef struct TX_OutputControlProgram_{
 
     // pointer(s) to all loops called from within this one
     uint32_t nChildren;
+    uint32_t currentChild;
     TX_OutputControlProgram_t **children;
 
     // list of actions to be taken within the current loop
     uint32_t nActions;
     uint32_t currentAction;
     TX_Action_f **actionList;
-     
+    //typedef void (*TX_Action_f)(TXsys *,uint32_t);
 } TX_OutputControlProgram_t;
  
+typedef struct TX_PhaseChargeReg_{
+	uint32_t volatile *ch0;
+	uint32_t volatile *ch1;
+	uint32_t volatile *ch2;
+	uint32_t volatile *ch3;
+	uint32_t volatile *ch4;
+	uint32_t volatile *ch5;
+	uint32_t volatile *ch6;
+	uint32_t volatile *ch7;
+} TX_PhaseChargeReg_t;
+
 typedef struct TXsys_{
 	uint32_t volatile *controlComms;
 	uint32_t volatile *channelMask;
@@ -292,9 +304,12 @@ typedef struct TXsys_{
     // variables used to setup ENET to recv phaseCharge data and user defined program
     uint32_t recvType;
     uint32_t nLocs;
-    uint32_t nInstructions;
+    uint32_t nInstructionsBuff;
     char **phaseChargeBuff;
     char **instructionBuff;
+
+    uint32_t nInstructions;
+    uint32_t **instructions;
 
     // 
     TX_OutputControlProgram_t **progDefs; // holds loop variables in user-given order
@@ -302,7 +317,6 @@ typedef struct TXsys_{
 	
 	void (*resetTX_vars)(struct TXsys *);
     void (*setChannelMask)(struct TXsys *, uint32_t);
-    void (*setupLoops)(struct TXsys *);
 } TXsys;
 
 
