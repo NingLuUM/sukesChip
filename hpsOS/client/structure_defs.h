@@ -8,7 +8,6 @@ struct RCVsys_;
 struct TXsys_;
 struct TX_OutputControlProgram_;
 struct TX_OCProgEnum_;
-union TX_OCProgLoopCntrs_;
 struct TX_OCProgStatusFlags_;
 struct TX_OCProgControlFlags_;
 typedef struct ENETsock_ ENETsock;
@@ -19,9 +18,14 @@ typedef struct RCVsys_ RCVsys;
 typedef struct TXsys_ TXsys;
 typedef struct TX_OutputControlProgram_ TX_OutputControlProgram_t;
 typedef struct TX_OCProgEnum_ TX_OCProgEnum_t;
-typedef union TX_OCProgLoopCntrs_ TX_OCProgLoopCntrs_t;
 typedef struct TX_OCProgStatusFlags_ TX_OCProgStatusFlags_t;
 typedef struct TX_OCProgControlFlags_ TX_OCProgControlFlags_t;
+
+union TX_OCProgLoopCntrs_;
+typedef union TX_OCProgLoopCntrs_ TX_OCProgLoopCntrs_t;
+
+union TX_instructionTypeReg_;
+typedef union TX_instructionTypeReg_ TX_instructionTypeReg_t;
 
 // prototype of TX_Action function pointers
 typedef void (*TX_Action_f)(TXsys *,uint32_t);
@@ -216,6 +220,25 @@ typedef union TX_OCProgLoopCntrs_{
     uint32_t pulse; 
 } TX_OCProgLoopCntrs_t;
 
+typedef union TX_instructionTypeReg_{ 
+    struct {
+        uint16_t fpga;
+        uint16_t arm;
+    };
+    uint32_t instr;
+} TX_instructionTypeReg_t;
+
+typedef struct TX_PhaseChargeReg_{
+	uint32_t volatile *ch0;
+	uint32_t volatile *ch1;
+	uint32_t volatile *ch2;
+	uint32_t volatile *ch3;
+	uint32_t volatile *ch4;
+	uint32_t volatile *ch5;
+	uint32_t volatile *ch6;
+	uint32_t volatile *ch7;
+} TX_PhaseChargeReg_t;
+
 typedef struct TX_OutputControlProgram_{
 
     // loops are treated as numbered sub-programs that can call each other, progNum is the identifier 
@@ -256,19 +279,17 @@ typedef struct TX_OutputControlProgram_{
     uint32_t nActions;
     uint32_t currentAction;
     TX_Action_f **actionList;
+  
+    // pointers to shared variables defined in TXsys 
+    uint32_t *phaseCharges;
+    TX_PhaseChargeReg_t *fireReg;
+    TX_PhaseChargeReg_t *fireAtReg;
+    uint32_t volatile *interrupt0;
+    uint32_t volatile *interrupt1;
+
     //typedef void (*TX_Action_f)(TXsys *,uint32_t);
 } TX_OutputControlProgram_t;
  
-typedef struct TX_PhaseChargeReg_{
-	uint32_t volatile *ch0;
-	uint32_t volatile *ch1;
-	uint32_t volatile *ch2;
-	uint32_t volatile *ch3;
-	uint32_t volatile *ch4;
-	uint32_t volatile *ch5;
-	uint32_t volatile *ch6;
-	uint32_t volatile *ch7;
-} TX_PhaseChargeReg_t;
 
 typedef struct TXsys_{
 	uint32_t volatile *controlComms;
@@ -286,6 +307,7 @@ typedef struct TXsys_{
     // mapped FPGA memory for output pins
     TX_PhaseChargeReg_t fireReg;
     TX_PhaseChargeReg_t fireAtReg;
+    uint32_t currentFireAt;
 	
     // mapped FPGA memory regions
 	uint32_t volatile *instructionTypeReg;
