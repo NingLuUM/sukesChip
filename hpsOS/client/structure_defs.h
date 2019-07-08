@@ -210,6 +210,7 @@ typedef struct TX_OCProgControlFlags_{
     uint16_t fireAtCmd : 1;
     uint16_t reversed : 1;
     uint16_t active : 1;
+    uint16_t unrolled : 1;
     uint16_t exit_UpdateFire : 1;
     uint16_t exit_UpdateFireAt : 1;
     uint16_t loopEnd_ReloadFireAt : 1;
@@ -277,6 +278,7 @@ typedef struct TX_OutputControlProgram_{
 
     // list of actions to be taken within the current loop
     uint32_t nActions;
+    uint32_t nUnrolledActions;
     uint32_t currentAction;
     TX_Action_f **actionList;
   
