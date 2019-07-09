@@ -259,7 +259,15 @@ typedef struct TX_OutputControlProgram_{
     TX_OCProgLoopCntrs_t start;
     TX_OCProgLoopCntrs_t end;
     TX_OCProgLoopCntrs_t current;
-    int32_t increment;
+    TX_OCProgLoopCntrs_t last;
+    uint32_t increment;
+
+    // fire location can change when entering new loops
+    // this keeps track of where the last one was
+    struct {
+        uint32_t *last;
+        uint32_t current;
+    } fire;
 
     // fireAt can exist across loops, these keep track of where it is 
     struct {
@@ -278,10 +286,11 @@ typedef struct TX_OutputControlProgram_{
 
     // list of actions to be taken within the current loop
     uint32_t nActions;
+    uint32_t nRolledActions;
     uint32_t nUnrolledActions;
     uint32_t currentAction;
     TX_Action_f **actionList;
-  
+
     // pointers to shared variables defined in TXsys 
     uint32_t *phaseCharges;
     TX_PhaseChargeReg_t *fireReg;
@@ -309,6 +318,9 @@ typedef struct TXsys_{
     // mapped FPGA memory for output pins
     TX_PhaseChargeReg_t fireReg;
     TX_PhaseChargeReg_t fireAtReg;
+   
+    // fireAts exist outside of subprograms, this holds a list of which locations to fireAt
+    uint32_t **fireAtList;
     uint32_t currentFireAt;
 	
     // mapped FPGA memory regions

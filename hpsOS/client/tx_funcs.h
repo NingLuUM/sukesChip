@@ -4,31 +4,61 @@ void parseRecvdPhaseCharges(TXsys *TX){
     
 }
 
-
-void enterControlLoop(TX_OutputControlProgram_t *ocp, uint32_t cmd){
-    uint32_t child;
-    if ( ocp->current < ocp->end ){
-        child = ocp->currentChild;
-        ocp->currentAction++;
-        ocp->currentChild++;
-        ocp = *(ocp->children)[child];
-    } else {
-        ocp = ocp->parent;
-    }
-}
-
-
 void updateFireCmdBuffer(TX_OutputControlProgram_t *ocp, uint32_t cmd){
-    if ( DREF32(ocp->interrupt0) ){
+    int updateBuff = 0; 
+    if ( ocp->is.iterator ){
+        if ( DREF32(ocp->interrupt0) ){
+            ocp->currentAction++;
+            *(ocp->fire.last) = ocp->current.loc;
 
+            if ( ocp->is.unrolled && ( ocp->currentAction == ocp->nRolledActions ) ) {
+                ocp->current.loc += ( ocp->is.reversed ) ? -ocp->increment : ocp->increment;
+                ocp->fire.current = ocp->current.loc;
+                updateBuff = 1;
+                if ( ocp->current.loc != ocp->last.loc ){
+                    ocp->currentAction = 0;
+                }
+
+            } else if ( ocp->currentAction == ocp->nActions ){
+                if ( ocp->current.loc != ocp->last.loc ){
+                    ocp->current.loc += ( ocp->is.reversed ) ? -ocp->increment : ocp->increment;
+                    ocp->fire.current = ocp->current.loc;
+                    ocp->currentAction = 0;
+                    updateBuff = 1;
+                }
+            } else {
+                if ( ocp->current.loc != ocp->last.loc ){
+                    ocp->fire.current += ( ocp->is.reversed ) ? -ocp->increment : ocp->increment;
+                } else {
+                    ocp->fire.current = ocp->start.loc;
+                }
+            }
+            
+        } else if ( ( ocp->fire.current | *(ocp->fire.last) ) ^ ( ocp->current.loc ) ){
+            ocp->fire.current = ocp->current.loc;
+            updateBuff = 1;
+        }
     } else {
-
+        ocp->currentAction++;
+    }
+    
+    if( updateBuff ){
+        DREF32(ocp->fireReg->ch0) = phaseCharges[ocp->current.loc];
+        DREF32(ocp->fireReg->ch1) = phaseCharges[ocp->current.loc+1];
+        DREF32(ocp->fireReg->ch2) = phaseCharges[ocp->current.loc+2];
+        DREF32(ocp->fireReg->ch3) = phaseCharges[ocp->current.loc+3];
+        DREF32(ocp->fireReg->ch4) = phaseCharges[ocp->current.loc+4];
+        DREF32(ocp->fireReg->ch5) = phaseCharges[ocp->current.loc+5];
+        DREF32(ocp->fireReg->ch6) = phaseCharges[ocp->current.loc+6];
+        DREF32(ocp->fireReg->ch7) = phaseCharges[ocp->current.loc+7];
     }
 }
 
 
 void updateFireAtCmdBuffer(TX_OutputControlProgram_t *ocp, uint32_t cmd){
     if ( DREF32(ocp->interrupt1) ){
+
+    } else {
 
     }
 }
@@ -40,10 +70,24 @@ void actionsHandler_tx(TX_OutputControlProgram_t *ocp){
 }
 
 
+void enterControlLoop(TX_OutputControlProgram_t *ocp, uint32_t cmd){
+    uint32_t child;
+    if ( ocp->currentAction < ( ocp->nActions - 1 ) ){
+        child = ocp->currentChild;
+        ocp->currentAction++;
+        ocp->currentChild++;
+        ocp = *(ocp->children)[child];
+    } else {
+        ocp = ocp->parent;
+    }
+}
+
+
 void populateActionLists_tx(TXsys *TX){
     uint32_t *instr;
     instr = (uint32_t *)(*(TX->instructions));
     int i,j;
+    int nFireAts;
 
     uint8_t progNum;
     TX_OutputControlProgram_t **ocpPtr;
@@ -69,6 +113,7 @@ void populateActionLists_tx(TXsys *TX){
     ocp = ocpPtr[0];
     // moving via pointers to populate subprogram action lists is pretty nifty
     // no overlapping loops allowed :(
+    nFireAts = 0;
     for( i = 0 ; TX->nInstructions ; i+=2 ) {
         
         if ( ( instr[i] & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ) && !( instr[i] & ARM_FIRELESS_LOOP ) ){
@@ -87,6 +132,7 @@ void populateActionLists_tx(TXsys *TX){
         } else if ( ( instr[i] & FPGA_FIREAT_CMD ) && !( instr[i] & FPGA_NO_TX_INTERRUPT ) ){
             actionList[ ocp->currentAction ] = &updateFireAtCmdBuffer;
             ocp->currentAction++;
+            nFireAts++;
         
         } else if ( ( instr[i] & FPGA_LOOP_END )  && ( ( instr[i+1] & 0xf ) == ocp->progNum.given ) ) {
             if ( !( instr[i] & ARM_UNROLLED ) ){
@@ -107,6 +153,7 @@ void populateActionLists_tx(TXsys *TX){
                     } else if ( ( instr[j] & FPGA_FIREAT_CMD ) && !( instr[j] & FPGA_NO_TX_INTERRUPT ) ){
                         actionList[ ocp->currentAction ] = &updateFireAtCmdBuffer;
                         ocp->currentAction++;
+                        nFireAts++;
                     }
                     j+=2;
                 }
@@ -120,6 +167,21 @@ void populateActionLists_tx(TXsys *TX){
         }
     }
 
+    uint32_t *fireAtList;
+    if (*(TX->fireAtList) != NULL) free(*(TX->fireAtList));
+    *(TX->fireAtList) = (uint32_t *)calloc(nFireAts,sizeof(uint32_t));
+    fireAtList = *(TX->fireAtList);
+    
+    j=0;
+    for( i = 0 ; TX->nInstructions ; i+=2 ) {
+        if( ( instr[i] & FPGA_FIREAT_CMD ) && !( instr[i] & FPGA_NO_TX_INTERRUPT ) ){
+            fireAtList[j] = instr[i+1];
+            j++;
+        }
+    }
+
+    TX->currentFireAt = 0;
+    
     while( ocpPtr[progNum]->is.active ){
         ocpPtr[progNum]->currentAction = 0;
         ocpPtr[progNum]->currentChild = 0;
@@ -174,6 +236,7 @@ void defineSubPrograms_tx(TXsys *TX){
         ocpTmp[i].nChildren = 0;
         ocpTmp[i].currentChild = 0;
         ocpTmp[i].nActions = 0;
+        ocpTmp[i].nRolledActions = 0;
         ocpTmp[i].nUnrolledActions = 0;
         ocpTmp[i].currentAction = 0;
         ocpTmp[i].actionList = NULL;
@@ -193,11 +256,17 @@ void defineSubPrograms_tx(TXsys *TX){
             ocpTmp[masterProg].progNum.given = curProg;
             ocpTmp[masterProg].start.loc = instr[i+2].instr;
             ocpTmp[masterProg].end.loc = instr[i+3].instr;
+            ocpTmp[masterProg].current.loc = ocpTmp[masterProg].start.loc;
+            ocpTmp[masterProg].last.loc = ocpTmp[masterProg].end.loc;
+            ocpTmp[masterProg].increment = instr[i+4].instr;
             ocpTmp[masterProg].is.reversed = ( ocpTmp[masterProg].start.loc > ocpTmp[masterProg].end.loc );
             ocpTmp[masterProg].is.unrolled = ( instr[i].instr & ARM_UNROLLED );
-            incr = abs((int32_t)instr[i+4].instr);
-            ocpTmp[masterProg].increment = ( ocpTmp[masterProg].is.reversed ) ? -incr : incr ;
             ocpTmp[masterProg].is.iterator = ( instr[i].instr & FPGA_ITERATOR_START ) ? 1 : 0 ;
+            if( ocpTmp[masterProg].is.reversed ){
+                ocpTmp[masterProg].last.loc += (ocpTmp[masterProg].start.loc-ocpTmp[masterProg].end.loc+1)%ocpTmp[masterProg].increment;
+            } else {
+                ocpTmp[masterProg].last.loc -= (ocpTmp[masterProg].end.loc-ocpTmp[masterProg].start.loc+1)%ocpTmp[masterProg].increment;
+            }
             i+=3;
         }
 
@@ -278,6 +347,15 @@ void defineSubPrograms_tx(TXsys *TX){
                 ocpPtr[logicalProgNumber] = &ocpTmp[masterProg];
                 ocpTmp[masterProg].progNum.logical = logicalProgNumber;
                 ocpTmp[masterProg].is.active = 1;
+                if( ocpTmp[masterProg].is.unrolled ){
+                    if( ocpTmp[masterProg].is.reversed ){
+                        ocpTmp[masterProg].end.loc -= ocpTmp[masterProg].increment;
+                        ocpTmp[masterProg].last.loc -= ocpTmp[masterProg].increment;
+                    } else {
+                        ocpTmp[masterProg].end.loc += ocpTmp[masterProg].increment;
+                        ocpTmp[masterProg].last.loc += ocpTmp[masterProg].increment;
+                    }
+                }
                 
                 j=i+5;
                 progTracker = 0;
@@ -288,6 +366,7 @@ void defineSubPrograms_tx(TXsys *TX){
                     if ( instr[j].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
                         if ( !( instr[j].instr & ARM_FIRELESS_LOOP ) ){
                             ocpTmp[masterProg].nActions++;
+                            ocpTmp[masterProg].nRolledActions++;
                             ocpChildren[ ocpTmp[masterProg].nChildren ] = &ocpTmp[ ( instr[j+1].instr & 0xf ) + 1 ];
                             ocpTmp[masterProg].nChildren++;
                             ocpTmp[ ( instr[j+1].instr & 0xf ) + 1 ].parent = &ocpTmp[masterProg];
@@ -333,6 +412,7 @@ void defineSubPrograms_tx(TXsys *TX){
                         }
                     } else if ( ( instr[j].instr & ( FPGA_FIRE_CMD | FPGA_FIREAT_CMD ) ) && !( instr[j].instr & ( FPGA_NO_TX_INTERRUPT | ARM_UNROLLED ) ) ){
                         ocpTmp[masterProg].nActions++;
+                        ocpTmp[masterProg].nRolledActions++;
                         if ( instr[j].instr & FPGA_FIREAT_CMD ){
                             if ( !fireAt_detected ){
                                 ocpTmp[masterProg].fireAt.first = nFireAts_Inner;
@@ -454,12 +534,11 @@ void minimizeRedundantInterrupts_tx(TXsys *TX){
     uint32_t nFires;
     uint32_t nFiresRef;
     uint32_t fireAtLoc;
+    uint32_t fireLoc;
     uint32_t gapFlag;
     uint32_t isReversed;
     uint32_t isIterator;
     instr = (TX_instructionTypeReg_t *)(*(TX->instructionBuff));
-
-    #define INCR_f(X) ((uint32_t)abs((int32_t )X))
     
     typedef struct segment_{
         uint32_t start;
@@ -500,7 +579,7 @@ void minimizeRedundantInterrupts_tx(TXsys *TX){
         } else if ( instr[i].instr & FPGA_ITERATOR_START ){
             curProg = instr[i+1].instr & 0xf;
             progTracker = ( 1 << curProg );
-            fireAtLoc=0;
+            fireLoc=0;
             k=0;
             for ( j = i+5; j<(TX->nInstructionsBuff); j+=2 ){
                 if( instr[j].instr & FPGA_ITERATOR_START ){
@@ -511,14 +590,14 @@ void minimizeRedundantInterrupts_tx(TXsys *TX){
                 } else if ( ( instr[j].instr & FPGA_FIRE_CMD ) ){
                     if( progTracker == ( 1 << curProg ) ){
                         if ( k ){
-                            instr[fireAtLoc].instr |= FPGA_NO_TX_INTERRUPT;
+                            instr[fireLoc].instr |= FPGA_NO_TX_INTERRUPT;
                         }
-                        fireAtLoc = j;
+                        fireLoc = j;
                         k=1;
                     } else {
                         k=0;
                     }
-                } else if ( ( instr[j].instr & FPGA_LOOP_END )) {
+                } else if ( ( instr[j].instr & FPGA_LOOP_END ) ) {
                     if ( instr[j+1].instr == curProg ){
                         break;
                     } else {
@@ -551,9 +630,9 @@ void minimizeRedundantInterrupts_tx(TXsys *TX){
           
             isIterator = ( instr[i].instr & FPGA_ITERATOR_START ) ? 1 : 0;
             isReversed = ( instr[i+2].instr > instr[i+3].instr ) ? 1 : 0;
-            if ( !isReversed && ( ( (( instr[i+3].instr - instr[i+2].instr )) / INCR_f( instr[i+4].instr ) ) < 2 ) ){
+            if ( !isReversed && ( ( (( instr[i+3].instr - instr[i+2].instr )) / ( instr[i+4].instr ) ) < 2 ) ){
                 isUnrollable = 0;
-            } else if ( isReversed && ( ( (( instr[i+2].instr - instr[i+3].instr )) / INCR_f( instr[i+4].instr ) ) < 2 ) ) {
+            } else if ( isReversed && ( ( (( instr[i+2].instr - instr[i+3].instr )) / ( instr[i+4].instr ) ) < 2 ) ) {
                 isUnrollable = 0;
             }
             
@@ -633,9 +712,9 @@ void minimizeRedundantInterrupts_tx(TXsys *TX){
 
             // update the end point of the loop
             if( isReversed ){
-                seg->instr[3] += INCR_f( seg->instr[4] );
+                seg->instr[3] += ( seg->instr[4] );
             } else {
-                seg->instr[3] -= INCR_f( seg->instr[4] );
+                seg->instr[3] -= ( seg->instr[4] );
             }
 
             // go through the loop's instructions and modify the fire/fireAt commands as appropriate
@@ -747,7 +826,6 @@ void minimizeRedundantInterrupts_tx(TXsys *TX){
             i+=3;
         }
     }
-    #undef INCR_f
 }
 
 
@@ -770,8 +848,6 @@ void identifyAndPruneLoops_tx(TXsys *TX){
     uint32_t isReversed;
     uint32_t nLoops;
     instr = (TX_instructionTypeReg_t *)(*(TX->instructionBuff));
-
-    #define INCR_f(X) ( (uint32_t )abs((int32_t)X) )
 
     uint32_t usedLoops[MAX_LOOPS+1];
     for( i=0; i < (MAX_LOOPS+1); i++){
@@ -835,7 +911,7 @@ void identifyAndPruneLoops_tx(TXsys *TX){
 
                 isReversed = ( instr[i+2].instr > instr[i+3].instr ) ? 1 : 0;
                 nLoops = ( isReversed ) ? ( instr[i+2].instr - instr[i+3].instr ) : ( instr[i+3].instr - instr[i+2].instr );
-                nLoops /= INCR_f( instr[i+4].instr );
+                nLoops /= ( instr[i+4].instr );
                 nLoops = ( nLoops ) ? nLoops : 1;
                 
                 // if the loop only repeats once, delete just the loop/iterate command
@@ -913,7 +989,6 @@ void identifyAndPruneLoops_tx(TXsys *TX){
     free(*(TX->instructions));
     *(TX->instructions) = NULL;
     
-    #undef INCR_f
 }
 
 
