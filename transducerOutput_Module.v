@@ -51,36 +51,14 @@ begin
 				txSafetyValve <= 10'b0;
 			end
 			
-		buffer_phase_charge:
-			begin
-				if ( !isActive )
-				begin
-					cmdState <= 1'b0;
-					pd <= phaseCharge[15:0];
-					ct <= phaseCharge[24:16];
-					if ( txOutputState )
-					begin
-						txOutputState <= 1'b0;
-						txSafetyValve <= 10'b0;
-					end	
-				end
-				else
-				begin
-					errorFlag <= 1'b1;
-					if ( txOutputState )
-					begin
-						txOutputState <= 1'b0;
-						txSafetyValve <= 10'b0;
-					end	
-				end
-			end
-			
 		fire_pulse:
 			begin		
 				if ( !cmdState & !isActive )
 				begin
-					cmdState <= 1'b1;	
-					if ( !ct )
+					cmdState <= 1'b1;
+					pd <= phaseCharge[15:0];
+					ct <= phaseCharge[24:16];
+					if ( !phaseCharge[24:16] )
 					begin
 						isActive <= 1'b0;
 						txOutputState <= 1'b0;
@@ -89,7 +67,7 @@ begin
 					else
 					begin
 						isActive <= 1'b1;
-						if( !pd ) txOutputState <= 1'b1;
+						if( !phaseCharge[15:0] ) txOutputState <= 1'b1;
 					end
 				end
 				else if ( cmdState & isActive )

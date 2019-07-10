@@ -199,16 +199,17 @@ wire	[7:0]			tx_trig_rest_level_reg;
 
 
 wire	[14:0]			tx_read_addr;
-wire	[3:0]			tx_loop_read_addr;
 wire	[3:0]			tx_state;
 wire	[7:0]			tx_control_comms;
 wire	[7:0]			tx_user_mask;
 
-wire	[15:0]			tx_instruction_type_reg;
 wire	[31:0]			tx_instruction_reg;
 wire	[31:0]			tx_timing_reg;
-wire	[31:0]			tx_loop_address_reg;
-wire	[31:0]			tx_loop_counter_reg;
+
+wire	[15:0]			tx_instruction;
+wire	[15:0]			tx_instruction_type;
+assign tx_instruction = tx_instruction_reg[15:0];
+assign tx_instruction_type = tx_instruction_reg[31:16];
 
 wire	[15:0]			tx_set_instruction_read_addr;
 
@@ -275,15 +276,10 @@ Output_Control_Module u3(
 	
 	// procedural controls for instructions
 	.iTimeUntilNextInstruction		(tx_timing_reg),
-	.iNextInstructionType			(tx_instruction_type_reg),
-	.iNextInstruction				(tx_instruction_reg),
+	.iNextInstructionType				(tx_instruction_type),
+	.iNextInstruction				(tx_instruction),
 	.iSetInstructionReadAddr		(tx_set_instruction_read_addr[14:0]),
 	.oInstructionReadAddr			(tx_read_addr),
-	
-	// procedural control for loops
-	.itxLoopAddressReg				(tx_loop_address_reg),
-	.itxLoopCounterReg				(tx_loop_counter_reg),
-	.otxLoopReadAddr				(tx_loop_read_addr),
 	
 	// transducer output controls
 	.itxPulsePhaseCharge			(tx_fire_cmd_phase_charge),
@@ -373,21 +369,8 @@ soc_system u0(
 		.tx_instruction_register_address			(tx_read_addr),	
 		.tx_instruction_register_readdata			(tx_instruction_reg),
 		
-		.tx_instruction_type_register_address		(tx_read_addr),
-		.tx_instruction_type_register_readdata		(tx_instruction_type_reg),
-		
 		.tx_timing_register_address					(tx_read_addr),
-		.tx_timing_register_readdata				(tx_timing_reg),
-
-		.tx_loop_address_register_address			(tx_loop_read_addr),
-		.tx_loop_address_register_readdata			(tx_loop_address_reg),
-		
-		.tx_loop_counter_register_address			(tx_loop_read_addr),		
-		.tx_loop_counter_register_readdata			(tx_loop_counter_reg),
-		
-		
-		
-        
+		.tx_timing_register_readdata				(tx_timing_reg),	    
 
 		.ram_clock_bridge_clk						(CLK200), 
 		.adc_clock_bridge_clk						(CLK25), 
@@ -412,31 +395,13 @@ soc_system u0(
 		.tx_instruction_register_write				(1'b0),
 		.tx_instruction_register_writedata			(32'b0),
 		.tx_instruction_register_byteenable			(4'b1111),
-		
-		.tx_instruction_type_register_chipselect	(1'b1),
-		.tx_instruction_type_register_clken			(1'b1),
-		.tx_instruction_type_register_write			(1'b0),
-		.tx_instruction_type_register_writedata		(16'b0),
-		.tx_instruction_type_register_byteenable	(2'b11),
 
 		.tx_timing_register_chipselect				(1'b1),
 		.tx_timing_register_clken					(1'b1),
 		.tx_timing_register_write					(1'b0),
 		.tx_timing_register_writedata				(32'b0),
 		.tx_timing_register_byteenable				(4'b1111),
-		
-		.tx_loop_address_register_chipselect		(1'b1),
-		.tx_loop_address_register_clken				(1'b1),
-		.tx_loop_address_register_write				(1'b0),
-		.tx_loop_address_register_writedata			(32'b0),
-		.tx_loop_address_register_byteenable		(4'b1111),
-		
-		.tx_loop_counter_register_chipselect		(1'b1),
-		.tx_loop_counter_register_clken				(1'b1),
-		.tx_loop_counter_register_write				(1'b0),
-		.tx_loop_counter_register_writedata			(32'b0),
-		.tx_loop_counter_register_byteenable		(4'b1111),
-		
+			
 
 		
 		//Clock&Reset
