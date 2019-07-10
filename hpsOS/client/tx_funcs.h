@@ -992,6 +992,93 @@ void identifyAndPruneLoops_tx(TXsys *TX){
 }
 
 
+
+
+void identifyLoops_tx(TXsys *TX){
+
+    uint32_t i,j,k;
+    uint32_t curProg;
+    uint32_t progTracker;
+    TX_instructionTypeReg_t *buff;
+    uint32_t isReversed;
+    uint32_t nLoops;
+    buff = (TX_instructionTypeReg_t *)(*(TX->instructionBuff));
+    uint32_t *instr;
+    uint32_t *timing;
+    instr = (uint32_t *)calloc(TX->nInstructionsBuff,sizeof(uint32_t));
+    timing = (uint32_t *)calloc(TX->nInstructionsBuff,sizeof(uint32_t));
+
+    uint32_t usedLoops[MAX_LOOPS+1];
+    uint32_t isIterator[MAX_LOOPS+1];
+    uint32_t startAddr[MAX_LOOPS+1];
+    uint32_t endAddr[MAX_LOOPS+1];
+    uint32_t loopStartLoc[MAX_LOOPS+1];
+    uint32_t loopEndLoc[MAX_LOOPS+1];
+    uint32_t loopLocIncr[MAX_LOOPS+1];
+    uint32_t loopNum, loopCount, gap;
+    gap=0;
+
+    j=0;
+    for( i=0 ; i < (TX->nInstructionsBuff) ; i+=2 ) {
+        
+        if ( buff[i].arm & ARM_WAIT ){
+            timing[j] = buff[i+1].instr;
+            j++;
+            gap = 1;
+
+        } else if ( buff[i].arm & ARM_START_LOOP ) {
+            if ( !gap ){
+                j++;
+            }
+            loopNum = buff[i+1].instr & 0xf;
+            startAddr[ loopNum  ] = j;
+            loopStartLoc[ loopNum ] = buff[i+2];
+            loopEndLoc[ loopNum ] = buff[i+3];
+            loopLocIncr[ loopNum ] = buff[i+4];
+            if ( buff[i].arm & ARM_IS_ITERATOR ) {
+                isIterator[ loopNum ] = 1;
+            }
+            i+=3;
+            gap = 0;
+
+        } else if ( buff[i].arm & ARM_END_LOOP ){
+            if( !gap ) j++;
+            if ( buff[i].arm & ARM_END_ITERATOR ){
+                instr[j] = FPGA_WAIT_EXTERNAL_TRIG;
+                j++;
+            }
+            loopNum = buff[i+1].instr & 0xf;
+            endAddr[ loopNum ] = j;
+            instr[j] = FPGA_LOOP_END_POINT | ( ( startAddr[ loopNum ] & 0xffff ) & ~( 1<<15 ) );
+            if( loopLocIncr[ loopNum ] ){
+                if( loopEndLoc[ loopNum ] > loopStartLoc[ loopNum ] ){
+                    loopCount = ( loopEndLoc[ loopNum ] - loopStartLoc[ loopNum ] ) / loopLocIncr[ loopNum ];
+                } else {
+                    loopCount = ( loopStartLoc[ loopNum ] - loopEndLoc[ loopNum ] ) / loopLocIncr[ loopNum ];
+                }
+                if ( loopStartLoc[ loopNum ] != loopEndLoc[ loopNum ] ){
+                    loopCount = ( loopCount ) ? loopCount : 1;
+                }
+            } else {
+                loopCount = 0;
+            }
+            timing[j] = ( loopNum << 28 ) | loopCount ;
+            j++;
+            gap=1;
+        } else {
+            instr[j] |= ( buff[i].instr << 16 );
+            if( buff[i].instr & ARM_UNSET_VAL ){
+                instr[j] &= ~( buff[i+1].instr & 0xffff );
+            } else {
+                instr[j] |= ( buff[i+1].instr & 0xffff );
+            }
+            gap = 0;
+        }
+    }
+
+}
+
+
 void parseRecvdInstructions_tx(TXsys *TX){
     
     uint32_t nLocs;
@@ -1003,10 +1090,6 @@ void parseRecvdInstructions_tx(TXsys *TX){
     minimizeRedundantInterrupts_tx(TX);
     defineSubPrograms_tx(TX);
     populateActionLists_tx(TX);
-
-	free(*(TX->instructionTypeReg_local));
-	*(TX->instructionTypeReg_local) = (uint16_t *)malloc(nCommands*sizeof(uint16_t));
-    memset(*(TX->instructionTypeReg_local),0,nCommands*sizeof(uint16_t));
 
 	free(*(TX->instructionReg_local));
 	*(TX->instructionReg_local) = (uint32_t *)malloc(nCommands*sizeof(uint32_t));

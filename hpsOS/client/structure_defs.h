@@ -324,14 +324,12 @@ typedef struct TXsys_{
     uint32_t currentFireAt;
 	
     // mapped FPGA memory regions
-	uint32_t volatile *instructionTypeReg;
 	uint32_t volatile *instructionReg;
 	uint32_t volatile *timingReg;
 	uint32_t volatile *loopAddressReg;
 	uint32_t volatile *loopCounterReg;
 
     // local storage to hold user program	
-	uint32_t **instructionTypeReg_local;
 	uint32_t **instructionReg_local;
 	uint32_t **timingReg_local;
 	uint32_t **loopAddressReg_local;
