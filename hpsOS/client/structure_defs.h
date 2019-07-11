@@ -221,13 +221,46 @@ typedef union TX_OCProgLoopCntrs_{
     uint32_t pulse; 
 } TX_OCProgLoopCntrs_t;
 
-typedef union TX_instructionTypeReg_{ 
+typedef union TX_inputCommands_{ 
     struct {
-        uint16_t fpga;
-        uint16_t arm;
+        uint16_t fpga; // [15:0]
+        uint16_t arm; // [31:16]
     };
+    struct {
+        uint32_t loopCounter : 28;
+        uint32_t loopNumber : 4;
+    };
+    uint32_t t;
     uint32_t instr;
-} TX_instructionTypeReg_t;
+} TX_inputCommands_t;
+
+typedef union TX_instructionReg_{ 
+    struct {
+        union {
+            uint16_t instr; // bits [15:0]
+            
+            struct{
+                uint16_t startAddr : 15;
+                uint16_t noop : 1;
+            };
+
+            struct{
+                uint16_t trig : 8;
+                uint16_t leds : 8;
+            };
+        };
+        uint16_t type; // bits [31:16]
+    };
+    uint32_t full;
+} TX_instructionReg_t;
+
+typedef union TX_timingReg_{ 
+    struct {
+        uint32_t loopCounter : 28;
+        uint32_t loopNumber : 4;
+    };
+    uint32_t t;
+} TX_timingReg_t;
 
 typedef struct TX_PhaseChargeReg_{
 	uint32_t volatile *ch0;
@@ -314,26 +347,20 @@ typedef struct TXsys_{
 	uint32_t volatile *setLed;
 	uint32_t volatile *interrupt0;
 	uint32_t volatile *interrupt1;
+    uint32_t volatile *currentlyInLoop;
+    uint32_t volatile *loopCounter;
 	
     // mapped FPGA memory for output pins
     TX_PhaseChargeReg_t fireReg;
     TX_PhaseChargeReg_t fireAtReg;
    
-    // fireAts exist outside of subprograms, this holds a list of which locations to fireAt
-    uint32_t **fireAtList;
-    uint32_t currentFireAt;
-	
     // mapped FPGA memory regions
 	uint32_t volatile *instructionReg;
 	uint32_t volatile *timingReg;
-	uint32_t volatile *loopAddressReg;
-	uint32_t volatile *loopCounterReg;
 
     // local storage to hold user program	
 	uint32_t **instructionReg_local;
 	uint32_t **timingReg_local;
-	uint32_t **loopAddressReg_local;
-	uint32_t **loopCounterReg_local;
 
     // variables used to setup ENET to recv phaseCharge data and user defined program
     uint32_t recvType;

@@ -999,57 +999,104 @@ void identifyLoops_tx(TXsys *TX){
     uint32_t i,j,k;
     uint32_t curProg;
     uint32_t progTracker;
-    TX_instructionTypeReg_t *buff;
+    TX_instructionType_t *buff;
     uint32_t isReversed;
     uint32_t nLoops;
-    buff = (TX_instructionTypeReg_t *)(*(TX->instructionBuff));
+    buff = (TX_inputCommands_t *)(*(TX->instructionBuff));
     uint32_t *instr;
     uint32_t *timing;
-    instr = (uint32_t *)calloc(TX->nInstructionsBuff,sizeof(uint32_t));
-    timing = (uint32_t *)calloc(TX->nInstructionsBuff,sizeof(uint32_t));
+    instr = (TX_instructionReg_t *)calloc(TX->nInstructionsBuff,sizeof(TX_instructionReg_t));
+    timing = (TX_timingReg_t *)calloc(TX->nInstructionsBuff,sizeof(TX_timingReg_t));
 
-    uint32_t usedLoops[MAX_LOOPS+1];
-    uint32_t isIterator[MAX_LOOPS+1];
-    uint32_t startAddr[MAX_LOOPS+1];
-    uint32_t endAddr[MAX_LOOPS+1];
-    uint32_t loopStartLoc[MAX_LOOPS+1];
-    uint32_t loopEndLoc[MAX_LOOPS+1];
-    uint32_t loopLocIncr[MAX_LOOPS+1];
+    uint32_t usedLoops[MAX_LOOPS];
+    uint32_t isIterator[MAX_LOOPS];
+    uint32_t startAddr[MAX_LOOPS];
+    uint32_t endAddr[MAX_LOOPS];
+    uint32_t loopStartLoc[MAX_LOOPS];
+    uint32_t loopEndLoc[MAX_LOOPS];
+    uint32_t loopLocIncr[MAX_LOOPS];
     uint32_t loopNum, loopCount, gap;
-    gap=0;
+    TX_inputCommands_t prevCmd;
+    
+    // find all instantiated non-iterator loops and their given numbers
+    for( i=0; i < (MAX_LOOPS); i++){
+        usedLoops[i]=0;
+    }
+    for( i=0 ; i < (TX->nInstructionsBuff) ; i+=2 ) {
+        if ( ( buff[i].arm & ARM_START_LOOP ) ) {
+            usedLoops[ ( buff[i+1].instr & 0xf ) ] = 1;
+        }
+    }
 
+
+
+
+    gap=0;
     j=0;
+    prevCmd.instr = 0;
     for( i=0 ; i < (TX->nInstructionsBuff) ; i+=2 ) {
         
         if ( buff[i].arm & ARM_WAIT ){
-            timing[j] = buff[i+1].instr;
+            timing[j].t = buff[i+1].t;
             j++;
             gap = 1;
+            prevCmd = buff[i];
 
-        } else if ( buff[i].arm & ARM_START_LOOP ) {
+        } else if ( ( buff[i].arm & ARM_START_LOOP ) && ( buff[i].arm & ARM_IS_ITERATOR ) ) {
             if ( !gap ){
                 j++;
             }
-            loopNum = buff[i+1].instr & 0xf;
-            startAddr[ loopNum  ] = j;
-            loopStartLoc[ loopNum ] = buff[i+2];
-            loopEndLoc[ loopNum ] = buff[i+3];
-            loopLocIncr[ loopNum ] = buff[i+4];
-            if ( buff[i].arm & ARM_IS_ITERATOR ) {
-                isIterator[ loopNum ] = 1;
+            for( k=0; k<MAX_LOOPS; k++){
+                if ( !usedLoops[k] ){
+                    loopNum = k;
+                    usedLoops[k] = 1;
+                    break;
+                } 
             }
+            
+            startAddr[ loopNum ] = j+2;
+            loopStartLoc[ loopNum ] = buff[i+2].instr;
+            loopEndLoc[ loopNum ] = buff[i+3].instr;
+            loopLocIncr[ loopNum ] = buff[i+4].instr;
+            isIterator[ loopNum ] = 1;
+
+            instr[j].type = FPGA_ITERATOR_START;
+            instr[j].instr = loopNum;
+            timing[j].t = 0;
+            j++;
+            instr[j].type = FPGA_WAIT_FOR_INTERRUPT_TO_RESOLVE;
+            timing[j].t = 0;
+            
             i+=3;
             gap = 0;
+            prevCmd = buff[i];
 
-        } else if ( buff[i].arm & ARM_END_LOOP ){
+        } else if ( ( buff[i].arm & ARM_START_LOOP ) && !( buff[i].arm & ARM_IS_ITERATOR ) ) {
+            if ( !gap && ( prevCmd.arm != buff[i].arm ) ){
+                j++;
+            }
+            loopNum = buff[i+1].instr & 0xf;
+            startAddr[ loopNum ] = j;
+            loopStartLoc[ loopNum ] = buff[i+2].instr;
+            loopEndLoc[ loopNum ] = buff[i+3].instr;
+            loopLocIncr[ loopNum ] = buff[i+4].instr;
+            
+            i+=3;
+            gap = 0;
+            prevCmd = buff[i];
+
+        } else if ( buff[i].fpga & FPGA_END_LOOP ){
             if( !gap ) j++;
-            if ( buff[i].arm & ARM_END_ITERATOR ){
-                instr[j] = FPGA_WAIT_EXTERNAL_TRIG;
+            if ( ( buff[i].arm & ARM_IS_ITERATOR ) && !( buff[i].arm & ARM_AUTO_UPDATE_FIRE ) ){
+                instr[j].type = FPGA_WAIT_EXTERNAL_TRIG;
                 j++;
             }
             loopNum = buff[i+1].instr & 0xf;
             endAddr[ loopNum ] = j;
-            instr[j] = FPGA_LOOP_END_POINT | ( ( startAddr[ loopNum ] & 0xffff ) & ~( 1<<15 ) );
+
+            instr[j].type = buff[i].fpga;
+            instr[j].startAddr = startAddr[ loopNum ];
+
             if( loopLocIncr[ loopNum ] ){
                 if( loopEndLoc[ loopNum ] > loopStartLoc[ loopNum ] ){
                     loopCount = ( loopEndLoc[ loopNum ] - loopStartLoc[ loopNum ] ) / loopLocIncr[ loopNum ];
@@ -1062,20 +1109,63 @@ void identifyLoops_tx(TXsys *TX){
             } else {
                 loopCount = 0;
             }
-            timing[j] = ( loopNum << 28 ) | loopCount ;
+            timing[j].loopNumber = loopNum;
+            timing[j].loopCounter = loopCount;
             j++;
             gap=1;
-        } else {
-            instr[j] |= ( buff[i].instr << 16 );
-            if( buff[i].instr & ARM_UNSET_VAL ){
-                instr[j] &= ~( buff[i+1].instr & 0xffff );
+            prevCmd = buff[i];
+
+        } else if( buff[i].fpga & FPGA_SET_LEDS ){
+            instr[j].type |= buff[i].fpga;
+            if( buff[i].arm & ARM_UNSET_VAL ){
+                instr[j].leds &= ~( buff[i+1].instr );
             } else {
-                instr[j] |= ( buff[i+1].instr & 0xffff );
+                instr[j].leds |= ( buff[i+1].instr );
             }
             gap = 0;
+            prevCmd = buff[i];
+
+        } else if( buff[i].fpga & FPGA_SET_TRIGS ){
+            instr[j].type |= buff[i].fpga;
+            if( buff[i].arm & ARM_UNSET_VAL ){
+                instr[j].trig &= ~( buff[i+1].instr );
+            } else {
+                instr[j].trig |= ( buff[i+1].instr );
+            }
+            gap = 0;
+            prevCmd = buff[i];
+
+        } else if( buff[i].fpga & FPGA_FIRE_CMD ){
+            if( !( instr[j].type & FPGA_FIREAT_CMD ) ){
+                instr[j].type |= buff[i].fpga;
+                gap = 0;
+                prevCmd = buff[i];
+            }
+
+        } else if( buff[i].fpga & FPGA_FIREAT_CMD ){
+            if ( !( instr[j].type & FPGA_FIRE_CMD ) ){
+                instr[j].type |= buff[i].fpga;
+                gap = 0;
+                prevCmd = buff[i];
+            }
+
+        } else if( buff[i].fpga & FPGA_TX_INTERRUPT ){
+            instr[j].type |= buff[i].fpga;
+            gap = 0;
+            prevCmd = buff[i];
+        
         }
     }
+    
+    j++;
+    instr[j].type = FPGA_PROGRAM_ENDPOINT;
+    for(j;j>0;j--){
+        TX->instructionReg[j] = instr[j].full;
+        TX->timingReg[j] = timing[j].t;
+    }
 
+    free(timing);
+    free(instr);
 }
 
 

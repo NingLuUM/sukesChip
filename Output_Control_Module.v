@@ -13,6 +13,8 @@ module Output_Control_Module(
 	input		[15:0]		iNextInstruction,
 	input		[14:0]		iSetInstructionReadAddr,
 	output reg	[14:0]		oInstructionReadAddr,
+	output reg [31:0]		otxCurrentlyInLoop,
+	output reg [31:0]		otxCurrentLoopIteration,
 	
 	
 	// transducer output controls
@@ -32,8 +34,8 @@ module Output_Control_Module(
 	output reg				otxADCTriggerLine,
 	
 	// arm interrupts
-	output reg	[1:0][7:0]	oArmInterrupt,
-	input		[1:0]		interruptResponse,
+	output reg	[1:0][31:0]	oArmInterrupt,
+	input		[31:0]		interruptResponse,
 	output reg	[3:0]		interruptError,
 	
 	// allow trigs and leds to be set without running program
@@ -105,27 +107,27 @@ parameter [1:0] txout_reset_module = 2'b11;
 parameter [3:0] set_trig = 4'b0000; // 0
 parameter [3:0] set_leds = 4'b0001; // 1
 parameter [3:0] trigger_recv = 4'b0010; // 2
-parameter [3:0] is_loop_end_point = 4'b0011; // 3
-parameter [3:0] wait_for_external_trigger = 4'b0100; // 4
+parameter [3:0] is_loop_start_point = 4'b0011; // 3
+parameter [3:0] is_loop_end_point = 4'b0100; // 4
 parameter [3:0] fire_pulse = 4'b0101; // 5
 parameter [3:0] fire_at = 4'b0110; // 6
-parameter [3:0] fire_with_interrupt = 4'b0111; // 7
+parameter [3:0] generate_tx_interrupt = 4'b0111; // 7
+parameter [3:0] wait_for_external_trigger = 4'b1000; // 8
+parameter [3:0] wait_for_interrupt_to_resolve = 4'b1001; // 9
 parameter [3:0] program_end_point = 4'b1111; // 15
 
 wor isFireCommand;
 assign isFireCommand = instructionType[0][fire_pulse];
 assign isFireCommand = instructionType[0][fire_at];
-assign isFireCommand = instructionType[0][fire_with_interrupt];
 
-// arm interrupt messages
-reg [7:0] armMsg;
-parameter [7:0]	no_arm_msg = 				8'b00000000;
-parameter [7:0]	fire_cmd_issued =			8'b00000001;
-parameter [7:0] fire_at_cmd_issued =		8'b00000010;
-parameter [7:0] fire_single_cmd_issued =	8'b00000100;
-parameter [7:0]	tx_error = 					8'b00100000;
-parameter [7:0] last_fire_cmd_incomplete =	8'b01000000;
-parameter [7:0] multiple_fire_cmds_issued =	8'b10000000;
+wor waitingForExternal;
+assign waitingForExternal = instructionType[0][wait_for_external_trigger];
+assign waitingForExternal = !iExternalTrig;
+
+wor waitingForInterruptToResolve;
+assign waitingForInterruptToResolve = instructionType[0][wait_for_interrupt_to_resolve];
+assign waitingForInterruptToResolve = !interruptResponse;
+
 
 // needed to make sure interrupts aren't rejected if they're issued
 // before previous response from arm processor gets reset
@@ -228,13 +230,13 @@ begin
 							if ( !loopActive[nextLoopNum] && ( nextLoopCounterRef > 1 ) )
 							begin
 								oInstructionReadAddr <= nextLoopStartAddr;
-								loopCounter[nextLoopNum] <= nextLoopCounterRef-1'b1;
+								loopCounter[nextLoopNum] <= {27'b0,1'b1};
 								loopActive[nextLoopNum] <= 1'b1;
 							end
-							else if ( loopActive[nextLoopNum] && ( loopCounter[nextLoopNum] > 1 ) )
+							else if ( loopActive[nextLoopNum] && ( loopCounter[nextLoopNum] < nextLoopCounterRef ) )
 							begin
 								oInstructionReadAddr <= nextLoopStartAddr;
-								loopCounter[nextLoopNum] <= loopCounter[nextLoopNum]-1'b1;
+								loopCounter[nextLoopNum] <= loopCounter[nextLoopNum]+1'b1;
 								loopActive[nextLoopNum] <= 1'b1;
 							end
 							else
@@ -260,13 +262,13 @@ begin
 							if ( !loopActive[nextLoopNum] && ( nextLoopCounterRef > 1 ) )
 							begin
 								oInstructionReadAddr <= nextLoopStartAddr;
-								loopCounter[nextLoopNum] <= nextLoopCounterRef-1'b1;
+								loopCounter[nextLoopNum] <= {27'b0,1'b1};
 								loopActive[nextLoopNum] <= 1'b1;
 							end
-							else if ( loopActive[nextLoopNum] && ( loopCounter[nextLoopNum] > 1 ) )
+							else if ( loopActive[nextLoopNum] && ( loopCounter[nextLoopNum] < nextLoopCounterRef ) )
 							begin
 								oInstructionReadAddr <= nextLoopStartAddr;
-								loopCounter[nextLoopNum] <= loopCounter[nextLoopNum]-1'b1;
+								loopCounter[nextLoopNum] <= loopCounter[nextLoopNum]+1'b1;
 								loopActive[nextLoopNum] <= 1'b1;
 							end
 							else
@@ -281,7 +283,8 @@ begin
 							timeUntilNextInstruction[1] <= iTimeUntilNextInstruction;
 							oInstructionReadAddr <= ( oInstructionReadAddr + 1'b1 );
 						end
-	
+						otxCurrentlyInLoop <= 32'b0;
+						otxCurrentLoopIteration <= 32'b0;
 						instructionBufferFlag[2] <= 1'b1;
 					end
 				end				
@@ -352,8 +355,8 @@ begin
 		otxTransducerOutput <= 8'b0;
 		programRunningFlag <= 1'b0;
 		tx_output_cmd <= txout_wait_cmd;
-		if ( oArmInterrupt[0] ^ tx_error ) oArmInterrupt[0] <= tx_error;
-		if ( oArmInterrupt[1] ^ tx_error ) oArmInterrupt[1] <= tx_error;
+		if ( oArmInterrupt[0] ^ 32'b1 ) oArmInterrupt[0] <= 32'b1;
+		if ( oArmInterrupt[1] ^ 32'b1 ) oArmInterrupt[1] <= 32'b1;
 	end
 	
 	if ( programRunningFlag & !interruptError & !txErrorFlag )
@@ -369,71 +372,17 @@ begin
 			begin
 				tx_output_cmd <= txout_wait_cmd;
 				txCntrActive <= 1'b0;
-			end
-			
-		end	
-		
-		else if ( !txCntrActive )
-		begin
-			otxTransducerOutput <= 8'b0;
-			if ( ( tx_output_cmd == txout_fire_pulse ) ) 
-			begin	
-				if ( armMsg )
-				begin
-					if ( !oArmInterrupt[0] )
-					begin
-						oArmInterrupt[0] <= armMsg;
-					end
-					else if ( !oArmInterrupt[1] )
-					begin
-						oArmInterrupt[1] <= armMsg;
-					end
-					else
-					begin
-						interruptError[2] <= 1'b1;
-					end
-				end
-			end
+			end	
 		end
-			
-		if ( interruptResponse[0] )
+
+		if ( interruptResponse && !armResponseFlag )
 		begin
-			if ( !armResponseFlag[0] )
-			begin
-				if ( oArmInterrupt[0] )
-				begin
-					armResponseFlag[0] <= 1'b1;
-					oArmInterrupt[0] <= no_arm_msg;
-				end
-				else
-				begin
-					interruptError[0] <= 1'b1;
-				end
-			end
+			if( oArmInterrupt[0] ) oArmInterrupt[0] <= 32'b0;
+			armResponseFlag <= 3'b1;
 		end
-		else
+		else if ( !interruptResponse && armResponseFlag )
 		begin
-			if ( armResponseFlag[0] ) armResponseFlag[0] <= 1'b0;
-		end
-			
-		if ( interruptResponse[1] )
-		begin
-			if ( !armResponseFlag[1] )
-			begin
-				if ( oArmInterrupt[1] )
-				begin
-					armResponseFlag[1] <= 1'b1;
-					oArmInterrupt[1] <= no_arm_msg;
-				end
-				else
-				begin
-					interruptError[1] <= 1'b1;
-				end
-			end
-		end
-		else
-		begin
-			if ( armResponseFlag[1] ) armResponseFlag[1] <= 1'b0;
+			armResponseFlag <= 3'b0;
 		end
 		
 		if ( otxADCTriggerLine & itxADCTriggerAck )
@@ -445,7 +394,7 @@ begin
 		begin
 			timeUntilNextInstruction[0] <= timeUntilNextInstruction[0]-1'b1;
 		end
-		else if ( !instructionType[0][wait_for_external_trigger] | iExternalTrig )
+		else if ( !waitingForExternal & !waitingForInterruptToResolve )
 		begin
 			instructionType[0] <= instructionType[1];
 			instruction[0] <= instruction[1];
@@ -459,20 +408,26 @@ begin
 				if ( !loopActive[nextLoopNum] && ( nextLoopCounterRef > 1 ) )
 				begin
 					oInstructionReadAddr <= nextLoopStartAddr;
-					loopCounter[nextLoopNum] <= nextLoopCounterRef-1'b1;
+					loopCounter[nextLoopNum] <= {27'b0,1'b1};
 					loopActive[nextLoopNum] <= 1'b1;
+					otxCurrentlyInLoop <= nextLoopNum;
+					otxCurrentLoopIteration <= 1'b1;
 				end
-				else if ( loopActive[nextLoopNum] && ( loopCounter[nextLoopNum] > 1 ) )
+				else if ( loopActive[nextLoopNum] && ( loopCounter[nextLoopNum] < nextLoopCounterRef ) )
 				begin
 					oInstructionReadAddr <= nextLoopStartAddr;
-					loopCounter[nextLoopNum] <= loopCounter[nextLoopNum]-1'b1;
+					loopCounter[nextLoopNum] <= loopCounter[nextLoopNum]+1'b1;
 					loopActive[nextLoopNum] <= 1'b1;
+					otxCurrentlyInLoop <= nextLoopNum;
+					otxCurrentLoopIteration <= loopCounter[nextLoopNum]+1'b1;
 				end
 				else
 				begin
 					oInstructionReadAddr <= oInstructionReadAddr + 1'b1;
 					loopCounter[nextLoopNum] <= 28'b0;
 					loopActive[nextLoopNum] <= 1'b0;
+					otxCurrentlyInLoop <= 32'b0;
+					otxCurrentLoopIteration <= 32'b0;
 				end
 			end
 			else if ( !iNextInstructionType[program_end_point] )
@@ -496,6 +451,11 @@ begin
 					otxADCTriggerLine <= 1'b1;
 				end
 				
+			if ( instructionType[0][is_loop_start_point] )
+				begin
+					oArmInterrupt[0] <= instructionType[0];
+				end
+			
 			if ( isFireCommand )
 				begin
 					if ( !txCntrActive )
@@ -507,14 +467,11 @@ begin
 							phaseCharge <= itxPulsePhaseCharge;
 							tx_output_cmd <= txout_fire_pulse;
 							
-							if ( instructionType[0][fire_with_interrupt] )
+							if ( instructionType[0][generate_tx_interrupt] )
 							begin
-								armMsg <= fire_cmd_issued;
+								oArmInterrupt[0] <= instructionType[0];
 							end
-							else
-							begin
-								armMsg <= no_arm_msg;
-							end
+							
 						end
 										
 						else if ( instructionType[0][fire_at] & !instructionType[0][fire_pulse] )
@@ -524,30 +481,24 @@ begin
 							phaseCharge <= itxFireAtPhaseCharge;
 							tx_output_cmd <= txout_fire_pulse;
 							
-							if ( instructionType[0][fire_with_interrupt] )
+							if ( instructionType[0][generate_tx_interrupt] )
 							begin
-								armMsg <= fire_at_cmd_issued;
+								oArmInterrupt[0] <= instructionType[0];
 							end
-							else
-							begin
-								armMsg <= no_arm_msg;
-							end
+							
 						end
 						
 						else
 						begin
-							armMsg[7] <= 1'b1;
-							armMsg[0] <= instructionType[0][fire_pulse];
-							armMsg[1] <= instructionType[0][fire_at];
-							armMsg[2] <= instructionType[0][fire_with_interrupt];
+							oArmInterrupt[0] <= instructionType[0];
+							oArmInterrupt[1] <= 32'b1;
 						end
+	
 					end
 					else
 					begin
-						armMsg[6] <= 1'b1;
-						armMsg[0] <= instructionType[0][fire_pulse];
-						armMsg[1] <= instructionType[0][fire_at];
-						armMsg[2] <= instructionType[0][fire_with_interrupt];
+						oArmInterrupt[0] <= 32'b1;
+						oArmInterrupt[1] <= 32'b1;
 					end
 
 				end	

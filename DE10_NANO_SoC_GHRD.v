@@ -165,7 +165,7 @@ assign ADC_SYNC		= adc_sync;
 //=======================================================
 
 wire	[7:0]			adc_to_arm_interrupt;
-wire	[1:0][7:0]		tx_to_arm_interrupt;
+wire	[1:0][31:0]		tx_to_arm_interrupt;
 
 
 wire	[23:0]			adc_serial_command;
@@ -190,7 +190,7 @@ wire	[7:0][31:0]		tx_fire_at_cmd_phase_charge;
 
 wire	[7:0]			tx_transducer_output_error_msg;
 	
-wire	[1:0]			arm_to_tx_interrupt_response;
+wire	[31:0]			arm_to_tx_interrupt_response;
 wire	[3:0]			tx_interrupt_error_msg;
 	
 wire	[7:0]			tx_led_reg;
@@ -212,6 +212,8 @@ assign tx_instruction = tx_instruction_reg[15:0];
 assign tx_instruction_type = tx_instruction_reg[31:16];
 
 wire	[15:0]			tx_set_instruction_read_addr;
+wire	[31:0]			tx_current_loop_iteration;
+wire	[31:0]			tx_currently_in_loop;
 
 wire					FRAMECLK_SHIFT;
 wire 					BITCLK_SHIFT;
@@ -280,6 +282,8 @@ Output_Control_Module u3(
 	.iNextInstruction				(tx_instruction),
 	.iSetInstructionReadAddr		(tx_set_instruction_read_addr[14:0]),
 	.oInstructionReadAddr			(tx_read_addr),
+	.otxCurrentlyInLoop				(tx_currently_in_loop),
+	.otxCurrentLoopIteration		(tx_current_loop_iteration),
 	
 	// transducer output controls
 	.itxPulsePhaseCharge			(tx_fire_cmd_phase_charge),
@@ -352,6 +356,9 @@ soc_system u0(
 		.tx_error_comms_export						(arm_to_tx_interrupt_response),
 		
 		.tx_set_instruction_read_addr_export		(tx_set_instruction_read_addr),
+		
+		.tx_current_loop_iteration_export      (tx_current_loop_iteration),
+		.tx_currently_in_loop_export   			(tx_currently_in_loop),
 
 		.adc_ram_bank0_address						(adc_write_addr),
 		.adc_ram_bank0_write						(adc_wren_bank[0]),
