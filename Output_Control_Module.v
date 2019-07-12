@@ -8,18 +8,16 @@ module Output_Control_Module(
 	input		[7:0]		itxControlComms,
 	
 	// procedural controls for instructions
-	input		[31:0]		iTimeUntilNextInstruction,
-	input		[15:0]		iNextInstructionType,
-	input		[15:0]		iNextInstruction,
+	
+
+	input		[63:0]		iNextInstruction,
+	input		[127:0]		iPhaseDelays,
 	input		[14:0]		iSetInstructionReadAddr,
-	output reg	[14:0]		oInstructionReadAddr,
-	output reg [31:0]		otxCurrentlyInLoop,
-	output reg [31:0]		otxCurrentLoopIteration,
+	output reg	[13:0]		oInstructionReadAddr,
+	output reg	[13:0]		oPhaseDelayReadAddr,
 	
 	
 	// transducer output controls
-	input		[7:0][31:0]	itxPulsePhaseCharge,
-	input		[7:0][31:0]	itxFireAtPhaseCharge,
 	input		[7:0]		itxTransducerChannelMask,
 	output reg	[7:0]		otxTransducerOutput,
 	output reg	[7:0]		otxTransducerOutputError,
@@ -65,7 +63,22 @@ reg [1:0][15:0] instructionType;
 reg [1:0][15:0] instruction;
 reg [2:0] instructionBufferFlag;
 
-reg [7:0][31:0] phaseCharge;	
+reg [127:0] fire_fireAt_switch;
+reg [127:0] phases;
+
+wand [127:0] fireCmd_Phases;
+assign fireCmd_Phases = fire_fireAt_switch;
+assign fireCmd_Phases = phases;
+
+wand [127:0] fireAtCmd_Phases;
+assign fireAtCmd_Phases = ~fire_fireAt_switch;
+assign fireAtCmd_Phases = iPhaseDelays;
+
+wor [127:0] activePhases;
+assign activePhases = fireCmd_Phases;
+assign activePhases = fireAtCmd_Phases;
+
+wire [7:0][15:0] phaseCharge;	
 
 wire [7:0] trigVals;
 wire [7:0] ledVals;

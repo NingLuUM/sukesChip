@@ -184,10 +184,6 @@ wire  	[2:0][31:0] 	adc_writedata_bank;
 wire 					tx_to_adc_trigger_signal;
 wire					adc_to_tx_trigger_ack;
 
-
-wire	[7:0][31:0]		tx_fire_cmd_phase_charge;
-wire	[7:0][31:0]		tx_fire_at_cmd_phase_charge;
-
 wire	[7:0]			tx_transducer_output_error_msg;
 	
 wire	[31:0]			arm_to_tx_interrupt_response;
@@ -198,18 +194,14 @@ wire	[7:0]			tx_trig_reg;
 wire	[7:0]			tx_trig_rest_level_reg;
 
 
-wire	[14:0]			tx_read_addr;
+wire	[13:0]			tx_instr_read_addr;
+wire	[13:0]			tx_phase_delay_read_addr;
 wire	[3:0]			tx_state;
 wire	[7:0]			tx_control_comms;
 wire	[7:0]			tx_user_mask;
 
-wire	[31:0]			tx_instruction_reg;
-wire	[31:0]			tx_timing_reg;
-
-wire	[15:0]			tx_instruction;
-wire	[15:0]			tx_instruction_type;
-assign tx_instruction = tx_instruction_reg[15:0];
-assign tx_instruction_type = tx_instruction_reg[31:16];
+wire	[63:0]			tx_instruction_reg;
+wire	[127:0]			tx_phase_delay_reg;
 
 wire	[15:0]			tx_set_instruction_read_addr;
 wire	[31:0]			tx_current_loop_iteration;
@@ -277,17 +269,14 @@ Output_Control_Module u3(
 	.itxControlComms				(tx_control_comms),
 	
 	// procedural controls for instructions
-	.iTimeUntilNextInstruction		(tx_timing_reg),
-	.iNextInstructionType				(tx_instruction_type),
-	.iNextInstruction				(tx_instruction),
-	.iSetInstructionReadAddr		(tx_set_instruction_read_addr[14:0]),
-	.oInstructionReadAddr			(tx_read_addr),
-	.otxCurrentlyInLoop				(tx_currently_in_loop),
-	.otxCurrentLoopIteration		(tx_current_loop_iteration),
+	.iNextInstruction					(tx_instruction_reg),
+	.iPhaseDelays						(tx_phase_delay_reg),
+	.iSetInstructionReadAddr		(tx_set_instruction_read_addr[13:0]),
+	.oInstructionReadAddr			(tx_instr_read_addr),
+	.oInstructionReadAddr			(tx_phase_delay_read_addr),
+
 	
 	// transducer output controls
-	.itxPulsePhaseCharge			(tx_fire_cmd_phase_charge),
-	.itxFireAtPhaseCharge			(tx_fire_at_cmd_phase_charge),
 	.itxTransducerChannelMask		(tx_user_mask),
 	.otxTransducerOutput			(tx_output_pins),
 	.otxTransducerOutputError		(tx_transducer_output_error_msg),
@@ -325,23 +314,7 @@ soc_system u0(
 		.pio_led_external_connection_export			(tx_led_reg),
 		.pio_trig_val_export						(tx_trig_reg),
 		.pio_trig_rest_levels_export				(tx_trig_rest_level_reg),
-		
-		.fire_phasecharge_ch0_export				(tx_fire_cmd_phase_charge[0]),
-		.fire_phasecharge_ch1_export				(tx_fire_cmd_phase_charge[1]),
-		.fire_phasecharge_ch2_export				(tx_fire_cmd_phase_charge[2]),
-		.fire_phasecharge_ch3_export				(tx_fire_cmd_phase_charge[3]),
-		.fire_phasecharge_ch4_export				(tx_fire_cmd_phase_charge[4]),
-		.fire_phasecharge_ch5_export				(tx_fire_cmd_phase_charge[5]),
-		.fire_phasecharge_ch6_export				(tx_fire_cmd_phase_charge[6]),
-		.fire_phasecharge_ch7_export				(tx_fire_cmd_phase_charge[7]),
-		.fireat_phasecharge_ch0_export				(tx_fire_at_cmd_phase_charge[0]),
-		.fireat_phasecharge_ch1_export				(tx_fire_at_cmd_phase_charge[1]),
-		.fireat_phasecharge_ch2_export				(tx_fire_at_cmd_phase_charge[2]),
-		.fireat_phasecharge_ch3_export				(tx_fire_at_cmd_phase_charge[3]),
-		.fireat_phasecharge_ch4_export				(tx_fire_at_cmd_phase_charge[4]),
-		.fireat_phasecharge_ch5_export				(tx_fire_at_cmd_phase_charge[5]),
-		.fireat_phasecharge_ch6_export				(tx_fire_at_cmd_phase_charge[6]),
-		.fireat_phasecharge_ch7_export				(tx_fire_at_cmd_phase_charge[7]),
+
 		
 		.pio_adc_serial_command_export				(adc_serial_command),
 		.pio_adc_control_comms_export				(adc_control_comms),
@@ -356,9 +329,6 @@ soc_system u0(
 		.tx_error_comms_export						(arm_to_tx_interrupt_response),
 		
 		.tx_set_instruction_read_addr_export		(tx_set_instruction_read_addr),
-		
-		.tx_current_loop_iteration_export      (tx_current_loop_iteration),
-		.tx_currently_in_loop_export   			(tx_currently_in_loop),
 
 		.adc_ram_bank0_address						(adc_write_addr),
 		.adc_ram_bank0_write						(adc_wren_bank[0]),
@@ -376,8 +346,8 @@ soc_system u0(
 		.tx_instruction_register_address			(tx_read_addr),	
 		.tx_instruction_register_readdata			(tx_instruction_reg),
 		
-		.tx_timing_register_address					(tx_read_addr),
-		.tx_timing_register_readdata				(tx_timing_reg),	    
+		.tx_phase_delay_register_address					(tx_read_addr),
+		.tx_phase_delay_register_readdata				(tx_timing_reg),	    
 
 		.ram_clock_bridge_clk						(CLK200), 
 		.adc_clock_bridge_clk						(CLK25), 
@@ -400,14 +370,14 @@ soc_system u0(
 		.tx_instruction_register_chipselect			(1'b1),
 		.tx_instruction_register_clken				(1'b1),
 		.tx_instruction_register_write				(1'b0),
-		.tx_instruction_register_writedata			(32'b0),
-		.tx_instruction_register_byteenable			(4'b1111),
+		.tx_instruction_register_writedata			(64'b0),
+		.tx_instruction_register_byteenable			(8'b11111111),
 
-		.tx_timing_register_chipselect				(1'b1),
-		.tx_timing_register_clken					(1'b1),
-		.tx_timing_register_write					(1'b0),
-		.tx_timing_register_writedata				(32'b0),
-		.tx_timing_register_byteenable				(4'b1111),
+		.tx_phase_delay_register_chipselect				(1'b1),
+		.tx_phase_delay_register_clken					(1'b1),
+		.tx_phase_delay_register_write					(1'b0),
+		.tx_phase_delay_register_writedata				(128'b0),
+		.tx_phase_delay_register_byteenable				(16'b1111111111111111),
 			
 
 		
