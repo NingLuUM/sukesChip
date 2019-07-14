@@ -14,7 +14,7 @@ module Output_Control_Module(
 	input		[127:0]		itxPhaseDelays,
 	input		[12:0]		itxSetInstructionReadAddr,
 	output reg	[12:0]		oInstructionReadAddr,
-	output reg	[14:0]		oPhaseDelayReadAddr,
+	output reg	[13:0]		oPhaseDelayReadAddr,
 	
 	// transducer output controls
 	input		[7:0]		itxTransducerChannelMask,
@@ -111,8 +111,8 @@ parameter maxIterLoops = 7;
 reg [maxLoopAddr:0][27:0]	loopCounter;
 reg [maxLoopAddr:0]			loopActive;
 reg [maxLoopAddr:0]			isIterLoop;
-reg [maxLoopAddr:0][14:0]	loopPhaseDelayStartAddr;
-reg [maxLoopAddr:0][14:0]	loopPhaseDelayAddrIncr;
+reg [maxLoopAddr:0][13:0]	loopPhaseDelayStartAddr;
+reg [maxLoopAddr:0][13:0]	loopPhaseDelayAddrIncr;
 reg [3:0] lastLoopNum;
 
 // itxControlComms Output_Control_Module case states
@@ -137,14 +137,12 @@ parameter [1:0] txout_reset_module = 2'b11;
 parameter [3:0] set_trig = 4'b0000; // 0
 parameter [3:0] set_leds = 4'b0001; // 1
 parameter [3:0] trigger_recv = 4'b0010; // 2
-parameter [3:0] is_loop_start_point = 4'b0011; // 3
-parameter [3:0] is_loop_end_point = 4'b0100; // 4
-parameter [3:0] increment_phase_delay_addr = 4'b0101; //5
-
+parameter [3:0] trigger_recv_local = 4'b0011; // 3
+parameter [3:0] is_loop_start_point = 4'b0100; // 4
+parameter [3:0] is_loop_end_point = 4'b0101; // 5
 parameter [3:0] fire_pulse = 4'b0110; // 6
 parameter [3:0] fire_at = 4'b0111; // 7
 parameter [3:0] set_charge_time = 4'b1000; // 8
-
 parameter [3:0] generate_tx_interrupt = 4'b1001; // 9
 parameter [3:0] wait_for_external_trigger = 4'b1010; // 10
 parameter [3:0] wait_for_interrupt_to_resolve = 4'b1011; // 11
@@ -446,9 +444,9 @@ begin
 					end
 					else
 					begin
-						oPhaseDelayReadAddr[lastLoopNum] <= instruction[0][14:0];
-						loopPhaseDelayStartAddr[lastLoopNum] <= instruction[0][14:0];
-						loopPhaseDelayAddrIncr[lastLoopNum] <= timingReg[0][14:0];
+						oPhaseDelayReadAddr[lastLoopNum] <= instruction[0][13:0];
+						loopPhaseDelayStartAddr[lastLoopNum] <= instruction[0][13:0];
+						loopPhaseDelayAddrIncr[lastLoopNum] <= timingReg[0][13:0];
 						isIterLoop[lastLoopNum] <= 1'b1;
 					end
 				end
@@ -504,7 +502,7 @@ begin
 						begin
 							txCntrActive <= 1'b1;
 							txCntr <= 32'b0;
-							oPhaseDelayReadAddr <= instructionType[0][13:0];
+							oPhaseDelayReadAddr <= instruction[0][13:0];
 							fire_fireAt_switch <= 1'b0;
 							
 							if( !chargeTimeSet_flag )

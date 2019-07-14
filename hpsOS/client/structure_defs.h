@@ -166,6 +166,7 @@ typedef struct RCVsys_{
 	uint32_t volatile *recLen;
 	uint32_t volatile *trigDelay;
     uint32_t volatile *interrupt0;
+    uint32_t volatile *recvIsLocal;
 	
 	int32_t volatile *ramBank0;
 	int32_t volatile *ramBank1;
@@ -234,108 +235,88 @@ typedef union TX_inputCommands_{
     uint32_t instr;
 } TX_inputCommands_t;
 
-typedef union TX_instructionReg_{ 
+typedef union TX_InstructionReg_{ 
     struct {
-        union {
-            uint16_t instr; // bits [15:0]
+        /* [31:0] nominally the timing register
+            if ( instruction != loop start/end )
+                contains time until next instruction
+            else
+                contains variables responsible for loop flow control
+        */
+        union { 
+            // time until next instruction
+            uint32_t t;
             
-            struct{
-                uint16_t startAddr : 15;
-                uint16_t noop : 1;
+            // variables for loops
+            struct {
+                uint32_t loopCounterRef : 28; // member of loop end
+                uint32_t loopNumber : 4; // member of loop start AND loop end
             };
 
-            struct{
-                uint16_t trig : 8;
-                uint16_t leds : 8;
+            /* address of the phaseDelays in the PHASE DELAY register corresponding 
+                to the first steering location of the loop (member of loop start) */
+            struct {
+                uint16_t phaseDelayStartAddr : 14;
+                uint16_t blank2t : 2;
             };
         };
-        uint16_t type; // bits [31:16]
+        
+        /* [47:32] the instruction register
+            varies depending on the instruction type
+            split up into bitfielded structs accordingly
+        */
+        union {
+            // the whole instruction
+            uint16_t instr; 
+            
+            // only used on master fpga
+            struct {
+                uint8_t ledVals; 
+                uint8_t masterTrigVals;
+            };
+
+            // only used on the daughter fpgas
+            struct {
+                uint16_t chargeTime : 9;
+                uint16_t trigVals : 7;
+            };
+
+            // address in the INSTRUCTION register where the loop starts (member of loop end)
+            struct {
+                uint16_t loopStartAddr : 13;
+                uint16_t blank3 : 3;
+            };
+
+            /* sets how much to increment the address in the PHASE DELAY register after 
+                each pulse, allows one to treat every N-th location (member of start loop) */
+            struct {
+                uint16_t phaseDelayAddrIncr : 14;
+                uint16_t blank2i : 2;
+            };
+            
+        };
+
+        // instruction type is always unique so no union
+        uint16_t type;
     };
-    uint32_t full;
-} TX_instructionReg_t;
+    uint64_t full;
+} TX_InstructionReg_t;
 
-typedef union TX_timingReg_{ 
-    struct {
-        uint32_t loopCounter : 28;
-        uint32_t loopNumber : 4;
-    };
-    uint32_t t;
-} TX_timingReg_t;
 
-typedef struct TX_PhaseChargeReg_{
-	uint32_t volatile *ch0;
-	uint32_t volatile *ch1;
-	uint32_t volatile *ch2;
-	uint32_t volatile *ch3;
-	uint32_t volatile *ch4;
-	uint32_t volatile *ch5;
-	uint32_t volatile *ch6;
-	uint32_t volatile *ch7;
-} TX_PhaseChargeReg_t;
+typedef struct TX_PhaseDelayReg_{
+	uint16_t ch0;
+	uint16_t ch1;
+	uint16_t ch2;
+	uint16_t ch3;
+	uint16_t ch4;
+	uint16_t ch5;
+	uint16_t ch6;
+	uint16_t ch7;
+} TX_PhaseDelayReg_t;
 
-typedef struct TX_OutputControlProgram_{
-
-    // loops are treated as numbered sub-programs that can call each other, progNum is the identifier 
-    // 16bit - [7:0]=logical (order of appearance in program), [15:8]=given (user-declared loopNum)
-    TX_OCProgEnum_t progNum;
-
-    // contains information about what type of loop this is, whether it's active, and how it should run
-    // anon union is just for linguistic convenience when refering to/accessing fields later 
-    union {
-        TX_OCProgControlFlags_t is;
-        TX_OCProgControlFlags_t has;
-        TX_OCProgControlFlags_t at;
-        uint16_t ocpFlags;
-    };
-
-    // loop counters
-    TX_OCProgLoopCntrs_t start;
-    TX_OCProgLoopCntrs_t end;
-    TX_OCProgLoopCntrs_t current;
-    TX_OCProgLoopCntrs_t last;
-    uint32_t increment;
-
-    // fire location can change when entering new loops
-    // this keeps track of where the last one was
-    struct {
-        uint32_t *last;
-        uint32_t current;
-    } fire;
-
-    // fireAt can exist across loops, these keep track of where it is 
-    struct {
-        uint32_t first;
-        uint32_t last;
-        uint32_t *current;
-    } fireAt;
-
-    // pointer to loop from which current loop was called
-    TX_OutputControlProgram_t *parent;
-
-    // pointer(s) to all loops called from within this one
-    uint32_t nChildren;
-    uint32_t currentChild;
-    TX_OutputControlProgram_t **children;
-
-    // list of actions to be taken within the current loop
-    uint32_t nActions;
-    uint32_t nRolledActions;
-    uint32_t nUnrolledActions;
-    uint32_t currentAction;
-    TX_Action_f **actionList;
-
-    // pointers to shared variables defined in TXsys 
-    uint32_t *phaseCharges;
-    TX_PhaseChargeReg_t *fireReg;
-    TX_PhaseChargeReg_t *fireAtReg;
-    uint32_t volatile *interrupt0;
-    uint32_t volatile *interrupt1;
-
-    //typedef void (*TX_Action_f)(TXsys *,uint32_t);
-} TX_OutputControlProgram_t;
- 
 
 typedef struct TXsys_{
+    // memory mapped FPGA pio's
 	uint32_t volatile *controlComms;
 	uint32_t volatile *channelMask;
 	uint32_t volatile *setInstructionReadAddr;
@@ -349,48 +330,29 @@ typedef struct TXsys_{
 	uint32_t volatile *interrupt1;
     uint32_t volatile *currentlyInLoop;
     uint32_t volatile *loopCounter;
-	
-    // mapped FPGA memory for output pins
-    TX_PhaseChargeReg_t fireReg;
-    TX_PhaseChargeReg_t fireAtReg;
-   
-    // mapped FPGA memory regions
-	uint32_t volatile *instructionReg;
-	uint32_t volatile *timingReg;
-
+  
+    // memory mapped FPGA ram blocks
+	TX_InstructionReg_t *instructionReg; // 64bit, 8192 elements
+    TX_PhaseDelayReg_t *phaseDelayReg; // 128bit, 16384 elements
+    
     // local storage to hold user program	
 	uint32_t **instructionReg_local;
 	uint32_t **timingReg_local;
 
     // variables used to setup ENET to recv phaseCharge data and user defined program
-    uint32_t recvType;
+    uint32_t recvType; // instructions vs phase delays
     uint32_t nLocs;
     uint32_t nInstructionsBuff;
-    char **phaseChargeBuff;
+    char **phaseDelayBuff;
     char **instructionBuff;
 
     uint32_t nInstructions;
     uint32_t **instructions;
 
-    // 
-    TX_OutputControlProgram_t **progDefs; // holds loop variables in user-given order
-    TX_OutputControlProgram_t ***progs; // points to progDefs, but in a logically ordered way
-	
 	void (*resetTX_vars)(struct TXsys *);
     void (*setChannelMask)(struct TXsys *, uint32_t);
 } TXsys;
 
-
-typedef struct UserProgram_{
-	int instructionsCount;
-	int fireCmdPhaseChargesCount;
-	int fireAtCmdPhaseChargesCount;
-	uint32_t *instructionList;
-	uint16_t *instructionTypeList;
-	uint32_t *instructionTiming;
-	uint32_t *fireCmdPhaseCharge;
-	uint32_t *fireAtCmdPhaseCharge;
-} UserProgram;
 
 
 void FPGAclose(FPGAvars *FPGA){ // closes the memory mapped file with the FPGA hardware registers

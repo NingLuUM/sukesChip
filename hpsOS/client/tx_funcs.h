@@ -4,1168 +4,265 @@ void parseRecvdPhaseCharges(TXsys *TX){
     
 }
 
-void updateFireCmdBuffer(TX_OutputControlProgram_t *ocp, uint32_t cmd){
-    int updateBuff = 0; 
-    if ( ocp->is.iterator ){
-        if ( DREF32(ocp->interrupt0) ){
-            ocp->currentAction++;
-            *(ocp->fire.last) = ocp->current.loc;
 
-            if ( ocp->is.unrolled && ( ocp->currentAction == ocp->nRolledActions ) ) {
-                ocp->current.loc += ( ocp->is.reversed ) ? -ocp->increment : ocp->increment;
-                ocp->fire.current = ocp->current.loc;
-                updateBuff = 1;
-                if ( ocp->current.loc != ocp->last.loc ){
-                    ocp->currentAction = 0;
-                }
-
-            } else if ( ocp->currentAction == ocp->nActions ){
-                if ( ocp->current.loc != ocp->last.loc ){
-                    ocp->current.loc += ( ocp->is.reversed ) ? -ocp->increment : ocp->increment;
-                    ocp->fire.current = ocp->current.loc;
-                    ocp->currentAction = 0;
-                    updateBuff = 1;
-                }
-            } else {
-                if ( ocp->current.loc != ocp->last.loc ){
-                    ocp->fire.current += ( ocp->is.reversed ) ? -ocp->increment : ocp->increment;
-                } else {
-                    ocp->fire.current = ocp->start.loc;
-                }
-            }
-            
-        } else if ( ( ocp->fire.current | *(ocp->fire.last) ) ^ ( ocp->current.loc ) ){
-            ocp->fire.current = ocp->current.loc;
-            updateBuff = 1;
-        }
-    } else {
-        ocp->currentAction++;
-    }
-    
-    if( updateBuff ){
-        DREF32(ocp->fireReg->ch0) = phaseCharges[ocp->current.loc];
-        DREF32(ocp->fireReg->ch1) = phaseCharges[ocp->current.loc+1];
-        DREF32(ocp->fireReg->ch2) = phaseCharges[ocp->current.loc+2];
-        DREF32(ocp->fireReg->ch3) = phaseCharges[ocp->current.loc+3];
-        DREF32(ocp->fireReg->ch4) = phaseCharges[ocp->current.loc+4];
-        DREF32(ocp->fireReg->ch5) = phaseCharges[ocp->current.loc+5];
-        DREF32(ocp->fireReg->ch6) = phaseCharges[ocp->current.loc+6];
-        DREF32(ocp->fireReg->ch7) = phaseCharges[ocp->current.loc+7];
-    }
-}
-
-
-void updateFireAtCmdBuffer(TX_OutputControlProgram_t *ocp, uint32_t cmd){
-    if ( DREF32(ocp->interrupt1) ){
-
-    } else {
-
-    }
-}
-
-
-void actionsHandler_tx(TX_OutputControlProgram_t *ocp){
-
-
-}
-
-
-void enterControlLoop(TX_OutputControlProgram_t *ocp, uint32_t cmd){
-    uint32_t child;
-    if ( ocp->currentAction < ( ocp->nActions - 1 ) ){
-        child = ocp->currentChild;
-        ocp->currentAction++;
-        ocp->currentChild++;
-        ocp = *(ocp->children)[child];
-    } else {
-        ocp = ocp->parent;
-    }
-}
-
-
-void populateActionLists_tx(TXsys *TX){
-    uint32_t *instr;
-    instr = (uint32_t *)(*(TX->instructions));
-    int i,j;
-    int nFireAts;
-
-    uint8_t progNum;
-    TX_OutputControlProgram_t **ocpPtr;
-    TX_OutputControlProgram_t *ocp;
-    TX_OutputControlProgram_t *child;
-    TX_OutputControlProgram_t *parent;
-    TX_Action_f *actionList;
-    
-    ocpPtr = *(TX->progs);
-
-    progNum = 0;
-    while( ocpPtr[ progNum ]->is.active ){
-        if( ( *(ocpPtr[ progNum ]->actionList) ) != NULL ){
-            free( *(ocpPtr[ progNum ]->actionList) );
-        }
-        *(ocpPtr[ progNum ]->actionList) = (TX_Action_f *)malloc((ocpPtr[ progNum ]->nActions)*sizeof(TX_Action_f));
-        progNum++;
-    }
-       
-    // the first action will be taken by the topLevel program
-    actionList = *(ocpPtr[0]->actionList);
-
-    ocp = ocpPtr[0];
-    // moving via pointers to populate subprogram action lists is pretty nifty
-    // no overlapping loops allowed :(
-    nFireAts = 0;
-    for( i = 0 ; TX->nInstructions ; i+=2 ) {
-        
-        if ( ( instr[i] & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ) && !( instr[i] & ARM_FIRELESS_LOOP ) ){
-            actionList[ ocp->currentAction ] = &enterControlLoop;
-            ocp->currentAction++;
-            parent = ocp;
-            child = *(ocp->children);
-            ocp = child[ parent->currentChild ];
-            actionList = *(ocp->actionList);
-            i+=3;
-
-        } else if ( ( instr[i] & FPGA_FIRE_CMD ) && !( instr[i] & FPGA_NO_TX_INTERRUPT ) ){
-            actionList[ ocp->currentAction ] = &updateFireCmdBuffer;
-            ocp->currentAction++;
-            
-        } else if ( ( instr[i] & FPGA_FIREAT_CMD ) && !( instr[i] & FPGA_NO_TX_INTERRUPT ) ){
-            actionList[ ocp->currentAction ] = &updateFireAtCmdBuffer;
-            ocp->currentAction++;
-            nFireAts++;
-        
-        } else if ( ( instr[i] & FPGA_LOOP_END )  && ( ( instr[i+1] & 0xf ) == ocp->progNum.given ) ) {
-            if ( !( instr[i] & ARM_UNROLLED ) ){
-                actionList[ ocp->currentAction ] = &enterControlLoop;
-                ocp->currentAction++;
-                ocp = parent;
-                ocp->currentChild++;
-                actionList = *(ocp->actionList);
-            } else {
-                j=i;
-                while( ( instr[j] & ARM_UNROLLED ) && ( j < TX->nInstructions ) ){
-                    if( instr[j] & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-                        break;
-                    } else if ( ( instr[j] & FPGA_FIRE_CMD ) && !( instr[j] & FPGA_NO_TX_INTERRUPT ) ){
-                        actionList[ ocp->currentAction ] = &updateFireCmdBuffer;
-                        ocp->currentAction++;
-                        
-                    } else if ( ( instr[j] & FPGA_FIREAT_CMD ) && !( instr[j] & FPGA_NO_TX_INTERRUPT ) ){
-                        actionList[ ocp->currentAction ] = &updateFireAtCmdBuffer;
-                        ocp->currentAction++;
-                        nFireAts++;
-                    }
-                    j+=2;
-                }
-                actionList[ ocp->currentAction ] = &enterControlLoop;
-                ocp->currentAction++;
-                ocp = parent;
-                ocp->currentChild++;
-                actionList = *(ocp->actionList);
-                i=j-2;
-            }
-        }
-    }
-
-    uint32_t *fireAtList;
-    if (*(TX->fireAtList) != NULL) free(*(TX->fireAtList));
-    *(TX->fireAtList) = (uint32_t *)calloc(nFireAts,sizeof(uint32_t));
-    fireAtList = *(TX->fireAtList);
-    
-    j=0;
-    for( i = 0 ; TX->nInstructions ; i+=2 ) {
-        if( ( instr[i] & FPGA_FIREAT_CMD ) && !( instr[i] & FPGA_NO_TX_INTERRUPT ) ){
-            fireAtList[j] = instr[i+1];
-            j++;
-        }
-    }
-
-    TX->currentFireAt = 0;
-    
-    while( ocpPtr[progNum]->is.active ){
-        ocpPtr[progNum]->currentAction = 0;
-        ocpPtr[progNum]->currentChild = 0;
-    }
-}
-
-
-void defineSubPrograms_tx(TXsys *TX){
-
-    // type that 
-    TX_instructionTypeReg_t *instr;
-    intsr = (TX_instructionTypeReg_t *)(*(TX->instructions));
-    
-    int i,j;
-
-    uint16_t masterProg, curProg;
-    free(*(TX->progDefs));
-    *(TX->progDefs) = (TX_OutputControlProgram_t *)malloc((MAX_LOOPS+1)*sizeof(TX_OutputControlProgram_t));
-    free(*(*(TX->progs)));
-    *(TX->progs) = (TX_OutputControlProgram_t **)malloc((MAX_LOOPS+1)*sizeof(TX_OutputControlProgram_t *));
-
-    // bitField to keep track of whether or not current instr exists within a loop 
-    uint32_t progTracker;
-    int32_t incr;
-    int fireAt_detected;
-    int nFireAts;
-    int nFireAts_Inner = 0;
-    TX->nFireAts = 0;
-
-    // user might define loops out of order: start_loop(3), start_loop(2), start_loop(4)
-    // logical order of the given loop nums is:  [logical](given): [0](3), [1](2), [2](4)
-    uint8_t logicalProgNum;
-    TX_OutputControlProgram_t *ocpTmp;
-    TX_OutputControlProgram_t **ocpPtr;
-    TX_OutputControlProgram_t *ocpChildren[MAX_LOOPS];
-    ocpTmp = *(TX->progDefs);
-    ocpPtr = *(TX->progs);
-
-    for( i=0 ; i < (MAX_LOOPS+1) ; i++ ){
-        ocpTmp[i].progNum.logical = 0;
-        ocpTmp[i].progNum.given = 0;
-        ocpTmp[i].ocpFlags = 0;
-        ocpTmp[i].start.loc = 0;
-        ocpTmp[i].end.loc = 0;
-        ocpTmp[i].current.loc = 0;
-        ocpTmp[i].increment = 0;
-        ocpTmp[i].fireAt.first = 0;
-        ocpTmp[i].fireAt.last = 0;
-        ocpTmp[i].fireAt.current = &(TX->currentFireAt);
-        ocpTmp[i].parent = NULL;
-        ocpTmp[i].children = NULL;
-        ocpTmp[i].nChildren = 0;
-        ocpTmp[i].currentChild = 0;
-        ocpTmp[i].nActions = 0;
-        ocpTmp[i].nRolledActions = 0;
-        ocpTmp[i].nUnrolledActions = 0;
-        ocpTmp[i].currentAction = 0;
-        ocpTmp[i].actionList = NULL;
-        ocpTmp[i].fireReg = &(TX->fireReg);
-        ocpTmp[i].fireAtReg = &(TX->fireAtReg);
-        ocpTmp[i].interrupt0 = TX->interrupt0;
-        ocpTmp[i].interrupt1 = TX->interrupt1;
-    }
-    ocpTmp[0].is.topLevel = 1;
-    ocpTmp[0].is.active = 1;
-
-    // populate output control program loop definitions
-    for( i=0 ; i < (TX->nInstructions) ; i+=2 ) {
-        if ( instr[i].instr & ( FPGA_ITERATOR_START | FPGA_LOOP_START ) ){
-            curProg = instr[i+1].instr & 0xf;
-            masterProg = curProg+1;
-            ocpTmp[masterProg].progNum.given = curProg;
-            ocpTmp[masterProg].start.loc = instr[i+2].instr;
-            ocpTmp[masterProg].end.loc = instr[i+3].instr;
-            ocpTmp[masterProg].current.loc = ocpTmp[masterProg].start.loc;
-            ocpTmp[masterProg].last.loc = ocpTmp[masterProg].end.loc;
-            ocpTmp[masterProg].increment = instr[i+4].instr;
-            ocpTmp[masterProg].is.reversed = ( ocpTmp[masterProg].start.loc > ocpTmp[masterProg].end.loc );
-            ocpTmp[masterProg].is.unrolled = ( instr[i].instr & ARM_UNROLLED );
-            ocpTmp[masterProg].is.iterator = ( instr[i].instr & FPGA_ITERATOR_START ) ? 1 : 0 ;
-            if( ocpTmp[masterProg].is.reversed ){
-                ocpTmp[masterProg].last.loc += (ocpTmp[masterProg].start.loc-ocpTmp[masterProg].end.loc+1)%ocpTmp[masterProg].increment;
-            } else {
-                ocpTmp[masterProg].last.loc -= (ocpTmp[masterProg].end.loc-ocpTmp[masterProg].start.loc+1)%ocpTmp[masterProg].increment;
-            }
-            i+=3;
-        }
-
-        if ( ( instr[i].instr & FPGA_FIREAT_CMD ) && !( instr[i].instr & FPGA_NO_TX_INTERRUPT ) ){
-            TX->nFireAts++;
-        }
-    }
-  
-    // parse the topLevel program to find actionable instructions
-    ocpPtr[0] = &ocpTmp[0];     // ocpXxx[0] = topLevel
-    progTracker = 0;            // keeps track of whether currently in loop
-    nFireAts = 0;
-    fireAt_detected = 0;
-    for( i = 0 ; i < (TX->nInstructions) ; i+=2 ) {
-        if ( instr[i].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-            if( !( instr[i].instr & ARM_FIRELESS_LOOP ) ){
-                ocpTmp[0].nActions++;
-                ocpChildren[ ocpTmp[0].nChildren ] = &ocpTmp[ ( instr[i+1].instr & 0xf ) + 1 ];
-                ocpTmp[ ( instr[i+1].instr & 0xf ) + 1 ].parent = &ocpTmp[0];
-                ocpTmp[0].nChildren++;
-                progTracker |= ( 1 << ( instr[i+1].instr & 0xf ) );
-                j=i+5;
-
-                while( ( ( instr[j].fpga ^ FPGA_LOOP_END ) | progTracker ) && ( j < TX->nInstructions ) ){
-                    if ( instr[j].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-                        progTracker |= ( 1 << ( instr[j+1].instr & 0xf ) );
-                        j+=5;
-                    } else if ( ( instr[j].instr & FPGA_LOOP_END ) && ( ( 1 << (instr[j+1].instr & 0xf) ) & progTracker ) ) {
-                        progTracker &= ~( 1 << ( instr[j+1].instr & 0xf ) );
-                    } else if ( instr[j].instr & FPGA_FIREAT_CMD ){
-                        if( !( instr[i].instr & FPGA_NO_TX_INTERRUPT ) ){
-                            nFireAts++;
-                        }
-                        j+=2;
-                    } else {
-                        j+=2;
-                    }
-                }
-
-                i=j;
-            } else {
-                i+=3;
-            }
-        } else if ( ( instr[i].instr & ( FPGA_FIRE_CMD | FPGA_FIREAT_CMD ) ) && !( instr[i].instr & ( FPGA_NO_TX_INTERRUPT | ARM_UNROLLED ) ) ){
-            ocpTmp[0].nActions++;
-            if ( instr[i].instr & FPGA_FIREAT_CMD ){
-                if ( !fireAt_detected ) {
-                    ocpTmp[0].fireAt.first = nFireAts;
-                    fireAt_detected = 1;
-                } else {
-                    ocpTmp[0].fireAt.last = nFireAts;
-                }
-                nFireAts++;
-                ocpTmp[0].has.fireAtCmd=1;
-            } else {
-                ocpTmp[0].has.fireCmd=1;
-            }
-        }
-    }
-    // one extra action is need for the topLevel program as a placeholder for returning to parent subprogram
-    ocpTmp[0].nActions++;
-    if( ocpTmp[0].nChildren ){
-        if( ocpTmp[0].children != NULL ) free( ocpTmp[0].children );
-        ocpTmp[0].children = (TX_OutputControlProgram_t **)malloc(ocpTmp[0].nChildren*sizeof( TX_OutputControlProgram_t *) );
-        for( i = 0 ; i < ocpTmp[0].nChildren ; i++ ){
-            ocpTmp[0].children[i] = ocpChildren[i];
-        }
-    }
-
-    // parse the loops defined by the user for actionable items
-    logicalProgNumber = 1;
-    nFireAts = 0;
-    for( i = 0 ; i < (TX->nInstructions) ; i+=2 ) {
-        if ( instr[i].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ) {
-            if ( !( instr[i].instr & ARM_FIRELESS_LOOP ) ){
-                curProg = instr[i+1].instr & 0xf;
-                masterProg = curProg + 1;
-                ocpPtr[logicalProgNumber] = &ocpTmp[masterProg];
-                ocpTmp[masterProg].progNum.logical = logicalProgNumber;
-                ocpTmp[masterProg].is.active = 1;
-                if( ocpTmp[masterProg].is.unrolled ){
-                    if( ocpTmp[masterProg].is.reversed ){
-                        ocpTmp[masterProg].end.loc -= ocpTmp[masterProg].increment;
-                        ocpTmp[masterProg].last.loc -= ocpTmp[masterProg].increment;
-                    } else {
-                        ocpTmp[masterProg].end.loc += ocpTmp[masterProg].increment;
-                        ocpTmp[masterProg].last.loc += ocpTmp[masterProg].increment;
-                    }
-                }
-                
-                j=i+5;
-                progTracker = 0;
-                fireAt_detected = 0;
-                nFireAts_Inner = nFireAts;
-                while( ( ( instr[j].fpga ^ FPGA_LOOP_END ) | ( ( instr[j+1].instr & 0xf ) ^ curProg ) ) && ( j < TX->nInstructions ) ){
-                    
-                    if ( instr[j].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-                        if ( !( instr[j].instr & ARM_FIRELESS_LOOP ) ){
-                            ocpTmp[masterProg].nActions++;
-                            ocpTmp[masterProg].nRolledActions++;
-                            ocpChildren[ ocpTmp[masterProg].nChildren ] = &ocpTmp[ ( instr[j+1].instr & 0xf ) + 1 ];
-                            ocpTmp[masterProg].nChildren++;
-                            ocpTmp[ ( instr[j+1].instr & 0xf ) + 1 ].parent = &ocpTmp[masterProg];
-                            progTracker |= ( 1 << ( instr[j+1].instr & 0xf ) );
-                            j+=5;
-
-                            // all actions within sub-loops get executed by the sub-loops, this basically just skips them
-                            while( ( ( instr[j].fpga ^ FPGA_LOOP_END ) | progTracker ) && ( j < TX->nInstructions ) ){
-                                if ( instr[j].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-                                    if( !( instr[j].instr & ARM_FIRELESS_LOOP ) ){
-                                        progTracker |= ( 1 << ( instr[j+1].instr & 0xf ) );
-                                    }
-                                    j+=5;
-                                } else if ( ( instr[j].instr & FPGA_LOOP_END ) && ( ( instr[j+1].instr & 0xf ) & curProg ) ){
-                                    break;
-                                } else if ( ( instr[j].instr & FPGA_LOOP_END ) && ( ( 1 << (instr[j+1].instr & 0xf) ) & progTracker ) ) {
-                                    progTracker &= ~( 1 << (instr[j+1].instr & 0xf) );
-                                } else if ( instr[j].instr & FPGA_FIREAT_CMD ){
-                                    if ( !( instr[j].instr & FPGA_NO_TX_INTERRUPT ) ){
-                                        nFireAts_Inner++;
-                                    }
-                                    j+=2;
-                                } else {
-                                    j+=2;
-                                }
-                            }
-
-                            while( ( instr[j].instr & ARM_UNROLLED ) && ( j < TX->nInstructions ) ){
-                                if ( instr[j].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-                                    break;
-                                } else if ( instr[j].instr & FPGA_FIREAT_CMD ){
-                                    if( !( instr[j].instr & FPGA_NO_TX_INTERRUPT ) ){
-                                        nFireAts_Inner++;
-                                    }
-                                    j+=2;
-                                } else {
-                                    j+=2;
-                                }
-                            }
-
-                        } else {
-                            j+=5;
-                        }
-                    } else if ( ( instr[j].instr & ( FPGA_FIRE_CMD | FPGA_FIREAT_CMD ) ) && !( instr[j].instr & ( FPGA_NO_TX_INTERRUPT | ARM_UNROLLED ) ) ){
-                        ocpTmp[masterProg].nActions++;
-                        ocpTmp[masterProg].nRolledActions++;
-                        if ( instr[j].instr & FPGA_FIREAT_CMD ){
-                            if ( !fireAt_detected ){
-                                ocpTmp[masterProg].fireAt.first = nFireAts_Inner;
-                            } else {
-                                ocpTmp[masterProg].fireAt.last = nFireAts_Inner;
-                            }
-                            ocpTmp[masterProg].has.fireAtCmd = 1;
-                            fireAt_detected++;
-                            nFireAts_Inner++;
-                        } else {
-                            ocpTmp[masterProg].has.fireCmd = 1;
-                        }
-                        j+=2;
-                    } else {
-                        j+=2;
-                    }
-                }
-
-                while( ( instr[j].instr & ARM_UNROLLED ) && ( j < TX->nInstructions ) ){
-                    if ( instr[j].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-                        break;
-                    } else if ( ( instr[j].instr & ( FPGA_FIRE_CMD | FPGA_FIREAT_CMD ) ) && !( instr[j].instr & FPGA_NO_TX_INTERRUPT ) ){
-                        ocpTmp[masterProg].nActions++;
-                        ocpTmp[masterProg].nUnrolledActions++;
-                        if ( instr[j].instr & FPGA_FIREAT_CMD ){
-                            if ( !fireAt_detected ){
-                                ocpTmp[masterProg].fireAt.first = nFireAts_Inner;
-                            } else {
-                                ocpTmp[masterProg].fireAt.last = nFireAts_Inner;
-                            }
-                            ocpTmp[masterProg].has.fireAtCmd = 1;
-                            fireAt_detected++;
-                            nFireAts_Inner++;
-                        } else {
-                            ocpTmp[masterProg].has.fireCmd = 1;
-                        }
-                        j+=2;
-                    } else {
-                        j+=2;
-                    }
-                }
-
-
-                if( fireAt_detected ){
-                    ocpTmp[masterProg].at.exit_UpdateFireAt = ( nFireAts_Inner < TX->nFireAts) ? 1 : 0;
-                    ocpTmp[masterProg].at.loopEnd_ReloadFireAt = ( fireAt_detected > 1 ) ? 1 : 0;
-                }
-
-                if( ocpTmp[masterProg].nChildren ){
-                    if( ocpTmp[masterProg].children != NULL ) free( ocpTmp[masterProg].children );
-                    ocpTmp[masterProg].children = (TX_OutputControlProgram_t **)malloc(ocpTmp[masterProg].nChildren*sizeof( TX_OutputControlProgram_t *) );
-                    for( j = 0 ; j < ocpTmp[masterProg].nChildren ; j++ ){
-                        ocpTmp[masterProg].children[j] = ocpChildren[j];
-                    }
-                }
-                
-                // the last action of each subprogram needs to be to return to parent
-                ocpTmp[masterProg].nActions++;
-                logicalProgNumber++;
-            }
-            i+=3;
-        } else if ( ( instr[i].instr & FPGA_FIREAT_CMD ) && !( instr[i].instr & FPGA_NO_TX_INTERRUPT ) ){
-            nFireAts+=1;
-        }
-    }
-
-    /* at this point the loops know:
-        how many iterations they run for
-        whether they contain any fire/fireAt commands
-            how many fireAt commands
-            the indices of the first and last fireAt commands used by each subprogram in the list of fireAt commands
-        whether they iterate through phaseCharge buffer/locations
-            where they start
-            where they end
-            how much to increment by
-        who their parent is
-        who their children are
-    */
-    TX->populateActionLists(TX);
-}
-
-
-void minimizeRedundantInterrupts_tx(TXsys *TX){
-    /* fire/fireAt will generate iterrupts every time they're called
-        if these commands appear in a loop, they'll generate interrupts every time
-        if the fire/fireAt location doesn't change within the loop though, the
-        interrupts get generated even though they don't need to do anything.
-        this would tax the hell out of the 'poll' function  especially if iterrupts 
-        are being generated at rates > 1kHz, which might be the case for deletion
-        pulses, or if trying some (probably) over zealous treatment rates.
-
-        this function goes through the list of instructions and takes this:
-        
-            start_loop(1,100)
-            fireAt(x) // triggers interrupt
-            wait()
-            end_loop(1)
-
-        and makes it this:
-
-            start_loop(1,99)
-            fireSingle(x) // doesn't trigger interrupt
-            wait()
-            end_loop(1)
-            fireAt(x)
-            wait()
-
-        this should be operationally equivalent, but won't trigger unecessary
-        interrupts and so won't tax the hell out of the 'poll' function
-    */
-    
-    int i,j,k;
-    uint32_t curProg;
-    uint32_t progTracker;
-    TX_instructionTypeReg_t *instr;
-    uint32_t nLines;
-    uint32_t isUnrollable;
-    uint32_t nFireAts;
-    uint32_t nFires;
-    uint32_t nFiresRef;
-    uint32_t fireAtLoc;
-    uint32_t fireLoc;
-    uint32_t gapFlag;
-    uint32_t isReversed;
-    uint32_t isIterator;
-    instr = (TX_instructionTypeReg_t *)(*(TX->instructionBuff));
-    
-    typedef struct segment_{
-        uint32_t start;
-        uint32_t end;
-        uint32_t newLines;
-        uint32_t *instr;
-        struct segment_ *next;
-        struct segment_ *prev;
-    } segment_t;
-
-
-    // go through all fireAt's in program, convert repeat fireAts to fireAtSingle
-    for( i = 0; i < (TX->nInstructionsBuff); i+=2 ){
-        if( instr[i].instr & ( FPGA_ITERATOR_START | FPGA_LOOP_START ) ){
-            i+=3;
-        } else if ( ( instr[i].instr & FPGA_FIREAT_CMD ) && !( instr[i].instr & FPGA_NO_TX_INTERRUPT ) ){
-            fireAtLoc = instr[i+1].instr;
-            for ( j = i+2; j<(TX->nInstructionsBuff); j+=2 ){
-                if( instr[j].instr & ( FPGA_ITERATOR_START | FPGA_LOOP_START ) ){
-                    j+=3;
-                } else if ( ( instr[j].instr & FPGA_FIREAT_CMD ) && !( instr[i].instr & FPGA_NO_TX_INTERRUPT ) ){
-                    if( instr[j+1].instr == fireAtLoc ){
-                        instr[i].instr |= FPGA_NO_TX_INTERRUPT;
-                    } else {
-                        i=j;
-                        break;
-                    }
-                } 
-            }
-        }
-    }
-
-
-    // go through all iterator loops, convert duplicated 'fire' commands into fireSingle
-    for( i = 0; i < (TX->nInstructionsBuff); i+=2 ){
-        if( instr[i].instr & FPGA_LOOP_START ){
-            i+=3;
-        } else if ( instr[i].instr & FPGA_ITERATOR_START ){
-            curProg = instr[i+1].instr & 0xf;
-            progTracker = ( 1 << curProg );
-            fireLoc=0;
-            k=0;
-            for ( j = i+5; j<(TX->nInstructionsBuff); j+=2 ){
-                if( instr[j].instr & FPGA_ITERATOR_START ){
-                    progTracker |= ( 1 << ( instr[j+1].instr & 0xf ) );
-                    j+=3;
-                } else if ( instr[j].instr & FPGA_LOOP_START ) {
-                    j+=3;
-                } else if ( ( instr[j].instr & FPGA_FIRE_CMD ) ){
-                    if( progTracker == ( 1 << curProg ) ){
-                        if ( k ){
-                            instr[fireLoc].instr |= FPGA_NO_TX_INTERRUPT;
-                        }
-                        fireLoc = j;
-                        k=1;
-                    } else {
-                        k=0;
-                    }
-                } else if ( ( instr[j].instr & FPGA_LOOP_END ) ) {
-                    if ( instr[j+1].instr == curProg ){
-                        break;
-                    } else {
-                        progTracker &= ~( 1 << ( instr[j+1].instr & 0xf ) );
-                    }
-                }
-            }
-        }
-    }
-    
-    segment_t *seg;
-    seg = (segment_t *)malloc(sizeof(segment_t));
-    seg->start=0;
-    seg->end=0;
-    seg->newLines=0;
-    seg->prev = NULL;
-    seg->next = NULL;
-
-
-    for( i=0 ; i < (TX->nInstructionsBuff) ; i+=2 ) {
-        nLines = 0;
-        nFireAts = 0;
-        nFires = 0;
-        fireAtLoc = 0;
-        isUnrollable = 1;
-        isReversed = 0;
-        isIterator = 0;
-        if ( instr[i].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-            curProg = instr[i+1].instr & 0xf;
-          
-            isIterator = ( instr[i].instr & FPGA_ITERATOR_START ) ? 1 : 0;
-            isReversed = ( instr[i+2].instr > instr[i+3].instr ) ? 1 : 0;
-            if ( !isReversed && ( ( (( instr[i+3].instr - instr[i+2].instr )) / ( instr[i+4].instr ) ) < 2 ) ){
-                isUnrollable = 0;
-            } else if ( isReversed && ( ( (( instr[i+2].instr - instr[i+3].instr )) / ( instr[i+4].instr ) ) < 2 ) ) {
-                isUnrollable = 0;
-            }
-            
-            j=i+5;
-            i+=3;
-
-            /* check if loop fails other unrolling criteria
-                - can't unroll a loop if there's a nested loop within it
-                - can't unroll a loop if it contains multiple fireAt(x)'s and (x) changes 
-            */
-            while( ( j < TX->nInstructionsBuff ) && isUnrollable ){
-                if ( instr[j].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-                    isUnrollable = 0;
-                    break;
-                } else if ( instr[j].fpga & FPGA_LOOP_END ) {
-                    if ( ( (instr[j+1].instr & 0xf) ^ curProg ) || ( !nFireAts && !nFires ) ) {
-                        isUnrollable = 0;
-                    }
-                    j+=2;
-                    break;
-                } else if ( ( instr[j].instr & FPGA_FIREAT_CMD ) && !( instr[j].instr & FPGA_NO_TX_INTERRUPT ) ){
-                    if( !nFireAts ){
-                        fireAtLoc = instr[j+1].instr;
-                    } else {
-                        if( instr[j+1].instr != fireAtLoc ){
-                            isUnrollable = 0;
-                            break;
-                        }
-                    }
-                    nFireAts++;
-                } else if ( ( instr[j].instr & FPGA_FIRE_CMD ) && !( instr[j].instr & FPGA_NO_TX_INTERRUPT ) ) {
-                    nFires++;
-                }
-                
-                j+=2;
-                nLines+=2;
-            }
-        } else {
-            isUnrollable = 0;
-        }
-        
-        gapFlag = 0;
-        if ( isUnrollable ){
-            if ( ( seg->prev == NULL ) && ( i > 0 ) ) {
-                seg->start = 0;
-                seg->end = i;
-                seg->newLines = 0;
-                gapFlag = 1;
-            } else if ( ( seg->prev != NULL ) && ( i - seg->prev->end ) ){
-                seg->start = seg->prev->end;
-                seg->end = i;
-                seg->newLines = 0;
-                gapFlag = 1;
-            }
-
-            if( gapFlag ){
-                seg->instr = (uint32_t *)calloc( (seg->end - seg->start), sizeof(uint32_t) );
-                memcpy(seg->instr, &instr[ seg->start ], (seg->end - seg->start)*sizeof(uint32_t) );
-                seg->next = (segment_t *)malloc( sizeof(segment_t));
-                seg->next->prev = seg;
-                seg = seg->next;
-                seg->next = NULL;
-            }
-
-            nFiresRef = nFires;
-            seg->start = i;
-            seg->end = j;
-            seg->newLines = nLines;
-            seg->instr = (uint32_t *)calloc( ( seg->end - seg->start + seg->newLines ) , sizeof(uint32_t));
-            
-            // copy original instructions into the segment's instruction array
-            memcpy(seg->instr, &instr[ seg->start ], (seg->end - seg->start)*sizeof(uint32_t) );
-           
-            // flag the loop as having been unrolled
-            seg->instr[0] |= ARM_UNROLLED;
-            seg->instr[ (seg->end - seg->start) - 2 ] |= ARM_UNROLLED;
-
-            // update the end point of the loop
-            if( isReversed ){
-                seg->instr[3] += ( seg->instr[4] );
-            } else {
-                seg->instr[3] -= ( seg->instr[4] );
-            }
-
-            // go through the loop's instructions and modify the fire/fireAt commands as appropriate
-            for( k = 5; k < ( seg->end - seg->start ); k+=2){
-                if ( seg->instr[k] & FPGA_FIREAT_CMD ){
-                    seg->instr[k] |= FPGA_NO_TX_INTERRUPT;
-                } else if ( ( seg->instr[k] & FPGA_FIRE_CMD ) ){
-                    if ( !isIterator || ( isIterator && ( nFires > 1 ) ) ){
-                        seg->instr[k] |= FPGA_NO_TX_INTERRUPT;
-                    }
-                    nFires--;
-                } 
-            }
-            
-            // copy the innards of the loop into the new portion of the segment's instruction array 
-            for( k = 0; k < ( seg->newLines ); k+=2 ){
-                if ( ( nFiresRef > 1 ) && ( instr[ ( seg->start + 5 ) + k ].instr & FPGA_FIRE_CMD ) && !( instr[ ( seg->start + 5 ) + k ].instr & FPGA_NO_TX_INTERRUPT ) ){
-                    seg->instr[ k + ( seg->end - seg->start ) ] = ( FPGA_FIRE_CMD | FPGA_NO_TX_INTERRUPT | ARM_UNROLLED );
-                    nFiresRef--;
-                } else {
-                    seg->instr[ k + seg->end ] = instr[ ( seg->start + 5 ) + k ].instr | ARM_UNROLLED; 
-                }
-                seg->instr[ k + seg->end + 1 ] = instr[ ( seg->start + 5 ) + k + 1 ].instr; 
-            }
-
-
-            // allocate memory for the next segment and set 'seg' to point to its address
-            seg->next = (segment_t *)malloc( sizeof(segment_t) );
-            seg->next->prev = seg;
-            seg = seg->next;
-            seg->next = NULL;
-            
-            // 'i' will increment by 2 on the next iteration. decrement it accordingly
-            i = j-2;
-        }
-    }
-
-    // if the last command of the program wasn't an end_loop, need to fill in the end of the program
-    if ( ( seg->prev == NULL ) && ( i > 0 ) ) {
-        seg->start = 0;
-        seg->end = i;
-        seg->newLines = 0;
-        gapFlag = 1;
-    } else if ( ( seg->prev != NULL ) && ( i - seg->prev->end ) ){
-        seg->start = seg->prev->end;
-        seg->end = i;
-        seg->newLines = 0;
-        gapFlag = 1;
-    }
-    if( gapFlag ){
-        seg->instr = (uint32_t *)calloc( (seg->end - seg->start), sizeof(uint32_t) );
-        memcpy(seg->instr, &instr[ seg->start ], (seg->end - seg->start)*sizeof(uint32_t) );
-        seg->next = (segment_t *)malloc( sizeof(segment_t));
-        seg->next->prev = seg;
-        seg = seg->next;
-        seg->next = NULL;
-    }
-    
-    // go through all segments of the program, determine how many instructions the new program has, and allocate it
-    TX->nInstructions = 0;
-    segment_t *tmps;
-    while( seg->prev != NULL ) seg = seg->prev;
-    tmps = seg;
-    do { // while( tmps != NULL )
-        TX->nInstructions += ( tmps->end - tmps->start + tmps->newLines );
-        tmps = tmps->next;
-    } while( tmps != NULL );
-    *(TX->instructions) = (uint32_t *)calloc(TX->nInstructions,sizeof(uint32_t));
-    instr = (TX_instructionTypeReg_t *)(*(TX->instructions));
-
-    // copy the program segments into the newly allocated instruction memory, delete the segments
-    nLines = 0;
-    do { // while( seg != NULL )
-        memcpy(&instr[nLines],seg->instr,(seg->end - seg->start + seg->newLines)*sizeof(uint32_t));
-        nLines += (seg->end - seg->start + seg->newLines);
-        tmps = seg;
-        seg = seg->next;
-        free(tmps->instr);
-        free(tmps);
-    } while( seg != NULL );
-
-    // go through all loops and check if they DON'T contain fire/fireAt, flag them accordingly
-    // ( arm doesn't need to know about subprograms it won't actively interract with )
-    progTracker = 0;
-    for( i = 0; i < (TX->nInstructions); i+=2 ){
-        if( instr[i].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-            curProg = instr[i+1].instr & 0xf;
-            progTracker = ( 1 << curProg );
-            nFires = 0;
-            j=i+5;
-            while( ( ( instr[j].fpga ^ FPGA_LOOP_END ) | progTracker ) && ( j < TX->nInstructionsBuff ) ){
-                if( instr[j].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-                    progTracker |= ( 1 << ( instr[j+1].instr & 0xf ) );
-                    j+=3;
-                } else if ( instr[j].instr & FPGA_LOOP_END ){
-                    progTracker &= ~( 1 << ( instr[j+1].instr & 0xf ) );
-                    if ( !progTracker ){
-                        break;
-                    }
-                } else if ( ( instr[j].instr & ( FPGA_FIRE_CMD | FPGA_FIREAT_CMD ) ) && !( instr[j].instr & FPGA_NO_TX_INTERRUPT ) && ( progTracker == ( 1 << curProg ) ) ){
-                    nFires = 1;
-                }
-                j+=2;
-            }
-            if ( !nFires ){
-                instr[i].instr |= ARM_FIRELESS_LOOP;
-                instr[j].instr |= ARM_FIRELESS_LOOP;
-            }
-            i+=3;
-        }
-    }
-}
-
-
-void identifyAndPruneLoops_tx(TXsys *TX){
-    /*
-        1) assigns loop numbers to identified iterators
-
-        2) checks if any user defined loops only execute once, or not at all 
-            - only executes once: 
-                the start/end_loop commands are deleted from the program
-            
-            - doesn't execute at all: 
-                EVERYTHING between the start_loop(x)/end_loop(x) commands it is DELETED
-    */
-    
+void compressInstruction_tx(TXsys *TX){
     uint32_t i,j,k;
-    uint32_t curProg;
-    uint32_t progTracker;
-    TX_instructionTypeReg_t *instr;
-    uint32_t isReversed;
-    uint32_t nLoops;
-    instr = (TX_instructionTypeReg_t *)(*(TX->instructionBuff));
+    int addedInstr;
+    const uint32_t buffLen = (TX->nInstructionsBuff);
+    uint8_t trigs, leds, loopNum;
+    TX_inputCommands_t *buff;
+    TX_InstructionReg_t *instr;
 
-    uint32_t usedLoops[MAX_LOOPS+1];
-    for( i=0; i < (MAX_LOOPS+1); i++){
-        usedLoops[i]=0;
+    int nIterators,nUnused,extraLoopsWanted;
+    uint8_t wasDeclared[MAX_TX_LOOPS];
+    uint8_t unusedLoop[MAX_TX_LOOPS];
+    uint8_t isIteratorLoop[MAX_TX_LOOPS];
+    uint32_t loopStartInstrAddr[MAX_TX_LOOPS];
+    uint32_t loopCounterRef[MAX_TX_LOOPS];
+    uint8_t iterLoopPairs[MAX_TX_LOOPS][2];
+    
+    nUnused = MAX_TX_LOOPS+1;
+    nIterators = 0;
+    extraLoopsWanted = 0;
+
+    for( k=0; k<MAX_TX_LOOPS; k++ ){
+        iterLoopPairs[k][0] = 0xff;
+        iterLoopPairs[k][1] = 0xff;
+        unusedLoop[k] = 1;
+        isIteratorLoop[k] = 0;
+        loopStartInstrAddr[k] = 0;
+        loopCounterRef[k] = 0;
     }
 
-
-    // find all instantiated non-iterator loops and their given numbers
-    for( i=0 ; i < (TX->nInstructionsBuff) ; i+=2 ) {
-        if ( ( instr[i].instr & FPGA_LOOP_START ) ) {
-            usedLoops[ ( instr[i+1].instr & 0xf ) ] = 1;
-        }
-    }
-   
-
-    // find all instantiated iterator loops and assign them unused loop numbers
-    for( i=0 ; i < (TX->nInstructionsBuff) ; i+=2 ) {
-        if ( ( instr[i].instr & FPGA_ITERATOR_START ) ){
-            j=0;
-            while( usedLoops[j] && ( j < ( MAX_LOOPS+1 ) ) ) j++;
-            instr[i+1].instr = j;
-            j=i+5;
-            k=1;
-            while( ( instr[j].instr ^ ARM_ITERATOR_END ) || k ){
-                if( instr[j].instr & FPGA_LOOP_START ){
-                    j+=3;
-                } else if ( instr[j].instr & FPGA_ITERATOR_START ){
-                    j+=3;
-                    k++;
-                } else if ( instr[j] & ARM_ITERATOR_END ){
-                    k--;
-                    if( !k ) break;
-                }
-                j+=2;
+    for( i=0; i<buffLen; i+=2){
+        if( buff[i].fpga & FPGA_IS_LOOP_START ){
+            if( unusedLoop[ buff[i+1] & 0xf ] ){
+                unusedLoop[ buff[i+1] & 0xf ] = 0;
+                nUnused--;
             }
-            instr[j+1].instr = instr[i+1].instr;
+            if( buff[i].arm & ARM_IS_ITERATOR ){
+                nIterators++;
+                if( !buff[i+3].instr ) extraLoopsWanted++;
+            }
         }
+        i+=4;
     }
 
 
-    // mark non-repeating loops for deletion 
-    for( i=0 ; i < (TX->nInstructionsBuff) ; i+=2 ) {
-        progTracker = 0;
-        if ( instr[i].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-            curProg = ( instr[i+1].instr & 0xf );
-            progTracker = ( 1 << curProg );
+    buff = (TX_inputCommands_t *)(*(TX->instructionBuff));
+    instr = (TX_InstructionReg_t *)calloc(buffLen,sizeof(TX_InstructionReg_t));
 
-            // if the loop iterates 0 times, just delete everything contained within it
-            if ( !( instr[i+4].instr ) ) {
-                instr[i].instr |= ARM_DELETE;
-                j=i+5;
-                do { //while( ( instr[j].fpga ^ FPGA_LOOP_END ) && ( instr[j+1] ^ curProg ) )
-                    instr[j].instr |= ARM_DELETE;
-                    if( instr[j].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ) {
-                        j+=3;
+    j=0;
+    for( i=0; i<buffLen; i+=2){
+        switch( buff[i].fpga ){
+            case( FPGA_SET_TRIG ):{
+                if( buff[i].arm & ARM_SET_EXPLICIT ){
+                    trigs = buff[i+1].instr;
+                } else {
+                    if( buff[i].arm & ARM_UNSET_VAL ){
+                        trigs &= ~buff[i+1].instr;
+                    } else {
+                        trigs |= buff[i+1].instr;
                     }
-                    j+=2;
-                } while( ( instr[j].fpga ^ FPGA_LOOP_END ) && ( instr[j+1].instr ^ curProg ) && ( j < TX->nInstructionsBuff ));
+                }
+                if( buff[i].arm & ARM_IS_MASTER ){
+                    instr[j].masterTrigVals = trigs;
+                } else {
+                    instr[j].trigVals = trigs;
+                }
+                instr[j].type |= FPGA_SET_TRIG;
+                addedInstr = 0;
+                break;
+            }
 
-            } else {
+            case( FPGA_SET_LEDS ):{
+                if( buff[i].arm & ARM_SET_EXPLICIT ){
+                    leds = buff[i+1].instr;
+                } else {
+                    if( buff[i].arm & ARM_UNSET_VAL ){
+                        leds &= ~buff[i+1].instr;
+                    } else {
+                        leds |= buff[i+1].instr;
+                    }
+                }
+                if( buff[i].arm & ARM_IS_MASTER ){
+                    instr[j].ledVals = trigs;
+                }
+                instr[j].type |= FPGA_SET_LEDS;
+                addedInstr = 0;
+                break;
+            }
 
-                isReversed = ( instr[i+2].instr > instr[i+3].instr ) ? 1 : 0;
-                nLoops = ( isReversed ) ? ( instr[i+2].instr - instr[i+3].instr ) : ( instr[i+3].instr - instr[i+2].instr );
-                nLoops /= ( instr[i+4].instr );
-                nLoops = ( nLoops ) ? nLoops : 1;
-                
-                // if the loop only repeats once, delete just the loop/iterate command
-                if ( nLoops == 1 ) {
-                    instr[i].instr |= ARM_DELETE;
-                    j=i+5;
-                    while( ( ( instr[j].fpga ^ FPGA_LOOP_END ) | progTracker ) && ( j < TX->nInstructionsBuff ) ){
-                        if( instr[j].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-                            progTracker |= ( 1 << ( instr[j+1].instr & 0xf ) );
-                            j+=5;
-                        } else if ( instr[j].fpga ^ FPGA_LOOP_END ){
-                            progTracker &= ~( 1 << ( instr[j+1].instr & 0xf ) );
-                            if ( progTracker ){
-                                j+=2;
-                            } else {
-                                instr[j].instr |= ARM_DELETE;
+            case( FPGA_TRIGGER_RECV_SYS ):{
+                instr[j].type |= FPGA_TRIGGER_RECV_SYS;
+                addedInstr = 0;
+                break;
+            }
+            
+            case( FPGA_TRIGGER_RECV_SYS_LOCAL ):{
+                instr[j].type |= FPGA_TRIGGER_RECV_SYS_LOCAL;
+                addedInstr = 0;
+                break;
+            }
+
+            case( FPGA_IS_LOOP_START ):{
+                if ( !addedInstr ){
+                    j++;
+                }
+                loopNum = buff[i+1].instr & 0xf;
+
+                if ( ( buff[i].arm & ARM_IS_ITERATOR ) ){
+                    isIterator[loopNum] = 1;
+
+                    // check for illegal conditions, auto kill program if they exist
+                    if( (buff[i+3].instr > buff[i+4].instr) || (buff[i+5].instr & 0xfffffe00) || ( ( buff[i+4].instr-buff[i+3].instr ) & 0xf0000000 ) ){
+                        instr[j].type = FPGA_END_PROGRAM;
+                        j++;
+                        break;
+                    }
+
+                    instr[j].type |= FPGA_GENERATE_TX_INTERRUPT;
+                    instr[j].instr = FPGA_IS_LOOP_START;
+                    instr[j].loopNumber = loopNum;
+                    instr[j].loopCounter = ( buff[i+3].instr & 0x0fffffff );
+                    j++;
+                    instr[j].type |= FPGA_WAIT_FOR_INTERRUPT_TO_RESOLVE;
+                    instr[j].type |= FPGA_WAIT_FOR_EXTERNAL_TRIGGER;
+                    j++;
+                    
+                    // check if the iteration loop repeats, if so add an external loop to do so
+                    if( buff[i+2].instr && ( nUnused >= extraLoopsWanted ) ){
+                        for( k=0;k<MAX_TX_LOOPS;k++ ){
+                            if( unusedLoop[k] ){
+                                iterLoopPairs[loopNum][0] = loopNum;
+                                iterLoopPairs[loopNum][1] = k; 
+                                
+                                loopStartInstrAddr[k] = j+1;
+                                loopCounterRef[k] = ( buff[i+2].instr | 0xf0000000 ) ? 0x0fffffff : buff[i+2].instr;
+                                unusedLoop[k] = 0;
                                 break;
                             }
                         }
                     }
-                }
-            }
-            
-            i+=3;
-        }
-    }
 
+                    instr[j].type = FPGA_IS_LOOP_START;
+                    instr[j].loopNumber = loopNum;
+                    instr[j].phaseDelayStartAddr = 0;
+                    instr[j].phaseDelayAddrIncr = ( buff[i+5].instr ) ? buff[i+5].instr : 1;
+                    loopStartInstrAddr[loopNum] = j+1;
 
-    // count the number of deleted lines/instructions
-    int nDeletes;
-    nDeletes = 0;
-    for( i=0 ; i < (TX->nInstructionsBuff) ; i+=2 ) {
-        if( instr[i].instr & ARM_DELETE ){
-            nDeletes+=2;
-            if( instr[i].instr & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-                nDeletes+=3;
-            }
-        }
-    }
+                    if( buff[i+5].instr ){
+                        loopCounterRef[loopNum] = (buff[i+4].instr-buff[i+3].instr)/(buff[i+5].instr);
+                    } else {
+                        loopCounterRef[loopNum] = (buff[i+4].instr-buff[i+3].instr);
+                    }
+                    loopCounterRef[loopNum] = (loopCounterRef[loopNum] | 0xf0000000) ? 0x0fffffff : loopCounterRef[loopNum];
 
-    // calculate the new size of the instruction list
-    int newSize;
-    newSize = (TX->nInstructionsBuff) - nDeletes;
-
-    // allocate space to store the new instruction list
-    if( *(TX->instructions) != NULL ) free( *(TX->instructions) );
-    *(TX->instructions) = (uint32_t *)calloc(newSize,sizeof(uint32_t));
-
-    // copy the new instruction list into the allocated space
-    uint32_t *tmpi;
-    tmpi = *(TX->instructions);
-    j = 0;
-    for( i=0 ; i < (TX->nInstructionsBuff) ; i+=2 ) {
-        if( !( instr[i].instr & ARM_DELETE ) ){
-            tmpi[j] = instr[i].instr;
-            tmpi[j+1] = instr[i+1].instr;
-            j+=2;
-            if( instr[i] & ( FPGA_LOOP_START | FPGA_ITERATOR_START ) ){
-                tmpi[j] = instr[i+2].instr;
-                tmpi[j+1] = instr[i+3].instr;
-                tmpi[j+2] = instr[i+4].instr;
-                i+=3;
-                j+=3;
-            }
-        }
-    }
-
-    // copy the new instruction list into the memory allocated for 'instructionBuff'
-    TX->nInstructionsBuff = newSize;
-    if( *(TX->instructionBuff) != NULL ) free(*(TX->instructionBuff));
-    *(TX->instructionBuff) = (char *)calloc(TX->nInstructionsBuff, sizeof(uint32_t));
-    memcpy(*(TX->instructionBuff), *(TX->instructions), TX->instructionBuff*sizeof(uint32_t));
-    
-    // free up the temporarily allocate space for the new instruction list
-    free(*(TX->instructions));
-    *(TX->instructions) = NULL;
-    
-}
-
-
-
-
-void identifyLoops_tx(TXsys *TX){
-
-    uint32_t i,j,k;
-    uint32_t curProg;
-    uint32_t progTracker;
-    TX_instructionType_t *buff;
-    uint32_t isReversed;
-    uint32_t nLoops;
-    buff = (TX_inputCommands_t *)(*(TX->instructionBuff));
-    uint32_t *instr;
-    uint32_t *timing;
-    instr = (TX_instructionReg_t *)calloc(TX->nInstructionsBuff,sizeof(TX_instructionReg_t));
-    timing = (TX_timingReg_t *)calloc(TX->nInstructionsBuff,sizeof(TX_timingReg_t));
-
-    uint32_t usedLoops[MAX_LOOPS];
-    uint32_t isIterator[MAX_LOOPS];
-    uint32_t startAddr[MAX_LOOPS];
-    uint32_t endAddr[MAX_LOOPS];
-    uint32_t loopStartLoc[MAX_LOOPS];
-    uint32_t loopEndLoc[MAX_LOOPS];
-    uint32_t loopLocIncr[MAX_LOOPS];
-    uint32_t loopNum, loopCount, gap;
-    TX_inputCommands_t prevCmd;
-    
-    // find all instantiated non-iterator loops and their given numbers
-    for( i=0; i < (MAX_LOOPS); i++){
-        usedLoops[i]=0;
-    }
-    for( i=0 ; i < (TX->nInstructionsBuff) ; i+=2 ) {
-        if ( ( buff[i].arm & ARM_START_LOOP ) ) {
-            usedLoops[ ( buff[i+1].instr & 0xf ) ] = 1;
-        }
-    }
-
-
-
-
-    gap=0;
-    j=0;
-    prevCmd.instr = 0;
-    for( i=0 ; i < (TX->nInstructionsBuff) ; i+=2 ) {
-        
-        if ( buff[i].arm & ARM_WAIT ){
-            timing[j].t = buff[i+1].t;
-            j++;
-            gap = 1;
-            prevCmd = buff[i];
-
-        } else if ( ( buff[i].arm & ARM_START_LOOP ) && ( buff[i].arm & ARM_IS_ITERATOR ) ) {
-            if ( !gap ){
-                j++;
-            }
-            for( k=0; k<MAX_LOOPS; k++){
-                if ( !usedLoops[k] ){
-                    loopNum = k;
-                    usedLoops[k] = 1;
-                    break;
-                } 
-            }
-            
-            startAddr[ loopNum ] = j+2;
-            loopStartLoc[ loopNum ] = buff[i+2].instr;
-            loopEndLoc[ loopNum ] = buff[i+3].instr;
-            loopLocIncr[ loopNum ] = buff[i+4].instr;
-            isIterator[ loopNum ] = 1;
-
-            instr[j].type = FPGA_ITERATOR_START;
-            instr[j].instr = loopNum;
-            timing[j].t = 0;
-            j++;
-            instr[j].type = FPGA_WAIT_FOR_INTERRUPT_TO_RESOLVE;
-            timing[j].t = 0;
-            
-            i+=3;
-            gap = 0;
-            prevCmd = buff[i];
-
-        } else if ( ( buff[i].arm & ARM_START_LOOP ) && !( buff[i].arm & ARM_IS_ITERATOR ) ) {
-            if ( !gap && ( prevCmd.arm != buff[i].arm ) ){
-                j++;
-            }
-            loopNum = buff[i+1].instr & 0xf;
-            startAddr[ loopNum ] = j;
-            loopStartLoc[ loopNum ] = buff[i+2].instr;
-            loopEndLoc[ loopNum ] = buff[i+3].instr;
-            loopLocIncr[ loopNum ] = buff[i+4].instr;
-            
-            i+=3;
-            gap = 0;
-            prevCmd = buff[i];
-
-        } else if ( buff[i].fpga & FPGA_END_LOOP ){
-            if( !gap ) j++;
-            if ( ( buff[i].arm & ARM_IS_ITERATOR ) && !( buff[i].arm & ARM_AUTO_UPDATE_FIRE ) ){
-                instr[j].type = FPGA_WAIT_EXTERNAL_TRIG;
-                j++;
-            }
-            loopNum = buff[i+1].instr & 0xf;
-            endAddr[ loopNum ] = j;
-
-            instr[j].type = buff[i].fpga;
-            instr[j].startAddr = startAddr[ loopNum ];
-
-            if( loopLocIncr[ loopNum ] ){
-                if( loopEndLoc[ loopNum ] > loopStartLoc[ loopNum ] ){
-                    loopCount = ( loopEndLoc[ loopNum ] - loopStartLoc[ loopNum ] ) / loopLocIncr[ loopNum ];
+                    j++;
+                    addedInstr = 1;
                 } else {
-                    loopCount = ( loopStartLoc[ loopNum ] - loopEndLoc[ loopNum ] ) / loopLocIncr[ loopNum ];
+                    loopStartInstrAddr[loopNum] = j;
+                    loopCounterRef[ loopNum ] = ( buff[i+2].instr | 0xf0000000 ) ? 0x0fffffff : buff[i+2].instr;
+                    addedInstr = 0;
                 }
-                if ( loopStartLoc[ loopNum ] != loopEndLoc[ loopNum ] ){
-                    loopCount = ( loopCount ) ? loopCount : 1;
+                i+=4;
+                break;
+            }
+            
+            case( FPGA_IS_LOOP_END ):{
+                if( !addedInstr ){
+                    j++;
                 }
-            } else {
-                loopCount = 0;
-            }
-            timing[j].loopNumber = loopNum;
-            timing[j].loopCounter = loopCount;
-            j++;
-            gap=1;
-            prevCmd = buff[i];
+                loopNum = buff[i+1].instr & 0xf;
+                instr[j].type |= FPGA_IS_LOOP_END;
+                instr[j].loopNumber = loopNum;
+                instr[j].loopCounterRef = loopCounterRef[loopNum];
+                if( isIterator[loopNum] && !( iterLoopPairs[loopNum][0] & 0xf0 ) ){
+                    j++;
+                    instr[j].type |= FPGA_IS_LOOP_END;
+                    instr[j].loopNumber = iterLoopPairs[loopNum][1];
+                    instr[j].loopCounterRef = loopCounterRef[iterLoopPairs[loopNum][1]];
+                }
+                j++;
+                addedInstr = 1;
 
-        } else if( buff[i].fpga & FPGA_SET_LEDS ){
-            instr[j].type |= buff[i].fpga;
-            if( buff[i].arm & ARM_UNSET_VAL ){
-                instr[j].leds &= ~( buff[i+1].instr );
-            } else {
-                instr[j].leds |= ( buff[i+1].instr );
-            }
-            gap = 0;
-            prevCmd = buff[i];
-
-        } else if( buff[i].fpga & FPGA_SET_TRIGS ){
-            instr[j].type |= buff[i].fpga;
-            if( buff[i].arm & ARM_UNSET_VAL ){
-                instr[j].trig &= ~( buff[i+1].instr );
-            } else {
-                instr[j].trig |= ( buff[i+1].instr );
-            }
-            gap = 0;
-            prevCmd = buff[i];
-
-        } else if( buff[i].fpga & FPGA_FIRE_CMD ){
-            if( !( instr[j].type & FPGA_FIREAT_CMD ) ){
-                instr[j].type |= buff[i].fpga;
-                gap = 0;
-                prevCmd = buff[i];
+                break;
             }
 
-        } else if( buff[i].fpga & FPGA_FIREAT_CMD ){
-            if ( !( instr[j].type & FPGA_FIRE_CMD ) ){
-                instr[j].type |= buff[i].fpga;
-                gap = 0;
-                prevCmd = buff[i];
+            case( FPGA_FIRE_CMD ):{
+                if( !(instr[j].type & FPGA_FIREAT_CMD) ){
+                    if( !(buff[i].arm & ARM_IS_MASTER) ){
+                        instr[j].type |= FPGA_FIRE_CMD;
+                    }
+                    addedInstr = 0;
+                } else {
+                    instr[j].type = FPGA_END_PROGRAM;
+                }
+                break;
             }
 
-        } else if( buff[i].fpga & FPGA_TX_INTERRUPT ){
-            instr[j].type |= buff[i].fpga;
-            gap = 0;
-            prevCmd = buff[i];
-        
-        }
+            case( FPGA_FIREAT_CMD ):{
+                if( !(instr[j].type & FPGA_FIRE_CMD) ){
+                    if( !(buff[i].arm & ARM_IS_MASTER) ){
+                        instr[j].type |= FPGA_FIREAT_CMD;
+                        instr[j].phaseDelayStartAddr = buff[i+1];
+                    }
+                    addedInstr = 0;
+                } else {
+                    instr[j].type = FPGA_END_PROGRAM;
+                }
+                break;
+            }
+
+            case( FPGA_SET_CHARGE_TIME ):{
+                if( !(buff[i].arm & ARM_IS_MASTER) ){
+                    instr[j].type |= FPGA_SET_CHARGE_TIME;
+                    instr[j].chargeTime = buff[i+1].instr;
+                }
+                addedInstr = 0;
+                break;
+            }
+            
+            case( FPGA_GENERATE_TX_INTERRUPT ):{
+                instr[j].type = FPGA_GENERATE_TX_INTERRUPT;
+                addedInstr = 0;
+                break;
+            }
+            
+            case( FPGA_WAIT_FOR_EXTERNAL_TRIGGER ):{
+                if( !addedInstr && !(instr[j].type & FPGA_WAIT_FOR_INTERRUPT_TO_RESOLVE) ){
+                    j++;
+                }
+                instr[j].type |= FPGA_WAIT_FOR_EXTERNAL_TRIGGER;
+                addedInstr = 0;
+                break;
+            }
+            
+            case( FPGA_WAIT_FOR_INTERRUPT_TO_RESOLVE ):{
+                if( !addedInstr && !(instr[j].type & FPGA_WAIT_FOR_EXTERNAL_TRIGGER) ){
+                    j++;
+                }
+                instr[j].type |= FPGA_WAIT_FOR_INTERRUPT_TO_RESOLVE;
+                addedInstr = 0;
+                break;
+            }
+            
+            case( FPGA_END_PROGRAM ):{
+                j++;
+                instr[j].type = FPGA_END_PROGRAM;
+                break;
+            }
+
+            default:{
+                if( buff[i].arm & ARM_WAIT_CMD ){
+                    instr[j].t = buff[i+1].t;
+                    j++;
+                    addedInstr = 1;
+                }
+                break;
+            }
+        } // end switch
     }
-    
-    j++;
-    instr[j].type = FPGA_PROGRAM_ENDPOINT;
-    for(j;j>0;j--){
-        TX->instructionReg[j] = instr[j].full;
-        TX->timingReg[j] = timing[j].t;
-    }
-
-    free(timing);
-    free(instr);
 }
 
 

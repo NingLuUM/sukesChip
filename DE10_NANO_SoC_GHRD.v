@@ -195,7 +195,7 @@ wire	[7:0]			tx_trig_rest_level_reg;
 
 
 wire	[12:0]			tx_instr_read_addr; // 8191 instructions (13bit)
-wire	[14:0]			tx_phase_delay_read_addr; // 32768 locations (15bit)
+wire	[14:0]			tx_phase_delay_read_addr; // 16384 locations (14bit)
 wire	[3:0]			tx_state;
 wire	[7:0]			tx_control_comms;
 wire	[7:0]			tx_user_mask;
