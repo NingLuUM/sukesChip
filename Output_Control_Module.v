@@ -10,18 +10,16 @@ module Output_Control_Module(
 	// procedural controls for instructions
 	
 
-	input		[63:0]		iNextInstruction,
-	input		[127:0]		iPhaseDelays,
-	input		[14:0]		iSetInstructionReadAddr,
-	output reg	[13:0]		oInstructionReadAddr,
-	output reg	[13:0]		oPhaseDelayReadAddr,
-	
+	input		[63:0]		itxInstruction,
+	input		[127:0]		itxPhaseDelays,
+	input		[12:0]		itxSetInstructionReadAddr,
+	output reg	[12:0]		oInstructionReadAddr,
+	output reg	[14:0]		oPhaseDelayReadAddr,
 	
 	// transducer output controls
 	input		[7:0]		itxTransducerChannelMask,
 	output reg	[7:0]		otxTransducerOutput,
 	output reg	[7:0]		otxTransducerOutputError,
-	
 	
 	// trigger output controls
 	output reg	[7:0]		otxTriggerOutput,
@@ -41,7 +39,11 @@ module Output_Control_Module(
 	input		[7:0]		trigReg,
 	input		[7:0]		trigRestLevelReg
 );
-	
+
+// wires to split up itxInstruction into it's component parts
+wire [15:0] iInstructionType;	assign iInstructionType = itxInstruction[63:48];
+wire [15:0] iInstruction;		assign iInstruction = itxInstruction[47:32];
+wire [31:0] iTimeUntilNextInstruction;		assign iTimeUntilNextInstruction = itxInstruction[31:0];
 
 // transducer output value from transducer output module
 wire	[7:0]	transducerModule_outputVal;
@@ -51,52 +53,67 @@ wand	[7:0]	transducerOuput;
 assign transducerOuput = transducerModule_outputVal;
 assign transducerOuput = itxTransducerChannelMask;
 
-
 // flag from transducer output module indicating that pulse is currently firing 
 wire 	[7:0]	transducerModule_txIsActive;
 wire	[7:0]	txErrorFlag;
 
 reg		[7:0]	trigRestLevel;
-
-reg [1:0][31:0] timeUntilNextInstruction;
+reg [31:0] timeUntilNextInstruction;
+reg [1:0][31:0] timingReg;
 reg [1:0][15:0] instructionType;
 reg [1:0][15:0] instruction;
-reg [2:0] instructionBufferFlag;
+reg [1:0] instructionBufferFlag;
 
-reg [127:0] fire_fireAt_switch;
-reg [127:0] phases;
+//reg [127:0] fire_fireAt_switch;
+reg fire_fireAt_switch;
+reg [127:0] fireCmdPhaseDelayReg;
+reg [8:0] chargeTimeReg;
 
-wand [127:0] fireCmd_Phases;
-assign fireCmd_Phases = fire_fireAt_switch;
-assign fireCmd_Phases = phases;
+//wand [127:0] fireCmd_Phases;
+//assign fireCmd_Phases = fire_fireAt_switch;
+//assign fireCmd_Phases = fireCmdPhaseDelayReg;
 
-wand [127:0] fireAtCmd_Phases;
-assign fireAtCmd_Phases = ~fire_fireAt_switch;
-assign fireAtCmd_Phases = iPhaseDelays;
+//wand [127:0] fireAtCmd_Phases;
+//assign fireAtCmd_Phases = ~fire_fireAt_switch;
+//assign fireAtCmd_Phases = itxPhaseDelays;
 
-wor [127:0] activePhases;
-assign activePhases = fireCmd_Phases;
-assign activePhases = fireAtCmd_Phases;
+wire [7:0][15:0] phaseDelays;
+assign phaseDelays[0] = fireCmdPhaseDelayReg[15:0];		//assign phaseDelays[0] = fireAtCmd_Phases[15:0];
+assign phaseDelays[1] = fireCmdPhaseDelayReg[31:16];		//assign phaseDelays[1] = fireAtCmd_Phases[31:16];
+assign phaseDelays[2] = fireCmdPhaseDelayReg[47:32];		//assign phaseDelays[2] = fireAtCmd_Phases[47:32];
+assign phaseDelays[3] = fireCmdPhaseDelayReg[63:48];		//assign phaseDelays[3] = fireAtCmd_Phases[63:48];
+assign phaseDelays[4] = fireCmdPhaseDelayReg[79:64];		//assign phaseDelays[4] = fireAtCmd_Phases[79:64];
+assign phaseDelays[5] = fireCmdPhaseDelayReg[95:80];		//assign phaseDelays[5] = fireAtCmd_Phases[95:80];
+assign phaseDelays[6] = fireCmdPhaseDelayReg[111:96];		//assign phaseDelays[6] = fireAtCmd_Phases[111:96];
+assign phaseDelays[7] = fireCmdPhaseDelayReg[127:112];	//assign phaseDelays[7] = fireAtCmd_Phases[127:112];
 
-wire [7:0][15:0] phaseCharge;	
+wire [7:0][15:0] fireAtPhaseDelays;
+assign fireAtPhaseDelays[0] = itxPhaseDelays[15:0];		//assign phaseDelays[0] = fireAtCmd_Phases[15:0];
+assign fireAtPhaseDelays[1] = itxPhaseDelays[31:16];		//assign phaseDelays[1] = fireAtCmd_Phases[31:16];
+assign fireAtPhaseDelays[2] = itxPhaseDelays[47:32];		//assign phaseDelays[2] = fireAtCmd_Phases[47:32];
+assign fireAtPhaseDelays[3] = itxPhaseDelays[63:48];		//assign phaseDelays[3] = fireAtCmd_Phases[63:48];
+assign fireAtPhaseDelays[4] = itxPhaseDelays[79:64];		//assign phaseDelays[4] = fireAtCmd_Phases[79:64];
+assign fireAtPhaseDelays[5] = itxPhaseDelays[95:80];		//assign phaseDelays[5] = fireAtCmd_Phases[95:80];
+assign fireAtPhaseDelays[6] = itxPhaseDelays[111:96];		//assign phaseDelays[6] = fireAtCmd_Phases[111:96];
+assign fireAtPhaseDelays[7] = itxPhaseDelays[127:112];	//assign phaseDelays[7] = fireAtCmd_Phases[127:112];
 
-wire [7:0] trigVals;
-wire [7:0] ledVals;
-assign trigVals = instruction[0][7:0];
-assign ledVals = instruction[0][15:8];
+wire [8:0] inputChargeTime;	assign inputChargeTime = instruction[0][8:0];
+wire [6:0] trigVals;	assign trigVals = instruction[0][15:9];
+wire [7:0] ledVals;		assign ledVals = instruction[0][7:0];
 
-wire [14:0] nextLoopStartAddr;
-wire [3:0] nextLoopNum;
-wire [31:0] nextLoopCounterRef;
+wire [12:0] loopStartAddr;	assign loopStartAddr = instruction[1][12:0];
+wire [3:0] loopNum;			assign loopNum = timingReg[1][31:28];
+wire [27:0] loopCounterRef;	assign loopCounterRef = timingReg[1][27:0];
 
-assign nextLoopStartAddr = iNextInstruction[14:0];
-assign nextLoopNum = iTimeUntilNextInstruction[31:28];
-assign nextLoopCounterRef = iTimeUntilNextInstruction[27:0];
 
 parameter maxLoopAddr = 15;
+parameter maxIterLoops = 7;
 reg [maxLoopAddr:0][27:0]	loopCounter;
 reg [maxLoopAddr:0]			loopActive;
-
+reg [maxLoopAddr:0]			isIterLoop;
+reg [maxLoopAddr:0][14:0]	loopPhaseDelayStartAddr;
+reg [maxLoopAddr:0][14:0]	loopPhaseDelayAddrIncr;
+reg [3:0] lastLoopNum;
 
 // itxControlComms Output_Control_Module case states
 parameter [7:0]	hard_reset_tx_module = 	8'b00000000;
@@ -122,12 +139,18 @@ parameter [3:0] set_leds = 4'b0001; // 1
 parameter [3:0] trigger_recv = 4'b0010; // 2
 parameter [3:0] is_loop_start_point = 4'b0011; // 3
 parameter [3:0] is_loop_end_point = 4'b0100; // 4
-parameter [3:0] fire_pulse = 4'b0101; // 5
-parameter [3:0] fire_at = 4'b0110; // 6
-parameter [3:0] generate_tx_interrupt = 4'b0111; // 7
-parameter [3:0] wait_for_external_trigger = 4'b1000; // 8
-parameter [3:0] wait_for_interrupt_to_resolve = 4'b1001; // 9
+parameter [3:0] increment_phase_delay_addr = 4'b0101; //5
+
+parameter [3:0] fire_pulse = 4'b0110; // 6
+parameter [3:0] fire_at = 4'b0111; // 7
+parameter [3:0] set_charge_time = 4'b1000; // 8
+
+parameter [3:0] generate_tx_interrupt = 4'b1001; // 9
+parameter [3:0] wait_for_external_trigger = 4'b1010; // 10
+parameter [3:0] wait_for_interrupt_to_resolve = 4'b1011; // 11
 parameter [3:0] program_end_point = 4'b1111; // 15
+
+parameter [8:0] ct500 = 9'b111110100;
 
 wor isFireCommand;
 assign isFireCommand = instructionType[0][fire_pulse];
@@ -155,26 +178,29 @@ reg dangerFlag;
 reg programRunningFlag;
 reg txCntrActive;
 
+reg fireCmdIssued_flag;
+reg chargeTimeSet_flag;
+
 initial
 begin
-	phaseCharge[0] = 32'b0;
-	phaseCharge[1] = 32'b0;
-	phaseCharge[2] = 32'b0;
-	phaseCharge[3] = 32'b0;
-	phaseCharge[4] = 32'b0;
-	phaseCharge[5] = 32'b0;
-	phaseCharge[6] = 32'b0;
-	phaseCharge[7] = 32'b0;
+	fireCmdPhaseDelayReg = 128'b0;
+	fire_fireAt_switch = 1'b1;
+	chargeTimeReg = ct500; 
+	fireCmdIssued_flag = 1'b0;
+	chargeTimeSet_flag = 1'b0;
 	interruptError = 4'b0;
 	trigRestLevel = 8'b0;
 	armResponseFlag = 3'b0;
 	tx_output_cmd = txout_reset_module;
-	instructionBufferFlag = 3'b0;
+	instructionBufferFlag = 2'b0;
 	otxTransducerOutputError = 8'b0;
 	dangerFlag = 1'b0;
 	programRunningFlag = 1'b0;
 	txCntrActive = 1'b0;
 	loopActive = 16'b0;
+	isIterLoop = 16'b0;
+	lastLoopNum = 4'b0;
+	timeUntilNextInstruction = 32'b0;
 end
 
 
@@ -189,12 +215,17 @@ begin
 				if( otxTransducerOutput ) otxTransducerOutput <= 8'b0;
 				if( otxTriggerOutput ) otxTriggerOutput <= 8'b0;
 				if( otxLedOutput ) otxLedOutput <= 8'b0;
+				fireCmdPhaseDelayReg <= 128'b0;
+				fire_fireAt_switch <= 1'b1;
+				fireCmdIssued_flag <= 1'b0;
+				chargeTimeSet_flag <= 1'b0;
 				otxTransducerOutputError <= 8'b0;
 				trigRestLevel <= 8'b0;
 				interruptError <= 4'b0;
 				programRunningFlag <= 1'b0;
-				instructionBufferFlag <= 3'b0;
+				instructionBufferFlag <= 2'b0;
 				tx_output_cmd <= txout_reset_module;
+				lastLoopNum <= 4'b0;
 				if ( oInstructionReadAddr ) oInstructionReadAddr <= 15'b0;
 			end
 		
@@ -204,11 +235,16 @@ begin
 				if( otxTransducerOutput ) otxTransducerOutput <= 8'b0;
 				if( otxTriggerOutput ^ trigRestLevel ) otxTriggerOutput <= trigRestLevel;
 				if( otxLedOutput ) otxLedOutput <= 8'b0;
+				fireCmdPhaseDelayReg <= 128'b0;
+				fire_fireAt_switch <= 1'b1;
+				fireCmdIssued_flag <= 1'b0;
+				chargeTimeSet_flag <= 1'b0;
 				otxTransducerOutputError <= 8'b0;
 				interruptError <= 4'b0;
 				programRunningFlag <= 1'b0;
-				instructionBufferFlag <= 3'b0;
+				instructionBufferFlag <= 2'b0;
 				tx_output_cmd <= txout_reset_module;
+				lastLoopNum <= 4'b0;
 				if ( oInstructionReadAddr ) oInstructionReadAddr <= 15'b0;
 			end
 						
@@ -220,85 +256,31 @@ begin
 				if( otxLedOutput ) otxLedOutput <= 8'b0;
 				programRunningFlag <= 1'b0;
 				
-				if ( !instructionBufferFlag[2] )
+				if ( !instructionBufferFlag[1] )
 				begin
 					tx_output_cmd <= txout_reset_module;
-					if (oInstructionReadAddr != iSetInstructionReadAddr)
+					if (oInstructionReadAddr != itxSetInstructionReadAddr)
 					begin
-						oInstructionReadAddr <= iSetInstructionReadAddr;
+						oInstructionReadAddr <= itxSetInstructionReadAddr;
 					end
-					else if ( !instructionBufferFlag[0] )
+					else if ( !instructionBufferFlag )
 					begin
-						instructionType[0] <= iNextInstructionType;
-						instruction[0] <= iNextInstruction;
-						timeUntilNextInstruction[0] <= iTimeUntilNextInstruction;
+						instructionType[0] <= iInstructionType;
+						instruction[0] <= iInstruction;
+						timeUntilNextInstruction <= iTimeUntilNextInstruction;
 						
 						instructionBufferFlag[0] <= 1'b1;
+						
+						oInstructionReadAddr <= oInstructionReadAddr + 1'b1;
 					end
 					else if ( instructionBufferFlag[0] & !instructionBufferFlag[1] )
 					begin
-						if ( instructionType[0][is_loop_end_point] )
-						begin
-							timeUntilNextInstruction[0] <= 32'b0;
-							if ( !loopActive[nextLoopNum] && ( nextLoopCounterRef > 1 ) )
-							begin
-								oInstructionReadAddr <= nextLoopStartAddr;
-								loopCounter[nextLoopNum] <= {27'b0,1'b1};
-								loopActive[nextLoopNum] <= 1'b1;
-							end
-							else if ( loopActive[nextLoopNum] && ( loopCounter[nextLoopNum] < nextLoopCounterRef ) )
-							begin
-								oInstructionReadAddr <= nextLoopStartAddr;
-								loopCounter[nextLoopNum] <= loopCounter[nextLoopNum]+1'b1;
-								loopActive[nextLoopNum] <= 1'b1;
-							end
-							else
-							begin
-								oInstructionReadAddr <= oInstructionReadAddr + 1'b1;
-								loopCounter[nextLoopNum] <= 28'b0;
-								loopActive[nextLoopNum] <= 1'b0;
-							end
-						end
-						else
-						begin
-							oInstructionReadAddr <= oInstructionReadAddr + 1'b1;
-						end
+						instructionType[1] <= iInstructionType;
+						instruction[1] <= iInstruction;
+						timingReg[1] <= iTimeUntilNextInstruction;
+						oInstructionReadAddr <= ( oInstructionReadAddr + 1'b1 );
+
 						instructionBufferFlag[1] <= 1'b1;
-					end
-					else if ( instructionBufferFlag[0] & instructionBufferFlag[1] )
-					begin
-						instructionType[1] <= iNextInstructionType;
-						instruction[1] <= iNextInstruction;
-						if ( iNextInstructionType[is_loop_end_point] )
-						begin
-							timeUntilNextInstruction[1] <= 32'b0;
-							if ( !loopActive[nextLoopNum] && ( nextLoopCounterRef > 1 ) )
-							begin
-								oInstructionReadAddr <= nextLoopStartAddr;
-								loopCounter[nextLoopNum] <= {27'b0,1'b1};
-								loopActive[nextLoopNum] <= 1'b1;
-							end
-							else if ( loopActive[nextLoopNum] && ( loopCounter[nextLoopNum] < nextLoopCounterRef ) )
-							begin
-								oInstructionReadAddr <= nextLoopStartAddr;
-								loopCounter[nextLoopNum] <= loopCounter[nextLoopNum]+1'b1;
-								loopActive[nextLoopNum] <= 1'b1;
-							end
-							else
-							begin
-								oInstructionReadAddr <= oInstructionReadAddr + 1'b1;
-								loopCounter[nextLoopNum] <= 28'b0;
-								loopActive[nextLoopNum] <= 1'b0;
-							end
-						end
-						else
-						begin
-							timeUntilNextInstruction[1] <= iTimeUntilNextInstruction;
-							oInstructionReadAddr <= ( oInstructionReadAddr + 1'b1 );
-						end
-						otxCurrentlyInLoop <= 32'b0;
-						otxCurrentLoopIteration <= 32'b0;
-						instructionBufferFlag[2] <= 1'b1;
 					end
 				end				
 			end
@@ -351,10 +333,13 @@ begin
 				if( otxTransducerOutput ) otxTransducerOutput <= 8'b0;
 				if( otxTriggerOutput ^ trigRestLevel ) otxTriggerOutput <= trigRestLevel;
 				if( otxLedOutput ) otxLedOutput <= 8'b0;
+				fireCmdPhaseDelayReg <= 128'b0;
+				fire_fireAt_switch <= 1'b1;
+				fireCmdIssued_flag <= 1'b0;
 				otxTransducerOutputError <= 8'b0;
 				interruptError <= 4'b0;
 				programRunningFlag <= 1'b0;
-				instructionBufferFlag <= 3'b0;
+				instructionBufferFlag <= 2'b0;
 				tx_output_cmd <= txout_reset_module;
 				if ( oInstructionReadAddr ) oInstructionReadAddr <= 15'b0;
 			end
@@ -368,8 +353,8 @@ begin
 		otxTransducerOutput <= 8'b0;
 		programRunningFlag <= 1'b0;
 		tx_output_cmd <= txout_wait_cmd;
-		if ( oArmInterrupt[0] ^ 32'b1 ) oArmInterrupt[0] <= 32'b1;
-		if ( oArmInterrupt[1] ^ 32'b1 ) oArmInterrupt[1] <= 32'b1;
+		if ( oArmInterrupt[0] ^ 32'hFFFF ) oArmInterrupt[0] <= 32'hFFFF;
+		if ( oArmInterrupt[1] ^ 32'hFFFF ) oArmInterrupt[1] <= 32'hFFFF;
 	end
 	
 	if ( programRunningFlag & !interruptError & !txErrorFlag )
@@ -388,67 +373,86 @@ begin
 			end	
 		end
 
-		if ( interruptResponse && !armResponseFlag )
-		begin
-			if( oArmInterrupt[0] ) oArmInterrupt[0] <= 32'b0;
-			armResponseFlag <= 3'b1;
-		end
-		else if ( !interruptResponse && armResponseFlag )
-		begin
-			armResponseFlag <= 3'b0;
-		end
 		
 		if ( otxADCTriggerLine & itxADCTriggerAck )
 		begin
 			otxADCTriggerLine <= 1'b0;
 		end
 
-		if ( timeUntilNextInstruction[0] )
+		if ( timeUntilNextInstruction )
 		begin
-			timeUntilNextInstruction[0] <= timeUntilNextInstruction[0]-1'b1;
+			timeUntilNextInstruction <= timeUntilNextInstruction-1'b1;
 		end
 		else if ( !waitingForExternal & !waitingForInterruptToResolve )
 		begin
+			instructionType[1] <= iInstructionType;
+			instruction[1] <= iInstruction;
+			timingReg[1] <= iTimeUntilNextInstruction;
+			
 			instructionType[0] <= instructionType[1];
 			instruction[0] <= instruction[1];
-			timeUntilNextInstruction[0] <= timeUntilNextInstruction[1];
+			timingReg[0] <= timingReg[1];
 
-			instructionType[1] <= iNextInstructionType;
-			instruction[1] <= iNextInstruction;
-			if ( iNextInstructionType[is_loop_end_point] )
+			if ( instructionType[1][is_loop_end_point] )
 			begin
-				timeUntilNextInstruction[1] <= 32'b0;
-				if ( !loopActive[nextLoopNum] && ( nextLoopCounterRef > 1 ) )
+				timeUntilNextInstruction <= 32'b0;
+				if ( !loopActive[loopNum] && ( loopCounterRef > 1 ) )
 				begin
-					oInstructionReadAddr <= nextLoopStartAddr;
-					loopCounter[nextLoopNum] <= {27'b0,1'b1};
-					loopActive[nextLoopNum] <= 1'b1;
-					otxCurrentlyInLoop <= nextLoopNum;
-					otxCurrentLoopIteration <= 1'b1;
+					lastLoopNum <= loopNum;
+					oInstructionReadAddr <= loopStartAddr;
+					loopCounter[loopNum] <= 28'h2;
+					loopActive[loopNum] <= 1'b1;					
 				end
-				else if ( loopActive[nextLoopNum] && ( loopCounter[nextLoopNum] < nextLoopCounterRef ) )
+				else if ( loopActive[loopNum] && ( loopCounter[loopNum] < loopCounterRef ) )
 				begin
-					oInstructionReadAddr <= nextLoopStartAddr;
-					loopCounter[nextLoopNum] <= loopCounter[nextLoopNum]+1'b1;
-					loopActive[nextLoopNum] <= 1'b1;
-					otxCurrentlyInLoop <= nextLoopNum;
-					otxCurrentLoopIteration <= loopCounter[nextLoopNum]+1'b1;
+					lastLoopNum <= loopNum;
+					oInstructionReadAddr <= loopStartAddr;
+					loopCounter[loopNum] <= loopCounter[loopNum]+1'b1;	
 				end
 				else
 				begin
 					oInstructionReadAddr <= oInstructionReadAddr + 1'b1;
-					loopCounter[nextLoopNum] <= 28'b0;
-					loopActive[nextLoopNum] <= 1'b0;
-					otxCurrentlyInLoop <= 32'b0;
-					otxCurrentLoopIteration <= 32'b0;
+					loopCounter[loopNum] <= 28'b0;
+					loopActive[loopNum] <= 1'b0;
+					isIterLoop[loopNum] <= 1'b0;
 				end
 			end
-			else if ( !iNextInstructionType[program_end_point] )
+			else if ( instructionType[1][is_loop_start_point] )
 			begin
-				timeUntilNextInstruction[1] <= iTimeUntilNextInstruction;
+				loopCounter[loopNum] <= 28'h1;
+				loopActive[loopNum] <= 1'b1;
+				timeUntilNextInstruction <= 32'b0;
+				oInstructionReadAddr <= ( oInstructionReadAddr + 1'b1 );
+			end
+			else if ( !instructionType[1][program_end_point] )
+			begin
+				timeUntilNextInstruction <= timingReg[1];
 				oInstructionReadAddr <= ( oInstructionReadAddr + 1'b1 );
 			end
 			
+			
+			if ( instructionType[0][is_loop_end_point] & isIterLoop[lastLoopNum] & loopActive[lastLoopNum] )
+				begin
+					oPhaseDelayReadAddr[lastLoopNum] <= loopPhaseDelayStartAddr[lastLoopNum] + loopPhaseDelayAddrIncr[lastLoopNum];
+					loopPhaseDelayStartAddr[lastLoopNum] <= loopPhaseDelayStartAddr[lastLoopNum] + loopPhaseDelayAddrIncr[lastLoopNum];
+				end
+
+			if ( instructionType[0][is_loop_start_point] )
+				begin
+					if( isIterLoop[lastLoopNum] )
+					begin
+						oPhaseDelayReadAddr[lastLoopNum] <= loopPhaseDelayStartAddr[lastLoopNum] + loopPhaseDelayAddrIncr[lastLoopNum];
+						loopPhaseDelayStartAddr[lastLoopNum] <= loopPhaseDelayStartAddr[lastLoopNum] + loopPhaseDelayAddrIncr[lastLoopNum];
+					end
+					else
+					begin
+						oPhaseDelayReadAddr[lastLoopNum] <= instruction[0][14:0];
+						loopPhaseDelayStartAddr[lastLoopNum] <= instruction[0][14:0];
+						loopPhaseDelayAddrIncr[lastLoopNum] <= timingReg[0][14:0];
+						isIterLoop[lastLoopNum] <= 1'b1;
+					end
+				end
+				
 			if ( instructionType[0][set_trig] )
 				begin
 					otxTriggerOutput <= trigVals ^ trigRestLevel;
@@ -463,11 +467,6 @@ begin
 				begin
 					otxADCTriggerLine <= 1'b1;
 				end
-				
-			if ( instructionType[0][is_loop_start_point] )
-				begin
-					oArmInterrupt[0] <= instructionType[0];
-				end
 			
 			if ( isFireCommand )
 				begin
@@ -477,13 +476,27 @@ begin
 						begin
 							txCntrActive <= 1'b1;
 							txCntr <= 32'b0;
-							phaseCharge <= itxPulsePhaseCharge;
-							tx_output_cmd <= txout_fire_pulse;
 							
-							if ( instructionType[0][generate_tx_interrupt] )
+							if ( !fireCmdIssued_flag )
 							begin
-								oArmInterrupt[0] <= instructionType[0];
+								fireCmdPhaseDelayReg <= itxPhaseDelays;
+								fire_fireAt_switch <= 1'b1;
+								fireCmdIssued_flag <= 1'b1;
 							end
+							
+							if( !chargeTimeSet_flag )
+							begin
+								if ( !set_charge_time )
+								begin
+									chargeTimeReg <= ct500;
+								end
+								else
+								begin
+									chargeTimeReg <= inputChargeTime;
+								end
+							end
+							
+							tx_output_cmd <= txout_fire_pulse;
 							
 						end
 										
@@ -491,14 +504,22 @@ begin
 						begin
 							txCntrActive <= 1'b1;
 							txCntr <= 32'b0;
-							phaseCharge <= itxFireAtPhaseCharge;
-							tx_output_cmd <= txout_fire_pulse;
+							oPhaseDelayReadAddr <= instructionType[0][13:0];
+							fire_fireAt_switch <= 1'b0;
 							
-							if ( instructionType[0][generate_tx_interrupt] )
+							if( !chargeTimeSet_flag )
 							begin
-								oArmInterrupt[0] <= instructionType[0];
+								if ( !set_charge_time )
+								begin
+									chargeTimeReg <= ct500;
+								end
+								else
+								begin
+									chargeTimeReg <= inputChargeTime;
+								end
 							end
 							
+							tx_output_cmd <= txout_fire_pulse;
 						end
 						
 						else
@@ -536,7 +557,10 @@ end
 transducerOutput_Module c0(
 	.clk(txCLK),
 	.cntr(txCntr),
-	.phaseCharge(phaseCharge[0]),
+	.phaseDelay(phaseDelays[0]),
+	.fireAtPhaseDelay(fireAtPhaseDelays[0]),
+	.fireSwitch(fire_fireAt_switch),
+	.chargeTime(chargeTimeReg),
 	.txOutputState(transducerModule_outputVal[0]),
 	.cmd(tx_output_cmd),
 	.isActive(transducerModule_txIsActive[0]),
@@ -546,7 +570,10 @@ transducerOutput_Module c0(
 transducerOutput_Module c1(
 	.clk(txCLK),
 	.cntr(txCntr),
-	.phaseCharge(phaseCharge[1]),
+	.phaseDelay(phaseDelays[1]),
+	.fireAtPhaseDelay(fireAtPhaseDelays[1]),
+	.fireSwitch(fire_fireAt_switch),
+	.chargeTime(chargeTimeReg),
 	.txOutputState(transducerModule_outputVal[1]),
 	.cmd(tx_output_cmd),
 	.isActive(transducerModule_txIsActive[1]),
@@ -556,7 +583,10 @@ transducerOutput_Module c1(
 transducerOutput_Module c2(
 	.clk(txCLK),
 	.cntr(txCntr),
-	.phaseCharge(phaseCharge[2]),
+	.phaseDelay(phaseDelays[2]),
+	.fireAtPhaseDelay(fireAtPhaseDelays[2]),
+	.fireSwitch(fire_fireAt_switch),
+	.chargeTime(chargeTimeReg),
 	.txOutputState(transducerModule_outputVal[2]),
 	.cmd(tx_output_cmd),
 	.isActive(transducerModule_txIsActive[2]),
@@ -566,7 +596,10 @@ transducerOutput_Module c2(
 transducerOutput_Module c3(
 	.clk(txCLK),
 	.cntr(txCntr),
-	.phaseCharge(phaseCharge[3]),
+	.phaseDelay(phaseDelays[3]),
+	.fireAtPhaseDelay(fireAtPhaseDelays[3]),
+	.fireSwitch(fire_fireAt_switch),
+	.chargeTime(chargeTimeReg),
 	.txOutputState(transducerModule_outputVal[3]),
 	.cmd(tx_output_cmd),
 	.isActive(transducerModule_txIsActive[3]),
@@ -576,7 +609,10 @@ transducerOutput_Module c3(
 transducerOutput_Module c4(
 	.clk(txCLK),
 	.cntr(txCntr),
-	.phaseCharge(phaseCharge[4]),
+	.phaseDelay(phaseDelays[4]),
+	.fireAtPhaseDelay(fireAtPhaseDelays[4]),
+	.fireSwitch(fire_fireAt_switch),
+	.chargeTime(chargeTimeReg),
 	.txOutputState(transducerModule_outputVal[4]),
 	.cmd(tx_output_cmd),
 	.isActive(transducerModule_txIsActive[4]),
@@ -586,7 +622,10 @@ transducerOutput_Module c4(
 transducerOutput_Module c5(
 	.clk(txCLK),
 	.cntr(txCntr),
-	.phaseCharge(phaseCharge[5]),
+	.phaseDelay(phaseDelays[5]),
+	.fireAtPhaseDelay(fireAtPhaseDelays[5]),
+	.fireSwitch(fire_fireAt_switch),
+	.chargeTime(chargeTimeReg),
 	.txOutputState(transducerModule_outputVal[5]),
 	.cmd(tx_output_cmd),
 	.isActive(transducerModule_txIsActive[5]),
@@ -596,7 +635,10 @@ transducerOutput_Module c5(
 transducerOutput_Module c6(
 	.clk(txCLK),
 	.cntr(txCntr),
-	.phaseCharge(phaseCharge[6]),
+	.phaseDelay(phaseDelays[6]),
+	.fireAtPhaseDelay(fireAtPhaseDelays[6]),
+	.fireSwitch(fire_fireAt_switch),
+	.chargeTime(chargeTimeReg),
 	.txOutputState(transducerModule_outputVal[6]),
 	.cmd(tx_output_cmd),
 	.isActive(transducerModule_txIsActive[6]),
@@ -606,7 +648,10 @@ transducerOutput_Module c6(
 transducerOutput_Module c7(
 	.clk(txCLK),
 	.cntr(txCntr),
-	.phaseCharge(phaseCharge[7]),
+	.phaseDelay(phaseDelays[7]),
+	.fireAtPhaseDelay(fireAtPhaseDelays[7]),
+	.fireSwitch(fire_fireAt_switch),
+	.chargeTime(chargeTimeReg),
 	.txOutputState(transducerModule_outputVal[7]),
 	.cmd(tx_output_cmd),
 	.isActive(transducerModule_txIsActive[7]),

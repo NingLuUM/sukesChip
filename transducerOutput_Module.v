@@ -1,7 +1,10 @@
 module transducerOutput_Module (
 	clk,
 	cntr,
-	phaseCharge,
+	phaseDelay,
+	fireAtPhaseDelay,
+	fireSwitch,
+	chargeTime,
 	txOutputState,
 	cmd,
 	isActive,
@@ -10,7 +13,10 @@ module transducerOutput_Module (
 
 input 				clk;
 input 		[31:0]	cntr;
-input 		[31:0]	phaseCharge;
+input 		[15:0]	phaseDelay;
+input 		[15:0]	fireAtPhaseDelay;
+input				fireSwitch;
+input		[8:0]	chargeTime;
 output reg 			txOutputState = 1'b0;
 input 		[1:0]	cmd;
 output reg 			isActive = 1'b0;
@@ -23,7 +29,6 @@ reg cmdState = 1'b0;
 reg [9:0] txSafetyValve = 10'b0;
 
 parameter [1:0] wait_cmd = 2'b00;
-parameter [1:0] buffer_phase_charge = 2'b01;
 parameter [1:0] fire_pulse = 2'b10;
 parameter [1:0] reset_module = 2'b11;
 
@@ -56,9 +61,16 @@ begin
 				if ( !cmdState & !isActive )
 				begin
 					cmdState <= 1'b1;
-					pd <= phaseCharge[15:0];
-					ct <= phaseCharge[24:16];
-					if ( !phaseCharge[24:16] )
+					if(fireSwitch)
+					begin
+						pd <= phaseDelay;
+					end
+					else
+					begin
+						pd <= fireAtPhaseDelay;
+					end
+					ct <= chargeTime;
+					if ( !chargeTime )
 					begin
 						isActive <= 1'b0;
 						txOutputState <= 1'b0;
@@ -67,7 +79,7 @@ begin
 					else
 					begin
 						isActive <= 1'b1;
-						if( !phaseCharge[15:0] ) txOutputState <= 1'b1;
+						if( !phaseDelay ) txOutputState <= 1'b1;
 					end
 				end
 				else if ( cmdState & isActive )

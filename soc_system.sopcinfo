@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <EnsembleReport name="soc_system" kind="soc_system" version="1.0" fabric="QSYS">
  <!-- Format version 17.1 590 (Future versions may contain additional information.) -->
- <!-- 2019.07.12.09:13:14 -->
+ <!-- 2019.07.13.20:14:51 -->
  <!-- A collection of modules and connections -->
  <parameter name="AUTO_GENERATION_ID">
   <type>java.lang.Integer</type>
-  <value>1562937186</value>
+  <value>1563063278</value>
   <derived>false</derived>
   <enabled>true</enabled>
   <visible>false</visible>
@@ -21215,7 +21215,7 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>adc_ramBank0</moduleName>
     <slaveName>s1</slaveName>
     <name>adc_ramBank0.s1</name>
-    <baseAddress>0</baseAddress>
+    <baseAddress>327680</baseAddress>
     <span>32768</span>
    </memoryBlock>
    <memoryBlock>
@@ -21223,15 +21223,15 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>tx_instructionRegister</moduleName>
     <slaveName>s1</slaveName>
     <name>tx_instructionRegister.s1</name>
-    <baseAddress>131072</baseAddress>
-    <span>131072</span>
+    <baseAddress>262144</baseAddress>
+    <span>65536</span>
    </memoryBlock>
    <memoryBlock>
     <isBridge>false</isBridge>
     <moduleName>tx_phaseDelayRegister</moduleName>
     <slaveName>s1</slaveName>
     <name>tx_phaseDelayRegister.s1</name>
-    <baseAddress>262144</baseAddress>
+    <baseAddress>0</baseAddress>
     <span>262144</span>
    </memoryBlock>
    <memoryBlock>
@@ -21239,7 +21239,7 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>adc_ramBank1</moduleName>
     <slaveName>s1</slaveName>
     <name>adc_ramBank1.s1</name>
-    <baseAddress>32768</baseAddress>
+    <baseAddress>360448</baseAddress>
     <span>32768</span>
    </memoryBlock>
    <memoryBlock>
@@ -21247,7 +21247,7 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>adc_ramBank2</moduleName>
     <slaveName>s1</slaveName>
     <name>adc_ramBank2.s1</name>
-    <baseAddress>65536</baseAddress>
+    <baseAddress>393216</baseAddress>
     <span>32768</span>
    </memoryBlock>
   </interface>
@@ -48695,7 +48695,7 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>adc_ramBank0</moduleName>
     <slaveName>s1</slaveName>
     <name>adc_ramBank0.s1</name>
-    <baseAddress>0</baseAddress>
+    <baseAddress>327680</baseAddress>
     <span>32768</span>
    </memoryBlock>
    <memoryBlock>
@@ -48703,15 +48703,15 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>tx_instructionRegister</moduleName>
     <slaveName>s1</slaveName>
     <name>tx_instructionRegister.s1</name>
-    <baseAddress>131072</baseAddress>
-    <span>131072</span>
+    <baseAddress>262144</baseAddress>
+    <span>65536</span>
    </memoryBlock>
    <memoryBlock>
     <isBridge>false</isBridge>
     <moduleName>tx_phaseDelayRegister</moduleName>
     <slaveName>s1</slaveName>
     <name>tx_phaseDelayRegister.s1</name>
-    <baseAddress>262144</baseAddress>
+    <baseAddress>0</baseAddress>
     <span>262144</span>
    </memoryBlock>
    <memoryBlock>
@@ -48719,7 +48719,7 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>adc_ramBank1</moduleName>
     <slaveName>s1</slaveName>
     <name>adc_ramBank1.s1</name>
-    <baseAddress>32768</baseAddress>
+    <baseAddress>360448</baseAddress>
     <span>32768</span>
    </memoryBlock>
    <memoryBlock>
@@ -48727,7 +48727,7 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>adc_ramBank2</moduleName>
     <slaveName>s1</slaveName>
     <name>adc_ramBank2.s1</name>
-    <baseAddress>65536</baseAddress>
+    <baseAddress>393216</baseAddress>
     <span>32768</span>
    </memoryBlock>
   </interface>
@@ -50754,7 +50754,7 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>adc_ramBank0</moduleName>
     <slaveName>s1</slaveName>
     <name>adc_ramBank0.s1</name>
-    <baseAddress>3221225472</baseAddress>
+    <baseAddress>3221553152</baseAddress>
     <span>32768</span>
    </memoryBlock>
    <memoryBlock>
@@ -50762,15 +50762,15 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>tx_instructionRegister</moduleName>
     <slaveName>s1</slaveName>
     <name>tx_instructionRegister.s1</name>
-    <baseAddress>3221356544</baseAddress>
-    <span>131072</span>
+    <baseAddress>3221487616</baseAddress>
+    <span>65536</span>
    </memoryBlock>
    <memoryBlock>
     <isBridge>false</isBridge>
     <moduleName>tx_phaseDelayRegister</moduleName>
     <slaveName>s1</slaveName>
     <name>tx_phaseDelayRegister.s1</name>
-    <baseAddress>3221487616</baseAddress>
+    <baseAddress>3221225472</baseAddress>
     <span>262144</span>
    </memoryBlock>
    <memoryBlock>
@@ -50778,7 +50778,7 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>adc_ramBank1</moduleName>
     <slaveName>s1</slaveName>
     <name>adc_ramBank1.s1</name>
-    <baseAddress>3221258240</baseAddress>
+    <baseAddress>3221585920</baseAddress>
     <span>32768</span>
    </memoryBlock>
    <memoryBlock>
@@ -50786,7 +50786,7 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>adc_ramBank2</moduleName>
     <slaveName>s1</slaveName>
     <name>adc_ramBank2.s1</name>
-    <baseAddress>3221291008</baseAddress>
+    <baseAddress>3221618688</baseAddress>
     <span>32768</span>
    </memoryBlock>
    <memoryBlock>
@@ -51769,7 +51769,7 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>adc_ramBank0</moduleName>
     <slaveName>s1</slaveName>
     <name>adc_ramBank0.s1</name>
-    <baseAddress>3221225472</baseAddress>
+    <baseAddress>3221553152</baseAddress>
     <span>32768</span>
    </memoryBlock>
    <memoryBlock>
@@ -51777,15 +51777,15 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>tx_instructionRegister</moduleName>
     <slaveName>s1</slaveName>
     <name>tx_instructionRegister.s1</name>
-    <baseAddress>3221356544</baseAddress>
-    <span>131072</span>
+    <baseAddress>3221487616</baseAddress>
+    <span>65536</span>
    </memoryBlock>
    <memoryBlock>
     <isBridge>false</isBridge>
     <moduleName>tx_phaseDelayRegister</moduleName>
     <slaveName>s1</slaveName>
     <name>tx_phaseDelayRegister.s1</name>
-    <baseAddress>3221487616</baseAddress>
+    <baseAddress>3221225472</baseAddress>
     <span>262144</span>
    </memoryBlock>
    <memoryBlock>
@@ -51793,7 +51793,7 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>adc_ramBank1</moduleName>
     <slaveName>s1</slaveName>
     <name>adc_ramBank1.s1</name>
-    <baseAddress>3221258240</baseAddress>
+    <baseAddress>3221585920</baseAddress>
     <span>32768</span>
    </memoryBlock>
    <memoryBlock>
@@ -51801,7 +51801,7 @@ parameters are a RESULT of the module parameters. -->
     <moduleName>adc_ramBank2</moduleName>
     <slaveName>s1</slaveName>
     <name>adc_ramBank2.s1</name>
-    <baseAddress>3221291008</baseAddress>
+    <baseAddress>3221618688</baseAddress>
     <span>32768</span>
    </memoryBlock>
    <memoryBlock>
@@ -92418,7 +92418,7 @@ the requested settings for a module instance. -->
   </assignment>
   <assignment>
    <name>embeddedsw.CMacro.TIMESTAMP</name>
-   <value>1562937186</value>
+   <value>1563063278</value>
   </assignment>
   <assignment>
    <name>embeddedsw.dts.compatible</name>
@@ -92438,7 +92438,7 @@ the requested settings for a module instance. -->
   </assignment>
   <assignment>
    <name>embeddedsw.dts.params.timestamp</name>
-   <value>1562937186</value>
+   <value>1563063278</value>
   </assignment>
   <assignment>
    <name>embeddedsw.dts.vendor</name>
@@ -92454,7 +92454,7 @@ the requested settings for a module instance. -->
   </parameter>
   <parameter name="timestamp">
    <type>int</type>
-   <value>1562937186</value>
+   <value>1563063278</value>
    <derived>true</derived>
    <enabled>false</enabled>
    <visible>false</visible>
@@ -93750,7 +93750,7 @@ the requested settings for a module instance. -->
   </assignment>
   <assignment>
    <name>embeddedsw.CMacro.SIZE_VALUE</name>
-   <value>131072</value>
+   <value>65536</value>
   </assignment>
   <assignment>
    <name>embeddedsw.CMacro.WRITABLE</name>
@@ -93882,7 +93882,7 @@ the requested settings for a module instance. -->
   </parameter>
   <parameter name="memorySize">
    <type>long</type>
-   <value>131072</value>
+   <value>65536</value>
    <derived>false</derived>
    <enabled>true</enabled>
    <visible>true</visible>
@@ -94021,7 +94021,7 @@ the requested settings for a module instance. -->
   </parameter>
   <parameter name="derived_set_addr_width">
    <type>int</type>
-   <value>14</value>
+   <value>13</value>
    <derived>true</derived>
    <enabled>true</enabled>
    <visible>false</visible>
@@ -94029,7 +94029,7 @@ the requested settings for a module instance. -->
   </parameter>
   <parameter name="derived_set_addr_width2">
    <type>int</type>
-   <value>14</value>
+   <value>13</value>
    <derived>true</derived>
    <enabled>true</enabled>
    <visible>false</visible>
@@ -94166,7 +94166,7 @@ parameters are a RESULT of the module parameters. -->
    </parameter>
    <parameter name="addressSpan">
     <type>java.math.BigInteger</type>
-    <value>131072</value>
+    <value>65536</value>
     <derived>true</derived>
     <enabled>true</enabled>
     <visible>false</visible>
@@ -94254,7 +94254,7 @@ parameters are a RESULT of the module parameters. -->
    </parameter>
    <parameter name="explicitAddressSpan">
     <type>java.math.BigInteger</type>
-    <value>131072</value>
+    <value>65536</value>
     <derived>false</derived>
     <enabled>true</enabled>
     <visible>true</visible>
@@ -94465,7 +94465,7 @@ parameters are a RESULT of the module parameters. -->
    <port>
     <name>address</name>
     <direction>Input</direction>
-    <width>14</width>
+    <width>13</width>
     <role>address</role>
    </port>
    <port>
@@ -94594,7 +94594,7 @@ parameters are a RESULT of the module parameters. -->
    </parameter>
    <parameter name="addressSpan">
     <type>java.math.BigInteger</type>
-    <value>131072</value>
+    <value>65536</value>
     <derived>true</derived>
     <enabled>true</enabled>
     <visible>false</visible>
@@ -94682,7 +94682,7 @@ parameters are a RESULT of the module parameters. -->
    </parameter>
    <parameter name="explicitAddressSpan">
     <type>java.math.BigInteger</type>
-    <value>131072</value>
+    <value>65536</value>
     <derived>false</derived>
     <enabled>true</enabled>
     <visible>true</visible>
@@ -94893,7 +94893,7 @@ parameters are a RESULT of the module parameters. -->
    <port>
     <name>address2</name>
     <direction>Input</direction>
-    <width>14</width>
+    <width>13</width>
     <role>address</role>
    </port>
    <port>
@@ -97912,7 +97912,7 @@ the requested settings for a module instance. -->
   </assignment>
   <assignment>
    <name>embeddedsw.CMacro.DATA_WIDTH</name>
-   <value>16</value>
+   <value>13</value>
   </assignment>
   <assignment>
    <name>embeddedsw.CMacro.DO_TEST_BENCH_WIRING</name>
@@ -97964,7 +97964,7 @@ the requested settings for a module instance. -->
   </assignment>
   <assignment>
    <name>embeddedsw.dts.params.altr,gpio-bank-width</name>
-   <value>16</value>
+   <value>13</value>
   </assignment>
   <assignment>
    <name>embeddedsw.dts.params.resetvalue</name>
@@ -98056,7 +98056,7 @@ the requested settings for a module instance. -->
   </parameter>
   <parameter name="width">
    <type>int</type>
-   <value>16</value>
+   <value>13</value>
    <derived>false</derived>
    <enabled>true</enabled>
    <visible>true</visible>
@@ -98664,7 +98664,7 @@ parameters are a RESULT of the module parameters. -->
    <port>
     <name>out_port</name>
     <direction>Output</direction>
-    <width>16</width>
+    <width>13</width>
     <role>export</role>
    </port>
   </interface>
@@ -108811,7 +108811,7 @@ parameters are a RESULT of the module parameters. -->
   </parameter>
   <parameter name="baseAddress">
    <type>java.math.BigInteger</type>
-   <value>0x0000</value>
+   <value>0x00050000</value>
    <derived>false</derived>
    <enabled>true</enabled>
    <visible>true</visible>
@@ -108862,7 +108862,7 @@ parameters are a RESULT of the module parameters. -->
   </parameter>
   <parameter name="baseAddress">
    <type>java.math.BigInteger</type>
-   <value>0x00020000</value>
+   <value>0x00040000</value>
    <derived>false</derived>
    <enabled>true</enabled>
    <visible>true</visible>
@@ -108913,7 +108913,7 @@ parameters are a RESULT of the module parameters. -->
   </parameter>
   <parameter name="baseAddress">
    <type>java.math.BigInteger</type>
-   <value>0x00040000</value>
+   <value>0x0000</value>
    <derived>false</derived>
    <enabled>true</enabled>
    <visible>true</visible>
@@ -108964,7 +108964,7 @@ parameters are a RESULT of the module parameters. -->
   </parameter>
   <parameter name="baseAddress">
    <type>java.math.BigInteger</type>
-   <value>0x8000</value>
+   <value>0x00058000</value>
    <derived>false</derived>
    <enabled>true</enabled>
    <visible>true</visible>
@@ -109015,7 +109015,7 @@ parameters are a RESULT of the module parameters. -->
   </parameter>
   <parameter name="baseAddress">
    <type>java.math.BigInteger</type>
-   <value>0x00010000</value>
+   <value>0x00060000</value>
    <derived>false</derived>
    <enabled>true</enabled>
    <visible>true</visible>

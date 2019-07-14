@@ -194,8 +194,8 @@ wire	[7:0]			tx_trig_reg;
 wire	[7:0]			tx_trig_rest_level_reg;
 
 
-wire	[13:0]			tx_instr_read_addr;
-wire	[13:0]			tx_phase_delay_read_addr;
+wire	[12:0]			tx_instr_read_addr; // 8191 instructions (13bit)
+wire	[14:0]			tx_phase_delay_read_addr; // 32768 locations (15bit)
 wire	[3:0]			tx_state;
 wire	[7:0]			tx_control_comms;
 wire	[7:0]			tx_user_mask;
@@ -203,7 +203,8 @@ wire	[7:0]			tx_user_mask;
 wire	[63:0]			tx_instruction_reg;
 wire	[127:0]			tx_phase_delay_reg;
 
-wire	[15:0]			tx_set_instruction_read_addr;
+
+wire	[12:0]			tx_set_instruction_read_addr;
 wire	[31:0]			tx_current_loop_iteration;
 wire	[31:0]			tx_currently_in_loop;
 
@@ -269,12 +270,11 @@ Output_Control_Module u3(
 	.itxControlComms				(tx_control_comms),
 	
 	// procedural controls for instructions
-	.iNextInstruction					(tx_instruction_reg),
-	.iPhaseDelays						(tx_phase_delay_reg),
-	.iSetInstructionReadAddr		(tx_set_instruction_read_addr[13:0]),
+	.itxInstruction					(tx_instruction_reg),
+	.itxPhaseDelays					(tx_phase_delay_reg),
+	.itxSetInstructionReadAddr		(tx_set_instruction_read_addr),
 	.oInstructionReadAddr			(tx_instr_read_addr),
-	.oInstructionReadAddr			(tx_phase_delay_read_addr),
-
+	.oPhaseDelayReadAddr			(tx_phase_delay_read_addr),
 	
 	// transducer output controls
 	.itxTransducerChannelMask		(tx_user_mask),
@@ -346,8 +346,9 @@ soc_system u0(
 		.tx_instruction_register_address			(tx_read_addr),	
 		.tx_instruction_register_readdata			(tx_instruction_reg),
 		
-		.tx_phase_delay_register_address					(tx_read_addr),
-		.tx_phase_delay_register_readdata				(tx_timing_reg),	    
+		.tx_phase_delay_register_address					(tx_phase_delay_read_addr),
+		.tx_phase_delay_register_readdata				(tx_phase_delay_reg),
+	
 
 		.ram_clock_bridge_clk						(CLK200), 
 		.adc_clock_bridge_clk						(CLK25), 
@@ -378,6 +379,7 @@ soc_system u0(
 		.tx_phase_delay_register_write					(1'b0),
 		.tx_phase_delay_register_writedata				(128'b0),
 		.tx_phase_delay_register_byteenable				(16'b1111111111111111),
+
 			
 
 		
