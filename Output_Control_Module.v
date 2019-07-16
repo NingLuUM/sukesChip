@@ -18,7 +18,7 @@ module Output_Control_Module(
 	
 	// phase delays for 'fireAt' cmd
 	input		[127:0]		itxFireAtPhaseDelays,
-	output reg	[7:0]		oFireAtPhaseDelayReadAddr,
+	output reg	[11:0]		oFireAtPhaseDelayReadAddr,
 	
 	// transducer output controls
 	input		[7:0]		itxTransducerChannelMask,
@@ -86,14 +86,14 @@ assign phaseDelays[6] = fireCmdPhaseDelayReg[111:96];		//assign phaseDelays[6] =
 assign phaseDelays[7] = fireCmdPhaseDelayReg[127:112];	//assign phaseDelays[7] = fireAtCmd_Phases[127:112];
 
 wire [7:0][15:0] fireAtPhaseDelays;
-assign fireAtPhaseDelays[0] = itxPhaseDelays[15:0];		//assign phaseDelays[0] = fireAtCmd_Phases[15:0];
-assign fireAtPhaseDelays[1] = itxPhaseDelays[31:16];		//assign phaseDelays[1] = fireAtCmd_Phases[31:16];
-assign fireAtPhaseDelays[2] = itxPhaseDelays[47:32];		//assign phaseDelays[2] = fireAtCmd_Phases[47:32];
-assign fireAtPhaseDelays[3] = itxPhaseDelays[63:48];		//assign phaseDelays[3] = fireAtCmd_Phases[63:48];
-assign fireAtPhaseDelays[4] = itxPhaseDelays[79:64];		//assign phaseDelays[4] = fireAtCmd_Phases[79:64];
-assign fireAtPhaseDelays[5] = itxPhaseDelays[95:80];		//assign phaseDelays[5] = fireAtCmd_Phases[95:80];
-assign fireAtPhaseDelays[6] = itxPhaseDelays[111:96];		//assign phaseDelays[6] = fireAtCmd_Phases[111:96];
-assign fireAtPhaseDelays[7] = itxPhaseDelays[127:112];	//assign phaseDelays[7] = fireAtCmd_Phases[127:112];
+assign fireAtPhaseDelays[0] = itxFireAtPhaseDelays[15:0];		//assign phaseDelays[0] = fireAtCmd_Phases[15:0];
+assign fireAtPhaseDelays[1] = itxFireAtPhaseDelays[31:16];		//assign phaseDelays[1] = fireAtCmd_Phases[31:16];
+assign fireAtPhaseDelays[2] = itxFireAtPhaseDelays[47:32];		//assign phaseDelays[2] = fireAtCmd_Phases[47:32];
+assign fireAtPhaseDelays[3] = itxFireAtPhaseDelays[63:48];		//assign phaseDelays[3] = fireAtCmd_Phases[63:48];
+assign fireAtPhaseDelays[4] = itxFireAtPhaseDelays[79:64];		//assign phaseDelays[4] = fireAtCmd_Phases[79:64];
+assign fireAtPhaseDelays[5] = itxFireAtPhaseDelays[95:80];		//assign phaseDelays[5] = fireAtCmd_Phases[95:80];
+assign fireAtPhaseDelays[6] = itxFireAtPhaseDelays[111:96];		//assign phaseDelays[6] = fireAtCmd_Phases[111:96];
+assign fireAtPhaseDelays[7] = itxFireAtPhaseDelays[127:112];	//assign phaseDelays[7] = fireAtCmd_Phases[127:112];
 
 wire [8:0] inputChargeTime;	assign inputChargeTime = instruction[0][8:0];
 wire [6:0] trigVals;	assign trigVals = instruction[0][15:9];
@@ -500,7 +500,7 @@ begin
 						begin
 							txCntrActive <= 1'b1;
 							txCntr <= 32'b0;
-							oPhaseDelayReadAddr <= instruction[0][13:0];
+							oFireAtPhaseDelayReadAddr <= instruction[0][11:0];
 							fire_fireAt_switch <= 1'b0;
 							
 							if( !chargeTimeSet_flag )

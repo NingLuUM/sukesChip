@@ -133,9 +133,6 @@ assign stm_hw_events = {{15{1'b0}}, SW, fpga_led_internal, fpga_debounced_button
 //************* NON-GHRD CODE *************//
 //*****************************************//
 
-/// OUTPUTS FROM ADC
-wire [ 7: 0][11: 0] DATA_OUT;
-
 
 wire [7:0] tx_output_pins;
 assign TRANSDUCER_OUTPUT_PINS[7:0] = tx_output_pins[7:0];
@@ -203,18 +200,16 @@ wire	[63:0]			tx_instruction_reg;
 wire	[12:0]			tx_set_instruction_read_addr;
 wire	[12:0]			tx_instr_read_addr; // 8191 instructions (13bit)
 
+
 // for reading 'fire' cmd phase delays from FPGA RAM
 wire	[127:0]			tx_phase_delay_reg;
 wire	[13:0]			tx_phase_delay_read_addr; // 16384 locations (14bit)
 
+
 // for reading 'fireAt' cmd phase delays from FPGA RAM
 wire	[127:0]			tx_fire_at_phase_delay_reg;
-wire	[7:0]			tx_fire_at_phase_delay_read_addr;
+wire	[11:0]			tx_fire_at_phase_delay_read_addr; // 4096 locations (12bit)
 
-
-
-wire	[31:0]			tx_current_loop_iteration;
-wire	[31:0]			tx_currently_in_loop;
 
 wire					FRAMECLK_SHIFT;
 wire 					BITCLK_SHIFT;
@@ -254,13 +249,13 @@ ADC_Control_Module u2(
 	.ADC_INPUT_DATA_LINES	(ADC_DATA_LINES),
 	
 	.iSystemTrig			(EXTERNAL_TRIGGER_INPUT),
-	.iTxTrigger				(tx_adc_trig_trigack[1]),
+	.iTxTrigger				(tx_adc_trig_trigack[0]),
 	
 	.iTrigDelay				(adc_trig_delay),
 	.iRecLength				(adc_record_length),
 	.iStateReset			(adc_state_reset),
 	
-	.oTriggerAck			(tx_adc_trigger[1]),
+	.oTriggerAck			(tx_adc_trig_trigack[1]),
 	.oADCData				(adc_writedata_bank),
 	.oWREN					(adc_wren_bank),
 	.oWAddr					(adc_write_addr),
@@ -364,6 +359,8 @@ soc_system u0(
 		.tx_phase_delay_register_address					(tx_phase_delay_read_addr),
 		.tx_phase_delay_register_readdata				(tx_phase_delay_reg),
 	
+		.tx_fire_at_phase_delay_register_address					(tx_fire_at_phase_delay_read_addr),
+		.tx_fire_at_phase_delay_register_readdata				(tx_fire_at_phase_delay_reg),
 
 		.ram_clock_bridge_clk						(CLK200), 
 		.adc_clock_bridge_clk						(CLK25), 
@@ -395,7 +392,11 @@ soc_system u0(
 		.tx_phase_delay_register_writedata				(128'b0),
 		.tx_phase_delay_register_byteenable				(16'b1111111111111111),
 
-			
+		.tx_fire_at_phase_delay_register_chipselect				(1'b1),
+		.tx_fire_at_phase_delay_register_clken					(1'b1),
+		.tx_fire_at_phase_delay_register_write					(1'b0),
+		.tx_fire_at_phase_delay_register_writedata				(128'b0),
+		.tx_fire_at_phase_delay_register_byteenable				(16'b1111111111111111),	
 
 		
 		//Clock&Reset
