@@ -8,13 +8,17 @@ module Output_Control_Module(
 	input		[7:0]		itxControlComms,
 	
 	// procedural controls for instructions
-	
-
 	input		[63:0]		itxInstruction,
-	input		[127:0]		itxPhaseDelays,
 	input		[12:0]		itxSetInstructionReadAddr,
 	output reg	[12:0]		oInstructionReadAddr,
+	
+	// phase delays for 'fire' cmd
+	input		[127:0]		itxPhaseDelays,
 	output reg	[13:0]		oPhaseDelayReadAddr,
+	
+	// phase delays for 'fireAt' cmd
+	input		[127:0]		itxFireAtPhaseDelays,
+	output reg	[7:0]		oFireAtPhaseDelayReadAddr,
 	
 	// transducer output controls
 	input		[7:0]		itxTransducerChannelMask,
@@ -57,7 +61,8 @@ assign transducerOuput = itxTransducerChannelMask;
 wire 	[7:0]	transducerModule_txIsActive;
 wire	[7:0]	txErrorFlag;
 
-reg		[7:0]	trigRestLevel;
+reg	[7:0]	trigRestLevel;
+
 reg [31:0] timeUntilNextInstruction;
 reg [1:0][31:0] timingReg;
 reg [1:0][15:0] instructionType;
@@ -69,13 +74,6 @@ reg fire_fireAt_switch;
 reg [127:0] fireCmdPhaseDelayReg;
 reg [8:0] chargeTimeReg;
 
-//wand [127:0] fireCmd_Phases;
-//assign fireCmd_Phases = fire_fireAt_switch;
-//assign fireCmd_Phases = fireCmdPhaseDelayReg;
-
-//wand [127:0] fireAtCmd_Phases;
-//assign fireAtCmd_Phases = ~fire_fireAt_switch;
-//assign fireAtCmd_Phases = itxPhaseDelays;
 
 wire [7:0][15:0] phaseDelays;
 assign phaseDelays[0] = fireCmdPhaseDelayReg[15:0];		//assign phaseDelays[0] = fireAtCmd_Phases[15:0];
@@ -107,7 +105,6 @@ wire [27:0] loopCounterRef;	assign loopCounterRef = timingReg[1][27:0];
 
 
 parameter maxLoopAddr = 15;
-parameter maxIterLoops = 7;
 reg [maxLoopAddr:0][27:0]	loopCounter;
 reg [maxLoopAddr:0]			loopActive;
 reg [maxLoopAddr:0]			isIterLoop;
@@ -134,18 +131,19 @@ parameter [1:0] txout_reset_module = 2'b11;
 
 
 // instruction type list
-parameter [3:0] set_trig = 4'b0000; // 0
-parameter [3:0] set_leds = 4'b0001; // 1
-parameter [3:0] trigger_recv = 4'b0010; // 2
-parameter [3:0] trigger_recv_local = 4'b0011; // 3
-parameter [3:0] is_loop_start_point = 4'b0100; // 4
-parameter [3:0] is_loop_end_point = 4'b0101; // 5
-parameter [3:0] fire_pulse = 4'b0110; // 6
-parameter [3:0] fire_at = 4'b0111; // 7
-parameter [3:0] set_charge_time = 4'b1000; // 8
-parameter [3:0] generate_tx_interrupt = 4'b1001; // 9
-parameter [3:0] wait_for_external_trigger = 4'b1010; // 10
-parameter [3:0] wait_for_interrupt_to_resolve = 4'b1011; // 11
+parameter [3:0] no_op = 4'b0000; // 0
+parameter [3:0] set_trig = 4'b0001; // 1
+parameter [3:0] set_leds = 4'b0010; // 2
+parameter [3:0] trigger_recv = 4'b0011; // 3
+parameter [3:0] trigger_recv_local = 4'b0100; // 4
+parameter [3:0] is_loop_start_point = 4'b0101; // 5
+parameter [3:0] is_loop_end_point = 4'b0110; // 6
+parameter [3:0] fire_pulse = 4'b0111; // 7
+parameter [3:0] fire_at = 4'b1000; // 8
+parameter [3:0] set_charge_time = 4'b1001; // 9
+parameter [3:0] generate_tx_interrupt = 4'b1010; // 10
+parameter [3:0] wait_for_external_trigger = 4'b1011; // 11
+parameter [3:0] wait_for_interrupt_to_resolve = 4'b1100; // 12
 parameter [3:0] program_end_point = 4'b1111; // 15
 
 parameter [8:0] ct500 = 9'b111110100;

@@ -199,29 +199,6 @@ typedef struct RCVsys_{
 	uint32_t (*getInterruptMsg)(RCVsys *);
 } RCVsys;
 
-typedef struct TX_OCProgEnum_{
-    uint16_t logical : 8;
-    uint16_t given : 8; 
-} TX_OCProgEnum_t;
-
-typedef struct TX_OCProgControlFlags_{
-    uint16_t topLevel : 1;
-    uint16_t iterator : 1;
-    uint16_t fireCmd : 1;
-    uint16_t fireAtCmd : 1;
-    uint16_t reversed : 1;
-    uint16_t active : 1;
-    uint16_t unrolled : 1;
-    uint16_t exit_UpdateFire : 1;
-    uint16_t exit_UpdateFireAt : 1;
-    uint16_t loopEnd_ReloadFireAt : 1;
-} TX_OCProgControlFlags_t;
-
-typedef union TX_OCProgLoopCntrs_{
-    uint32_t loc;
-    uint32_t pulse; 
-} TX_OCProgLoopCntrs_t;
-
 typedef union TX_inputCommands_{ 
     struct {
         uint16_t fpga; // [15:0]
@@ -271,8 +248,8 @@ typedef union TX_InstructionReg_{
             
             // only used on master fpga
             struct {
-                uint8_t ledVals; 
-                uint8_t masterTrigVals;
+                uint16_t ledVals : 8; 
+                uint16_t masterTrigVals : 8;
             };
 
             // only used on the daughter fpgas

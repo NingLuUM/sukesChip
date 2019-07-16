@@ -181,8 +181,7 @@ wire	[12:0]			adc_record_length;
 wire  	[2:0]       	adc_wren_bank;
 wire  	[2:0][31:0] 	adc_writedata_bank;
 
-wire 					tx_to_adc_trigger_signal;
-wire					adc_to_tx_trigger_ack;
+wire	[1:0]			tx_adc_trig_trigack; // [0] = trigger sig: tx to adc, [1] = ack sig: adc to tx
 
 wire	[7:0]			tx_transducer_output_error_msg;
 	
@@ -194,17 +193,26 @@ wire	[7:0]			tx_trig_reg;
 wire	[7:0]			tx_trig_rest_level_reg;
 
 
-wire	[12:0]			tx_instr_read_addr; // 8191 instructions (13bit)
-wire	[14:0]			tx_phase_delay_read_addr; // 16384 locations (14bit)
 wire	[3:0]			tx_state;
 wire	[7:0]			tx_control_comms;
 wire	[7:0]			tx_user_mask;
 
+
+// for reading tx instructions from FPGA RAM
 wire	[63:0]			tx_instruction_reg;
-wire	[127:0]			tx_phase_delay_reg;
-
-
 wire	[12:0]			tx_set_instruction_read_addr;
+wire	[12:0]			tx_instr_read_addr; // 8191 instructions (13bit)
+
+// for reading 'fire' cmd phase delays from FPGA RAM
+wire	[127:0]			tx_phase_delay_reg;
+wire	[13:0]			tx_phase_delay_read_addr; // 16384 locations (14bit)
+
+// for reading 'fireAt' cmd phase delays from FPGA RAM
+wire	[127:0]			tx_fire_at_phase_delay_reg;
+wire	[7:0]			tx_fire_at_phase_delay_read_addr;
+
+
+
 wire	[31:0]			tx_current_loop_iteration;
 wire	[31:0]			tx_currently_in_loop;
 
@@ -246,13 +254,13 @@ ADC_Control_Module u2(
 	.ADC_INPUT_DATA_LINES	(ADC_DATA_LINES),
 	
 	.iSystemTrig			(EXTERNAL_TRIGGER_INPUT),
-	.iTxTrigger				(tx_to_adc_trigger_signal),
+	.iTxTrigger				(tx_adc_trig_trigack[1]),
 	
 	.iTrigDelay				(adc_trig_delay),
 	.iRecLength				(adc_record_length),
 	.iStateReset			(adc_state_reset),
 	
-	.oTriggerAck			(adc_to_tx_trigger_ack),
+	.oTriggerAck			(tx_adc_trigger[1]),
 	.oADCData				(adc_writedata_bank),
 	.oWREN					(adc_wren_bank),
 	.oWAddr					(adc_write_addr),
@@ -266,28 +274,35 @@ Output_Control_Module u3(
 	.txCLK							(CLK100),
 	
 	.iSystemTrig					(EXTERNAL_TRIGGER_INPUT),
+	
 	.iExternalTrig					(EXTERNAL_TRIGGER_INPUT),
 	.itxControlComms				(tx_control_comms),
 	
 	// procedural controls for instructions
 	.itxInstruction					(tx_instruction_reg),
-	.itxPhaseDelays					(tx_phase_delay_reg),
 	.itxSetInstructionReadAddr		(tx_set_instruction_read_addr),
 	.oInstructionReadAddr			(tx_instr_read_addr),
+	
+	// for 'fire' cmd
+	.itxPhaseDelays					(tx_phase_delay_reg),
 	.oPhaseDelayReadAddr			(tx_phase_delay_read_addr),
 	
-	// transducer output controls
+	// for 'fireAt' cmd
+	.itxFireAtPhaseDelays			(tx_fire_at_phase_delay_reg),
+	.oFireAtPhaseDelayReadAddr		(tx_fire_at_phase_delay_read_addr),
+	
+	// controls for physical outputs (transducers)
 	.itxTransducerChannelMask		(tx_user_mask),
 	.otxTransducerOutput			(tx_output_pins),
 	.otxTransducerOutputError		(tx_transducer_output_error_msg),
 	
-	// trigger output controls
+	// controls for physical outputs (trigger & led pins)
 	.otxTriggerOutput				(tx_trigger_pins),
 	.otxLedOutput					(tx_led_pins),
 	
 	// recv system
-	.itxADCTriggerAck				(adc_to_tx_trigger_ack),
-	.otxADCTriggerLine				(tx_to_adc_trigger_signal),
+	.itxADCTriggerAck				(tx_adc_trig_trigack[1]),
+	.otxADCTriggerLine				(tx_adc_trig_trigack[0]),
 	
 	// arm interrupts
 	.oArmInterrupt					(tx_to_arm_interrupt),
