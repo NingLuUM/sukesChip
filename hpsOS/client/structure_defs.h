@@ -223,6 +223,10 @@ typedef union TX_InstructionReg_{
         union { 
             // time until next instruction
             uint32_t t;
+
+            struct {
+                uint32_t requestedPhaseDelayStartAddr : 28;
+                uint32_t phaseAddrRequestLoopNumber : 4;
             
             // variables for loops
             struct {
@@ -232,9 +236,15 @@ typedef union TX_InstructionReg_{
 
             /* address of the phaseDelays in the PHASE DELAY register corresponding 
                 to the first steering location of the loop (member of loop start) */
+            
             struct {
                 uint16_t phaseDelayStartAddr : 14;
                 uint16_t blank2t : 2;
+            };
+
+            struct {
+                uint16_t fireAt_phaseDelayAddr : 12;
+                uint16_t blank4t : 4;
             };
         };
         
@@ -311,11 +321,8 @@ typedef struct TXsys_{
     // memory mapped FPGA ram blocks
 	TX_InstructionReg_t *instructionReg; // 64bit, 8192 elements
     TX_PhaseDelayReg_t *phaseDelayReg; // 128bit, 16384 elements
+    TX_PhaseDelayReg_t *fireAt_phaseDelayReg; // 128bit, 4096 elements
     
-    // local storage to hold user program	
-	uint32_t **instructionReg_local;
-	uint32_t **timingReg_local;
-
     // variables used to setup ENET to recv phaseCharge data and user defined program
     uint32_t recvType; // instructions vs phase delays
     uint32_t nLocs;

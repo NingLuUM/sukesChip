@@ -8,13 +8,12 @@ void parseRecvdPhaseCharges(TXsys *TX){
 void compressInstruction_tx(TXsys *TX){
     uint32_t i,j,k;
     int addedInstr;
-    const uint32_t buffLen = (TX->nInstructionsBuff);
+    uint32_t buffLen = (TX->nInstructionsBuff);
     uint8_t trigs, leds, loopNum;
     TX_inputCommands_t *buff;
     TX_InstructionReg_t *instr;
 
     int nIterators,nUnused,extraLoopsWanted;
-    uint8_t wasDeclared[MAX_TX_LOOPS];
     uint8_t unusedLoop[MAX_TX_LOOPS];
     uint8_t isIteratorLoop[MAX_TX_LOOPS];
     uint32_t loopStartInstrAddr[MAX_TX_LOOPS];
@@ -36,8 +35,8 @@ void compressInstruction_tx(TXsys *TX){
 
     for( i=0; i<buffLen; i+=2){
         if( buff[i].fpga & FPGA_IS_LOOP_START ){
-            if( unusedLoop[ buff[i+1] & 0xf ] ){
-                unusedLoop[ buff[i+1] & 0xf ] = 0;
+            if( unusedLoop[ buff[i+1].instr & 0xf ] ){
+                unusedLoop[ buff[i+1].instr & 0xf ] = 0;
                 nUnused--;
             }
             if( buff[i].arm & ARM_IS_ITERATOR ){
@@ -98,36 +97,50 @@ void compressInstruction_tx(TXsys *TX){
                 addedInstr = 0;
                 break;
             }
-            
-            case( FPGA_TRIGGER_RECV_SYS_LOCAL ):{
-                instr[j].type |= FPGA_TRIGGER_RECV_SYS_LOCAL;
-                addedInstr = 0;
-                break;
-            }
 
             case( FPGA_IS_LOOP_START ):{
                 if ( !addedInstr ){
                     j++;
                 }
                 loopNum = buff[i+1].instr & 0xf;
+                loopCounterTmp = buff[i+2].instr & 0x0fffffff;
+                loopPhaseAddrStart = buff[i+3].instr;
+                loopPhaseAddrEnd = buff[i+4].instr;
+                loopPhaseAddrIncr = buff[i+5].instr;
 
                 if ( ( buff[i].arm & ARM_IS_ITERATOR ) ){
                     isIterator[loopNum] = 1;
 
                     // check for illegal conditions, auto kill program if they exist
-                    if( (buff[i+3].instr > buff[i+4].instr) || (buff[i+5].instr & 0xfffffe00) || ( ( buff[i+4].instr-buff[i+3].instr ) & 0xf0000000 ) ){
+                    if( (loopPhaseAddrStart > loopPhaseAddrEnd) || // start addr cannot be after end addr
+                        (loopPhaseAddrIncr & 0xffffff00) || // cannot increment position by > 255
+                        ((loopPhaseAddrStart | loopPhaseAddrEnd) & 0xf0000000) // cannot have > 2^28 locations
+                      ){
                         instr[j].type = FPGA_END_PROGRAM;
                         j++;
                         break;
                     }
 
+                    // interrupt the arm processor 
                     instr[j].type |= FPGA_GENERATE_TX_INTERRUPT;
+
+                    // let arm know that 'loop start' operation generated the interrupt
                     instr[j].instr = FPGA_IS_LOOP_START;
-                    instr[j].loopNumber = loopNum;
-                    instr[j].loopCounter = ( buff[i+3].instr & 0x0fffffff );
+
+                    // tell the arm processor which loop is being entered
+                    instr[j].phaseAddrRequestLoopNumber = loopNum;
+
+                    // lets arm processor know the first location to be treated in the loop.
+                    instr[j].requestedPhaseDelayStartAddr = loopPhaseAddrStart;
+
                     j++;
-                    instr[j].type |= FPGA_WAIT_FOR_INTERRUPT_TO_RESOLVE;
-                    instr[j].type |= FPGA_WAIT_FOR_EXTERNAL_TRIGGER;
+                    
+                    // wait for signal from arm that phase delay register is populated
+                    instr[j].type |= FPGA_WAIT_FOR_INTERRUPT_TO_RESOLVE; 
+                    // tx interrupts halt all FPGAs. none can resume until signaled by 'master'  
+                    
+                    // wait for signal from 'master' before executing loop
+                    instr[j].type |= FPGA_WAIT_FOR_EXTERNAL_TRIGGER; 
                     j++;
                     
                     // check if the iteration loop repeats, if so add an external loop to do so
