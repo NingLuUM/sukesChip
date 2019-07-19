@@ -6,12 +6,159 @@ void parseRecvdPhaseCharges(TXsys *TX){
 
 
 void compressInstruction_tx(TXsys *TX){
+    /*  Instruction Handling Notes:
+
+        All instructions except START_LOOP are received as pairs uint32_t.
+            uint32_t[0] = INSTRUCTION TYPE 
+            uint32_t[1] = INSTRUCTION
+        
+        'INSTRUCTION TYPE' is split, bitwise, into two components
+            bits[15: 0] = FPGA instruction
+            bits[31:16] = ARM processor directive/instruction
+
+        'INSTRUCTION' is a single number, whose meaning changes depending on
+        the 'INSTRUCTION TYPE'
+            INSTRUCTION TYPE
+                DESCRIPTION of INSTRUCTION
+            
+            SET_LED 
+                turns on/off corresponding LED outputs (8bits)
+            
+            SET_TRIG    
+                turns on/off corresponding trigger outputs (7 or 8bit)
+                -7bit if daughter FPGA (one trig is reserved to signal MASTER)
+                -8bit if MASTER FPGA
+            
+            WAIT        
+                32bits, number of clock cycles to wait until next instruction
+            
+            FIRE
+                none
+            
+            FIREAT
+                the memory location in phaseDelay mem corresponding to the 
+                desired steering location (28bit). value at corresponding mem
+                location gets preloaded into the fireAtPhaseDelay register.
+                only 4096 locations can be preloaded for use with FIREAT.
+
+            SET_CHARGE_TIME
+                the charge time of the pulse to be fired (9bit)
+                
+            END_LOOP 
+                the assigned number of the ending loop (4bit)
+                *address in instruction memory where the loop begins (12bit).
+                    *auto assigned by ARM
+
+            GEN_TX_INTERRUPT
+                variable, nominally none. usually set by ARM
+            
+            WAIT_FOR_EXTERNAL_TRIG
+                none
+
+            WAIT_FOR_INTERRUPT_TO_RESOLVE
+                none
+
+            END_PROGRAM
+                none
+
+
+        START_LOOP is received as 6 uint32_t. ARM directives are used to
+        indicate if loop is used for steering the focus, or just to repeat 
+        the code block. The START_LOOP command is only loaded into the FPGA
+        instruction memory for steering loops, where it is needed to tell the
+        ARM processor the assigned number of the loop, and the first steering
+        location to be targeted in the loop.
+
+            uint32_t[0] = INSTRUCTION TYPE
+            uint32_t[1] = assigned loop number
+            uint32_t[2] = number of iterations
+
+            [2] is set explicitly for non-steering loops, and through ARM
+            directives for steering loops. Effectively, ARM auto-generates a
+            new loop, internal or external to the steering loop, which allows
+            the steering loop to be repeated. This can also be accomlished by
+            explicitly programming non-steering loops in/outside the steering
+            loop. Because steering loops generate interrupts before they start,
+            it is recommended to generate non-steering loops around steering
+            loops through the ARM directives, particularly for external non-
+            steering loops, otherwise the ARM interrupt will be repeated every
+            iteration of the outer loop and slow things down. (This outcome can
+            be avoided, but I don't want to spend time writing a more advanced
+            instruction parser to catch this scenario)
+            
+            [3]-[5] are only set for steering loops, ignored otherwise
+            
+            uint32_t[3] = mem location in phaseDelay mem where loop starts
+            uint32_t[4] = mem location in phaseDelay mem where loop ends
+            uint32_t[5] = mem location increment in phaseDelay mem
+                (allows treating every n'th location, 1 <= n <= 255)
+
+
+
+        all commands except 'END_LOOP' and 'START_LOOP' (of the steering type) 
+        are combined into single commands unless explicity directed not to be 
+        through ARM directives. As such a set of commands like:
+            SET_TRIG(15)
+            SET_CHARGE_TIME(100)
+            FIRE()
+        would all execute concurrently. A WAIT(X) command following this would
+        signal the FPGA to WAIT X clock cycles before executing the next block
+        of commands, but wouldn't occupy its own line of an instruction.
+        
+        END_LOOP needs to occupy its own line in the instructions because the 
+        address in instruction memory where the loop begins cannot fit in the
+        INSTRUCTION alongside the INSTRUCTIONS from other commands. As such, 
+        an extra clock cycle is needed for END_LOOP. 
+        
+        START_LOOP does not need to be issued as an FPGA instruction for non-
+        steering loops because the END_LOOP command automatically returns the 
+        FPGA to the instruction address where the loop started. It does,
+        however, need to be issued during programming so that ARM can store the
+        loop number and number of iterations to insert them into the END_LOOP
+        command later. For steering loops, START_LOOP needs to take up its own 
+        instruction in the FPGA instruction list because the steering location 
+        at which the loop starts can be larger than number of steering locations
+        that can be stored directly to the FPGA memory, and so a call to the ARM
+        processor is required to load the correct phase delays into the FPGA 
+        memory before the loop can begin.
+
+        FIREAT cannot be combined with FIRE, and subsequent FIRE(AT)s cannot be 
+        issued before the previous FIRE(AT) ends. Trying to issue them too 
+        close together will result in the second one not being issued and cause
+        the FPGA to generate an interrupt to let the ARM processor know that 
+        something went wrong. This is one of the few cases where a programming
+        error won't automatically stop the FPGA from running because the phase
+        delay register is independent of the instruction register and I'm not
+        enforcing an order between uploading the instructions and phase delays.
+        Since I can't check the phase delays to make sure they don't overrun
+        the instruction timing without doing that (unless I wanted to reparse
+        the instructions everytime new phase delays were uploaded to check,
+        which I do not want to), it basically just skips FIRE(AT) commands that
+        are out of compliance. I might make the FPGA terminate the program 
+        internally instead of just issuing an interrupt though.
+
+        Any errors detected in the programming outside of the FIRE/FIREAT
+        issue note, eg trying to run loops >2^28 times, will result in the FPGA
+        terminating the program. I don't want to spend time writing in checks
+        for all the different ways things could go wrong and then figuring out
+        how to handle them all without interrupting program execution on the 
+        FPGA. Instead, I just terminate the program. If you screw up and this
+        happens it's your own fault. 
+        
+        To avoid this, write your programs correctly.
+    
+    */
+
     uint32_t i,j,k;
     int addedInstr;
     uint32_t buffLen = (TX->nInstructionsBuff);
     uint8_t trigs, leds, loopNum;
     TX_inputCommands_t *buff;
     TX_InstructionReg_t *instr;
+    uint32_t loopCounterTmp;
+    uint32_t loopPhaseAddrStart;
+    uint32_t loopPhaseAddrEnd;
+    uint32_t loopPhaseAddrIncr;
 
     int nIterators,nUnused,extraLoopsWanted;
     uint8_t unusedLoop[MAX_TX_LOOPS];
@@ -41,10 +188,10 @@ void compressInstruction_tx(TXsys *TX){
             }
             if( buff[i].arm & ARM_IS_ITERATOR ){
                 nIterators++;
-                if( !buff[i+3].instr ) extraLoopsWanted++;
+                if( buff[i+2].instr ) extraLoopsWanted++;
             }
+            i+=4;
         }
-        i+=4;
     }
 
 
@@ -98,12 +245,13 @@ void compressInstruction_tx(TXsys *TX){
                 break;
             }
 
+            // TODO: generate list of steering loops and their parameters to store locally on ARM
             case( FPGA_IS_LOOP_START ):{
                 if ( !addedInstr ){
                     j++;
                 }
                 loopNum = buff[i+1].instr & 0xf;
-                loopCounterTmp = buff[i+2].instr & 0x0fffffff;
+                loopCounterTmp = buff[i+2].instr;
                 loopPhaseAddrStart = buff[i+3].instr;
                 loopPhaseAddrEnd = buff[i+4].instr;
                 loopPhaseAddrIncr = buff[i+5].instr;
@@ -111,10 +259,15 @@ void compressInstruction_tx(TXsys *TX){
                 if ( ( buff[i].arm & ARM_IS_ITERATOR ) ){
                     isIterator[loopNum] = 1;
 
-                    // check for illegal conditions, auto kill program if they exist
-                    if( (loopPhaseAddrStart > loopPhaseAddrEnd) || // start addr cannot be after end addr
-                        (loopPhaseAddrIncr & 0xffffff00) || // cannot increment position by > 255
-                        ((loopPhaseAddrStart | loopPhaseAddrEnd) & 0xf0000000) // cannot have > 2^28 locations
+                    // check for illegal conditions, have FPGA terminate program if they exist
+                    if( // start addr cannot be after end addr
+                        (loopPhaseAddrStart > loopPhaseAddrEnd) ||
+
+                        // cannot increment position by > 255
+                        (loopPhaseAddrIncr & 0xffffff00) || 
+
+                        // cannot have > 2^28 locations or iterations
+                        ((loopPhaseAddrStart | loopPhaseAddrEnd | loopCounterTmp) & 0xf0000000) 
                       ){
                         instr[j].type = FPGA_END_PROGRAM;
                         j++;
@@ -132,7 +285,6 @@ void compressInstruction_tx(TXsys *TX){
 
                     // lets arm processor know the first location to be treated in the loop.
                     instr[j].requestedPhaseDelayStartAddr = loopPhaseAddrStart;
-
                     j++;
                     
                     // wait for signal from arm that phase delay register is populated
@@ -144,14 +296,14 @@ void compressInstruction_tx(TXsys *TX){
                     j++;
                     
                     // check if the iteration loop repeats, if so add an external loop to do so
-                    if( buff[i+2].instr && ( nUnused >= extraLoopsWanted ) ){
+                    if( loopCounterTmp && ( nUnused >= extraLoopsWanted ) ){
                         for( k=0;k<MAX_TX_LOOPS;k++ ){
                             if( unusedLoop[k] ){
                                 iterLoopPairs[loopNum][0] = loopNum;
                                 iterLoopPairs[loopNum][1] = k; 
                                 
                                 loopStartInstrAddr[k] = j+1;
-                                loopCounterRef[k] = ( buff[i+2].instr | 0xf0000000 ) ? 0x0fffffff : buff[i+2].instr;
+                                loopCounterRef[k] = loopCounterTmp;
                                 unusedLoop[k] = 0;
                                 break;
                             }
@@ -161,21 +313,31 @@ void compressInstruction_tx(TXsys *TX){
                     instr[j].type = FPGA_IS_LOOP_START;
                     instr[j].loopNumber = loopNum;
                     instr[j].phaseDelayStartAddr = 0;
-                    instr[j].phaseDelayAddrIncr = ( buff[i+5].instr ) ? buff[i+5].instr : 1;
+                    instr[j].phaseDelayAddrIncr = ( loopPhaseAddrIncr ) ? loopPhaseAddrIncr : 1;
+
+                    // the loop doesn't need to return to the instruction location where START is issued
+                    // START is just a directive to the FPGA to let it know that it needs to increment
+                    // the address from which the phase delay is read once it reaches the end of the loop
+                    // the code block executed within the loop starts 1 instruction after START
                     loopStartInstrAddr[loopNum] = j+1;
 
-                    if( buff[i+5].instr ){
-                        loopCounterRef[loopNum] = (buff[i+4].instr-buff[i+3].instr)/(buff[i+5].instr);
+                    if( loopPhaseAddrIncr ){
+                        loopCounterRef[loopNum] = (loopPhaseAddrEnd-loopPhaseAddrStart)/loopPhaseAddrIncr;
                     } else {
-                        loopCounterRef[loopNum] = (buff[i+4].instr-buff[i+3].instr);
+                        loopCounterRef[loopNum] = (loopPhaseAddrEnd-loopPhaseAddrStart);
                     }
-                    loopCounterRef[loopNum] = (loopCounterRef[loopNum] | 0xf0000000) ? 0x0fffffff : loopCounterRef[loopNum];
 
                     j++;
                     addedInstr = 1;
                 } else {
                     loopStartInstrAddr[loopNum] = j;
-                    loopCounterRef[ loopNum ] = ( buff[i+2].instr | 0xf0000000 ) ? 0x0fffffff : buff[i+2].instr;
+                    if ( !(loopCounterTmp | 0xf0000000) ){ // can't have >2^28 iterations
+                        loopCounterRef[ loopNum ] = loopCounterTmp;
+                    } else {
+                        instr[j].type = FPGA_END_PROGRAM;
+                        j++;
+                        break;
+                    }
                     addedInstr = 0;
                 }
                 i+=4;
@@ -214,6 +376,7 @@ void compressInstruction_tx(TXsys *TX){
                 break;
             }
 
+            // TODO: write these into the fireAt_phaseDelayReg
             case( FPGA_FIREAT_CMD ):{
                 if( !(instr[j].type & FPGA_FIRE_CMD) ){
                     if( !(buff[i].arm & ARM_IS_MASTER) ){
@@ -230,7 +393,7 @@ void compressInstruction_tx(TXsys *TX){
             case( FPGA_SET_CHARGE_TIME ):{
                 if( !(buff[i].arm & ARM_IS_MASTER) ){
                     instr[j].type |= FPGA_SET_CHARGE_TIME;
-                    instr[j].chargeTime = buff[i+1].instr;
+                    instr[j].chargeTime = (buff[i+1].instr & 0x1ff);
                 }
                 addedInstr = 0;
                 break;

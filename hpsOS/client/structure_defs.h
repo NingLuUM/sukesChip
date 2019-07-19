@@ -227,6 +227,7 @@ typedef union TX_InstructionReg_{
             struct {
                 uint32_t requestedPhaseDelayStartAddr : 28;
                 uint32_t phaseAddrRequestLoopNumber : 4;
+            };
             
             // variables for loops
             struct {
