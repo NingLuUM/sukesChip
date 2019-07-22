@@ -29,8 +29,8 @@ reg cmdState = 1'b0;
 reg [9:0] txSafetyValve = 10'b0;
 
 parameter [1:0] wait_cmd = 2'b00;
-parameter [1:0] fire_pulse = 2'b10;
-parameter [1:0] reset_module = 2'b11;
+parameter [1:0] fire_pulse = 2'b01;
+parameter [1:0] reset_module = 2'b10;
 
 always @(posedge clk)
 begin

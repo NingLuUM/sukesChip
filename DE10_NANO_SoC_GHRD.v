@@ -162,7 +162,9 @@ assign ADC_SYNC		= adc_sync;
 //=======================================================
 
 wire	[7:0]			adc_to_arm_interrupt;
-wire	[1:0][31:0]		tx_to_arm_interrupt;
+wire	[31:0]			tx_to_arm_user_issued_interrupt;
+wire	[31:0]			tx_to_arm_error_detected_interrupt;
+wire	[31:0]			tx_to_arm_msg_from_interrupt;
 
 
 wire	[23:0]			adc_serial_command;
@@ -178,12 +180,11 @@ wire	[12:0]			adc_record_length;
 wire  	[2:0]       	adc_wren_bank;
 wire  	[2:0][31:0] 	adc_writedata_bank;
 
-wire	[1:0]			tx_adc_trig_trigack; // [0] = trigger sig: tx to adc, [1] = ack sig: adc to tx
+wire					tx_to_adc_trig;
+wire					adc_to_tx_trigack;
 
 wire	[7:0]			tx_transducer_output_error_msg;
-	
 wire	[31:0]			arm_to_tx_interrupt_response;
-wire	[3:0]			tx_interrupt_error_msg;
 	
 wire	[7:0]			tx_led_reg;
 wire	[7:0]			tx_trig_reg;
@@ -249,13 +250,13 @@ ADC_Control_Module u2(
 	.ADC_INPUT_DATA_LINES	(ADC_DATA_LINES),
 	
 	.iSystemTrig			(EXTERNAL_TRIGGER_INPUT),
-	.iTxTrigger				(tx_adc_trig_trigack[0]),
+	.iTxTrigger				(tx_to_adc_trig),
 	
 	.iTrigDelay				(adc_trig_delay),
 	.iRecLength				(adc_record_length),
 	.iStateReset			(adc_state_reset),
 	
-	.oTriggerAck			(tx_adc_trig_trigack[1]),
+	.oTriggerAck			(adc_to_tx_trigack),
 	.oADCData				(adc_writedata_bank),
 	.oWREN					(adc_wren_bank),
 	.oWAddr					(adc_write_addr),
@@ -269,13 +270,10 @@ Output_Control_Module u3(
 	.txCLK							(CLK100),
 	
 	.iSystemTrig					(EXTERNAL_TRIGGER_INPUT),
-	
-	.iExternalTrig					(EXTERNAL_TRIGGER_INPUT),
 	.itxControlComms				(tx_control_comms),
 	
 	// procedural controls for instructions
 	.itxInstruction					(tx_instruction_reg),
-	.itxSetInstructionReadAddr		(tx_set_instruction_read_addr),
 	.oInstructionReadAddr			(tx_instr_read_addr),
 	
 	// for 'fire' cmd
@@ -292,22 +290,27 @@ Output_Control_Module u3(
 	.otxTransducerOutputError		(tx_transducer_output_error_msg),
 	
 	// controls for physical outputs (trigger & led pins)
+	.itxMasterToDaughter_Sync		(EXTERNAL_TRIGGER_INPUT),
+	.otxToAll_Danger_KillProgram	(tx_to_all_danger_kill_program),
+	.otxDaughterToMaster_WaitForMe	(tx_daughter_to_master_wait_for_me),
 	.otxTriggerOutput				(tx_trigger_pins),
 	.otxLedOutput					(tx_led_pins),
 	
 	// recv system
-	.itxADCTriggerAck				(tx_adc_trig_trigack[1]),
-	.otxADCTriggerLine				(tx_adc_trig_trigack[0]),
+	.itxADCTriggerAck				(adc_to_tx_trigack),
+	.otxADCTriggerLine				(tx_to_adc_trig),
 	
 	// arm interrupts
-	.oArmInterrupt					(tx_to_arm_interrupt),
-	.interruptResponse				(arm_to_tx_interrupt_response),
-	.interruptError					(tx_interrupt_error_msg),
+	.otxArmUserInterrupt			(tx_to_arm_interrupt_user_issued),
+	.otxArmErrorInterrupt			(tx_to_arm_interrupt_error_detected),
+	
+	.otxUserIssuedInterruptMsg		(tx_to_arm_msg_from_interrupt),
+	.itxArmInterruptResponse		(arm_to_tx_interrupt_response),
 	
 	// allow trigs and leds to be set without running program
-	.ledReg							(tx_led_reg),
-	.trigReg						(tx_trig_reg),
-	.trigRestLevelReg				(tx_trig_rest_level_reg)
+	.led_pioReg						(tx_led_reg),
+	.trig_pioReg					(tx_trig_reg),
+	.trigRestLevel_pioReg			(tx_trig_rest_level_reg)
 );
 
 	
@@ -316,8 +319,8 @@ Output_Control_Module u3(
 //=======================================================
 soc_system u0(
 		.pio_adc_interrupt_generator_export			(adc_to_arm_interrupt),
-		.pio_tx_interrupt_generator_1_export		(tx_to_arm_interrupt[0]),
-		.pio_tx_interrupt_generator_0_export		(tx_to_arm_interrupt[1]),
+		.pio_tx_interrupt_generator_0_export		(tx_to_arm_interrupt_user_issued),
+		.pio_tx_interrupt_generator_1_export		(tx_to_arm_interrupt_error_detected),
 		.pio_tx_control_comms_export				(tx_control_comms),
 		.pio_set_tx_channel_mask_export				(tx_user_mask),
 		
@@ -335,10 +338,9 @@ soc_system u0(
 		.pio_set_adc_trig_delay_export				(adc_trig_delay),
 		
 		.tx_output_error_msg_export					(tx_transducer_output_error_msg),
-		.tx_interrupt_error_msg_export				(tx_interrupt_error_msg),
 		.tx_error_comms_export						(arm_to_tx_interrupt_response),
 		
-		.tx_set_instruction_read_addr_export		(tx_set_instruction_read_addr),
+		.pio_tx_user_issued_msg_from_interrupt_export	(tx_to_arm_msg_from_interrupt),
 
 		.adc_ram_bank0_address						(adc_write_addr),
 		.adc_ram_bank0_write						(adc_wren_bank[0]),
@@ -356,11 +358,11 @@ soc_system u0(
 		.tx_instruction_register_address			(tx_read_addr),	
 		.tx_instruction_register_readdata			(tx_instruction_reg),
 		
-		.tx_phase_delay_register_address					(tx_phase_delay_read_addr),
-		.tx_phase_delay_register_readdata				(tx_phase_delay_reg),
+		.tx_phase_delay_register_address			(tx_phase_delay_read_addr),
+		.tx_phase_delay_register_readdata			(tx_phase_delay_reg),
 	
-		.tx_fire_at_phase_delay_register_address					(tx_fire_at_phase_delay_read_addr),
-		.tx_fire_at_phase_delay_register_readdata				(tx_fire_at_phase_delay_reg),
+		.tx_fire_at_phase_delay_register_address	(tx_fire_at_phase_delay_read_addr),
+		.tx_fire_at_phase_delay_register_readdata	(tx_fire_at_phase_delay_reg),
 
 		.ram_clock_bridge_clk						(CLK200), 
 		.adc_clock_bridge_clk						(CLK25), 

@@ -6,38 +6,21 @@ struct FPGAvars_;
 struct ADCchip_;
 struct RCVsys_;
 struct TXsys_;
-struct TX_OutputControlProgram_;
-struct TX_OCProgEnum_;
-struct TX_OCProgStatusFlags_;
-struct TX_OCProgControlFlags_;
+struct TX_PhaseDelayReg_;
+struct TX_SteeringLoopDefs_;
 typedef struct ENETsock_ ENETsock;
 typedef struct BOARDsettings_ BOARDsettings;
 typedef struct FPGAvars_ FPGAvars;
 typedef struct ADCchip_ ADCchip;
 typedef struct RCVsys_ RCVsys;
 typedef struct TXsys_ TXsys;
-typedef struct TX_OutputControlProgram_ TX_OutputControlProgram_t;
-typedef struct TX_OCProgEnum_ TX_OCProgEnum_t;
-typedef struct TX_OCProgStatusFlags_ TX_OCProgStatusFlags_t;
-typedef struct TX_OCProgControlFlags_ TX_OCProgControlFlags_t;
+typedef struct TX_PhaseDelayReg_ TX_PhaseDelayReg_t;
+typedef struct TX_SteeringLoopDefs_ TX_SteeringLoopDefs_t;
 
-union TX_OCProgLoopCntrs_;
-typedef union TX_OCProgLoopCntrs_ TX_OCProgLoopCntrs_t;
-
-union TX_instructionTypeReg_;
-typedef union TX_instructionTypeReg_ TX_instructionTypeReg_t;
-
-// prototype of TX_Action function pointers
-typedef void (*TX_Action_f)(TXsys *,uint32_t);
-
-
-
-// function prototypes for TX
-void minimizeRedundantInterrupts_tx(TXsys *TX);
-void defineSubPrograms_tx(TXsys *TX);
-void parseRecvdInstructions_tx(TXsys *TX);
-void populateActionLists_tx(TXsys *TX);
-
+union TX_InputCommands_;
+union TX_InstructionReg_;
+typedef union TX_InputCommands_ TX_InputCommands_t;
+typedef union TX_InstructionReg_ TX_InstructionReg_t;
 
 // function prototypes for ADC
 void powerOn_adc(RCVsys *RCV);
@@ -46,7 +29,6 @@ void sync_adc(RCVsys *RCV);
 void initializeSettings_adc(RCVsys *RCV);
 void issueDirectSerialCommand_adc(RCVsys *RCV, uint32_t addr, uint32_t cmd);
 void setGain_adc(RCVsys *RCV, uint32_t coarseGain, uint32_t fineGain);
-
 
 // function prototypes for RCV subsystem
 void resetVars_rcv(RCVsys *RCV);	
@@ -59,7 +41,6 @@ void setDataAddrPointers_rcv(RCVsys *RCV, ENETsock **ENET);
 void setLocalStorage_rcv(RCVsys *RCV, uint32_t isLocal, uint32_t nPulses);
 void allocateLocalStorage_rcv(RCVsys *RCV);
 uint32_t getInterruptMsg_rcv(RCVsys *RCV);
-
 
 // function prototypes for ENET
 void setnonblocking_enet(int sock);
@@ -199,7 +180,7 @@ typedef struct RCVsys_{
 	uint32_t (*getInterruptMsg)(RCVsys *);
 } RCVsys;
 
-typedef union TX_inputCommands_{ 
+typedef union TX_InputCommands_{ 
     struct {
         uint16_t fpga; // [15:0]
         uint16_t arm; // [31:16]
@@ -210,7 +191,7 @@ typedef union TX_inputCommands_{
     };
     uint32_t t;
     uint32_t instr;
-} TX_inputCommands_t;
+} TX_InputCommands_t;
 
 typedef union TX_InstructionReg_{ 
     struct {
@@ -290,6 +271,15 @@ typedef union TX_InstructionReg_{
     uint64_t full;
 } TX_InstructionReg_t;
 
+typedef struct TX_SteeringLoopDefs_{
+    uint32_t loopNumber;
+    uint32_t loopCounter;
+    uint32_t phaseAddrStart;
+    uint32_t phaseAddrEnd;
+    uint32_t phaseAddrIncr;
+
+    uint32_t currentCallback;
+} TX_SteeringLoopDefs_t;
 
 typedef struct TX_PhaseDelayReg_{
 	uint16_t ch0;
@@ -301,7 +291,6 @@ typedef struct TX_PhaseDelayReg_{
 	uint16_t ch6;
 	uint16_t ch7;
 } TX_PhaseDelayReg_t;
-
 
 typedef struct TXsys_{
     // memory mapped FPGA pio's
@@ -323,6 +312,10 @@ typedef struct TXsys_{
 	TX_InstructionReg_t *instructionReg; // 64bit, 8192 elements
     TX_PhaseDelayReg_t *phaseDelayReg; // 128bit, 16384 elements
     TX_PhaseDelayReg_t *fireAt_phaseDelayReg; // 128bit, 4096 elements
+
+    // local variables to store program parameters
+    uint32_t ***fireAtList;
+    TX_SteeringLoopDefs_t *steeringLoopDefs;
     
     // variables used to setup ENET to recv phaseCharge data and user defined program
     uint32_t recvType; // instructions vs phase delays
@@ -444,51 +437,21 @@ int TX_init(FPGAvars *FPGA, TXsys *TX){
 	TX->setTrig = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_TRIG_VAL_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	TX->setTrigRestLevel = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_TRIG_REST_LEVELS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 
-	TX->fireCmdPhaseCharge = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge0 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge1 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH1_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge2 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH2_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge3 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH3_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge4 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH4_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge5 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH5_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge6 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH6_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge7 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH7_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
-	TX->fireAtCmdPhaseCharge = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge0 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge1 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH1_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge2 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH2_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge3 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH3_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge4 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH4_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge5 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH5_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge6 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH6_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge7 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH7_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 
 	TX->errorMsgFromTransducer = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_OUTPUT_ERROR_MSG_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	TX->errorMsgFromInterrupt = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_INTERRUPT_ERROR_MSG_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	TX->errorReply = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_ERROR_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 
-	TX->setInstructionReadAddr = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_SET_INSTRUCTION_READ_ADDR_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->instructionTypeReg = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_INSTRUCTIONTYPEREGISTER_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 	TX->instructionReg = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_INSTRUCTIONREGISTER_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-	TX->timingReg = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_TIMINGREGISTER_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-	TX->loopAddressReg = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_LOOPADDRESSREGISTER_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-	TX->loopCounterReg = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_LOOPCOUNTERREGISTER_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+	TX->phaseDelayReg = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_PHASEDELAYREGISTER_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+	TX->fireAt_phaseDelayReg = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_FIREAT_PHASEDELAYREGISTER_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 	
-	TX->instructionReg_local 		= (uint32_t *)malloc( TX_INSTRUCTIONREGISTER_SPAN );
-	TX->instructionTypeReg_local 	= (uint16_t *)malloc( TX_INSTRUCTIONTYPEREGISTER_SPAN );
-	TX->timingReg_local 			= (uint32_t *)malloc( TX_TIMINGREGISTER_SPAN );
-	TX->loopAddressReg_local		= (uint32_t *)malloc( TX_LOOPADDRESSREGISTER_SPAN );
-	TX->loopCounterReg_local		= (uint32_t *)malloc( TX_LOOPCOUNTERREGISTER_SPAN );
 
-    TX->recvBuff = (char **)malloc(sizeof(char *));
-    *(TX->recvBuff) = (char *)malloc(MAX_ENET_TRANSMIT_SIZE*sizeof(char));
-
-	memset(TX->instructionReg_local,0,TX_INSTRUCTIONREGISTER_SPAN);
-	memset(TX->instructionTypeReg_local,0,TX_INSTRUCTIONTYPEREGISTER_SPAN);
-	memset(TX->timingReg_local,0,TX_TIMINGREGISTER_SPAN);
-	memset(TX->loopAddressReg_local,0,TX_LOOPADDRESSREGISTER_SPAN);
-	memset(TX->loopCounterReg_local,0,TX_LOOPCOUNTERREGISTER_SPAN);
+    TX->instructionBuff = (char **)malloc(sizeof(char *));
+    TX->phaseDelayBuff = (char **)malloc(sizeof(char *));
+    TX->instructions = (uint32_t **)malloc(sizeof(uint32_t *));
+    TX->fireAtList = (uint32_t ***)malloc(sizeof(uint32_t **));
+    TX->steeringLoopsDef = (TX_SteeringLoopDefs_t *)calloc(MAX_LOOPS,sizeof(TX_SteeringLoopDefs_t));
 	
 	DREF32(TX->channelMask) = 0xff;
 	DREF32(TX->controlComms) = 0;
