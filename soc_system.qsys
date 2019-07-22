@@ -13,7 +13,7 @@
    {
       datum _sortIndex
       {
-         value = "31";
+         value = "30";
          type = "int";
       }
    }
@@ -21,7 +21,7 @@
    {
       datum _sortIndex
       {
-         value = "27";
+         value = "26";
          type = "int";
       }
    }
@@ -37,7 +37,7 @@
    {
       datum _sortIndex
       {
-         value = "28";
+         value = "27";
          type = "int";
       }
    }
@@ -53,7 +53,7 @@
    {
       datum _sortIndex
       {
-         value = "29";
+         value = "28";
          type = "int";
       }
    }
@@ -77,7 +77,7 @@
    {
       datum _sortIndex
       {
-         value = "22";
+         value = "21";
          type = "int";
       }
    }
@@ -101,7 +101,7 @@
    {
       datum _sortIndex
       {
-         value = "19";
+         value = "18";
          type = "int";
       }
       datum sopceditor_expanded
@@ -114,7 +114,7 @@
    {
       datum _sortIndex
       {
-         value = "23";
+         value = "22";
          type = "int";
       }
    }
@@ -140,7 +140,7 @@
    {
       datum _sortIndex
       {
-         value = "21";
+         value = "20";
          type = "int";
       }
    }
@@ -371,7 +371,7 @@
    {
       datum _sortIndex
       {
-         value = "30";
+         value = "29";
          type = "int";
       }
    }
@@ -379,7 +379,7 @@
    {
       datum _sortIndex
       {
-         value = "20";
+         value = "19";
          type = "int";
       }
       datum sopceditor_expanded
@@ -421,7 +421,7 @@
    {
       datum _sortIndex
       {
-         value = "25";
+         value = "24";
          type = "int";
       }
    }
@@ -437,7 +437,7 @@
    {
       datum _sortIndex
       {
-         value = "26";
+         value = "25";
          type = "int";
       }
    }
@@ -449,7 +449,7 @@
          type = "String";
       }
    }
-   element tx_interrupt_error_msg
+   element tx_output_error_msg
    {
       datum _sortIndex
       {
@@ -457,7 +457,7 @@
          type = "int";
       }
    }
-   element tx_interrupt_error_msg.s1
+   element tx_output_error_msg.s1
    {
       datum baseAddress
       {
@@ -465,27 +465,11 @@
          type = "String";
       }
    }
-   element tx_output_error_msg
-   {
-      datum _sortIndex
-      {
-         value = "15";
-         type = "int";
-      }
-   }
-   element tx_output_error_msg.s1
-   {
-      datum baseAddress
-      {
-         value = "304";
-         type = "String";
-      }
-   }
    element tx_phaseDelayRegister
    {
       datum _sortIndex
       {
-         value = "24";
+         value = "23";
          type = "int";
       }
    }
@@ -497,19 +481,19 @@
          type = "String";
       }
    }
-   element tx_set_instruction_read_addr
+   element tx_user_issued_msg_from_interrupt
    {
       datum _sortIndex
       {
-         value = "18";
+         value = "15";
          type = "int";
       }
    }
-   element tx_set_instruction_read_addr.s1
+   element tx_user_issued_msg_from_interrupt.s1
    {
       datum baseAddress
       {
-         value = "352";
+         value = "304";
          type = "String";
       }
    }
@@ -647,6 +631,11 @@
    type="conduit"
    dir="end" />
  <interface
+   name="pio_tx_user_issued_msg_from_interrupt"
+   internal="tx_user_issued_msg_from_interrupt.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
    name="ram_clock_bridge"
    internal="ram_clock_bridge.in_clk"
    type="clock"
@@ -668,11 +657,6 @@
    type="avalon"
    dir="end" />
  <interface
-   name="tx_interrupt_error_msg"
-   internal="tx_interrupt_error_msg.external_connection"
-   type="conduit"
-   dir="end" />
- <interface
    name="tx_output_error_msg"
    internal="tx_output_error_msg.external_connection"
    type="conduit"
@@ -681,11 +665,6 @@
    name="tx_phase_delay_register"
    internal="tx_phaseDelayRegister.s2"
    type="avalon"
-   dir="end" />
- <interface
-   name="tx_set_instruction_read_addr"
-   internal="tx_set_instruction_read_addr.external_connection"
-   type="conduit"
    dir="end" />
  <module
    name="adc_clock_bridge"
@@ -1712,24 +1691,6 @@
   <parameter name="writable" value="true" />
  </module>
  <module
-   name="tx_interrupt_error_msg"
-   kind="altera_avalon_pio"
-   version="17.1"
-   enabled="1">
-  <parameter name="bitClearingEdgeCapReg" value="false" />
-  <parameter name="bitModifyingOutReg" value="false" />
-  <parameter name="captureEdge" value="false" />
-  <parameter name="clockRate" value="50000000" />
-  <parameter name="direction" value="Input" />
-  <parameter name="edgeType" value="RISING" />
-  <parameter name="generateIRQ" value="false" />
-  <parameter name="irqType" value="LEVEL" />
-  <parameter name="resetValue" value="0" />
-  <parameter name="simDoTestBenchWiring" value="false" />
-  <parameter name="simDrivenValue" value="0" />
-  <parameter name="width" value="8" />
- </module>
- <module
    name="tx_output_error_msg"
    kind="altera_avalon_pio"
    version="17.1"
@@ -1780,7 +1741,7 @@
   <parameter name="writable" value="true" />
  </module>
  <module
-   name="tx_set_instruction_read_addr"
+   name="tx_user_issued_msg_from_interrupt"
    kind="altera_avalon_pio"
    version="17.1"
    enabled="1">
@@ -1788,14 +1749,14 @@
   <parameter name="bitModifyingOutReg" value="false" />
   <parameter name="captureEdge" value="false" />
   <parameter name="clockRate" value="50000000" />
-  <parameter name="direction" value="Output" />
+  <parameter name="direction" value="Input" />
   <parameter name="edgeType" value="RISING" />
   <parameter name="generateIRQ" value="false" />
   <parameter name="irqType" value="LEVEL" />
   <parameter name="resetValue" value="0" />
   <parameter name="simDoTestBenchWiring" value="false" />
   <parameter name="simDrivenValue" value="0" />
-  <parameter name="width" value="13" />
+  <parameter name="width" value="32" />
  </module>
  <connection
    kind="avalon"
@@ -1992,15 +1953,6 @@
    start="hps_0.h2f_lw_axi_master"
    end="tx_output_error_msg.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x0130" />
-  <parameter name="defaultConnection" value="false" />
- </connection>
- <connection
-   kind="avalon"
-   version="17.1"
-   start="hps_0.h2f_lw_axi_master"
-   end="tx_interrupt_error_msg.s1">
-  <parameter name="arbitrationPriority" value="1" />
   <parameter name="baseAddress" value="0x0140" />
   <parameter name="defaultConnection" value="false" />
  </connection>
@@ -2017,9 +1969,9 @@
    kind="avalon"
    version="17.1"
    start="hps_0.h2f_lw_axi_master"
-   end="tx_set_instruction_read_addr.s1">
+   end="tx_user_issued_msg_from_interrupt.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x0160" />
+  <parameter name="baseAddress" value="0x0130" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -2136,17 +2088,12 @@
    kind="clock"
    version="17.1"
    start="clk_0.clk"
-   end="tx_interrupt_error_msg.clk" />
- <connection
-   kind="clock"
-   version="17.1"
-   start="clk_0.clk"
    end="tx_error_comms.clk" />
  <connection
    kind="clock"
    version="17.1"
    start="clk_0.clk"
-   end="tx_set_instruction_read_addr.clk" />
+   end="tx_user_issued_msg_from_interrupt.clk" />
  <connection kind="clock" version="17.1" start="clk_0.clk" end="adc_ramBank0.clk1" />
  <connection
    kind="clock"
@@ -2365,17 +2312,12 @@
    kind="reset"
    version="17.1"
    start="clk_0.clk_reset"
-   end="tx_interrupt_error_msg.reset" />
- <connection
-   kind="reset"
-   version="17.1"
-   start="clk_0.clk_reset"
    end="tx_error_comms.reset" />
  <connection
    kind="reset"
    version="17.1"
    start="clk_0.clk_reset"
-   end="tx_set_instruction_read_addr.reset" />
+   end="tx_user_issued_msg_from_interrupt.reset" />
  <connection
    kind="reset"
    version="17.1"
