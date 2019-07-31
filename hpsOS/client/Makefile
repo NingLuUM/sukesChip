@@ -1,5 +1,5 @@
 #
-TARGET = parallelSRAM_test
+TARGET = newTest
 
 #
 CROSS_COMPILE = arm-linux-gnueabihf-

@@ -129,40 +129,40 @@
 // case flags for switch statement in FPGA_dataAcqController
 
 
-#define CASE_ADC_STATE 5
-#define CASE_ADC_STATE_RESET 6
-#define CASE_ADC_RECORD_LENGTH 7
-#define CASE_ADC_TRIGGER_DELAY 8
-#define CASE_ADC_TOGGLE_DATA_ACQ 9
-#define CASE_QUERY_ADC_FOR_DATA 10
-#define CASE_SET_QUERY_DATA_TIMEOUT 11
-#define CASE_QUERY_BOARD_INFO 12
+//~ #define CASE_ADC_STATE 5
+//~ #define CASE_ADC_STATE_RESET 6
+//~ #define CASE_ADC_RECORD_LENGTH 7
+//~ #define CASE_ADC_TRIGGER_DELAY 8
+//~ #define CASE_ADC_TOGGLE_DATA_ACQ 9
+//~ #define CASE_QUERY_ADC_FOR_DATA 10
+//~ #define CASE_SET_QUERY_DATA_TIMEOUT 11
+//~ #define CASE_QUERY_BOARD_INFO 12
 
-#define CASE_ENET_INTERLEAVE_DEPTH_AND_TIMER 13
-#define CASE_ENET_SET_PACKETSIZE 14
+//~ #define CASE_ENET_INTERLEAVE_DEPTH_AND_TIMER 13
+//~ #define CASE_ENET_SET_PACKETSIZE 14
 
-#define CASE_ADC_DIRECT_SERIAL_COMMAND 15
-#define CASE_ADC_SYNC 16
+//~ #define CASE_ADC_DIRECT_SERIAL_COMMAND 15
+//~ #define CASE_ADC_SYNC 16
 
-#define CASE_TX_CONTROL_COMMS 20
-#define CASE_TX_RECV_OUTPUT_CONTROL_REG_SINGLE 21
-#define CASE_TX_RECV_TIMING_REG_SINGLE 22
-#define CASE_TX_RECV_LOOP_CONTROL_REG_SINGLE 23
+//~ #define CASE_TX_CONTROL_COMMS 20
+//~ #define CASE_TX_RECV_OUTPUT_CONTROL_REG_SINGLE 21
+//~ #define CASE_TX_RECV_TIMING_REG_SINGLE 22
+//~ #define CASE_TX_RECV_LOOP_CONTROL_REG_SINGLE 23
 
-#define CASE_RESET_TX_REGISTERS_ALL 27
+//~ #define CASE_RESET_TX_REGISTERS_ALL 27
 
-#define CASE_TX_RECV_PHASE_DELAYS_SINGLE 28
-#define CASE_TX_RECV_CHARGE_TIMES_SINGLE 29
-#define CASE_TX_INIT_PROGRAM_UPLOAD 30
+//~ #define CASE_TX_RECV_PHASE_DELAYS_SINGLE 28
+//~ #define CASE_TX_RECV_CHARGE_TIMES_SINGLE 29
+//~ #define CASE_TX_INIT_PROGRAM_UPLOAD 30
 
-#define CASE_TX_SET_PHASE_DELAY 31
-#define CASE_TX_SET_CHARGE_TIME 32
-#define CASE_TX_FIRE_COMMAND 33
+//~ #define CASE_TX_SET_PHASE_DELAY 31
+//~ #define CASE_TX_SET_CHARGE_TIME 32
+//~ #define CASE_TX_FIRE_COMMAND 33
 
-#define CASE_TX_USER_MASK 34
+//~ #define CASE_TX_USER_MASK 34
 
-#define CASE_INTERRUPT_THYSELF 55
-#define CASE_UNINTERRUPT_THYSELF 56
+//~ #define CASE_INTERRUPT_THYSELF 55
+//~ #define CASE_UNINTERRUPT_THYSELF 56
 
 #define CASE_CLOSE_PROGRAM 100
 #define CASE_KILLPROGRAM 101
@@ -198,186 +198,201 @@ struct timespec gstart, gend;
 
 // load user defined functions 
 #include "structure_defs.h"
+#include "enet_funcs.h"
+
+FPGAvars FPGA;
+BOARDdata BOARD;
+
+//~ ADCchip ADC;
+//~ RCVsys RCV;
+//~ TXvars TX;
 
 
-struct timespec diff(struct timespec start, struct timespec end){
-	struct timespec temp;
-	if ((end.tv_nsec-start.tv_nsec)<0) {
-		temp.tv_sec = end.tv_sec-start.tv_sec-1;
-		temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
-	} else {
-		temp.tv_sec = end.tv_sec-start.tv_sec;
-		temp.tv_nsec = end.tv_nsec-start.tv_nsec;
-	}
-	return temp;
-};
+//~ int epfd;
+//~ struct epoll_event ev;
+//~ struct epoll_event events[MAX_SOCKETS];
+
+//~ const int ONE = 1;
+//~ const int ZERO = 0;	
+
 
 
 
 int main(int argc, char *argv[]) { printf("into main!\n");
+	
 	g_serverIP=argv[1];
 	
-	FPGAvars FPGA;
-    BOARDsettings BOARD;
-	ADCchip ADC;
-    RCVsys RCV;
-	TXvars TX;
-    
-	FPGA_init(&FPGA);
-    ADC_setup(&FPGA,&ADC);
-	RCV_setup(&FPGA,&RCV,&ADC,&BOARD);
-    RCV.resetVars(&RCV);
-    RCV.ADC->initializeSettings(&RCV);
-
-	TX_init(&FPGA,&TX);
-
-    // loads board number 
-    //TODO: will load array geometry file
-	loadBoardData(&RCV,&TX); 	
+	FPGA_init(&FPGA); 
+	loadBoardData(&BOARD);
+	
+	// create the function to poll sockets for activity
+	epfd = epoll_create(MAX_SOCKETS);
 	
     // create ethernet socket to communicate with server and establish connection
 	ENETsock *ENET = NULL;
-	ENETsock *INTR = NULL;
-	ENETsock *enet;
-
-    uint32_t enetmsg[ENET_MSG_SIZE] = {0}; // messaging variable to handle messages from cServer
-    uint32_t emsg[ENET_MSG_SIZE] = {0}; // messaging variable to send to messages to cServer
+	ENET_init(&ENET);
 	
-    // declare and initialize variables for the select loop
-	int n;
-	char dummybuff[100];
-	int nready,nrecv;
-	int nrecv_reg;
-	int nfds;
-
-	epfd = epoll_create(MAX_SOCKETS);
+	// create connections to the interrupt lines
+	//~ ENETsock *INTR = NULL;
+	//~ connectInterrupt_intr(&INTR,"gpio@0x100000000",0); // tx interrupt 0
+	//~ connectInterrupt_intr(&INTR,"gpio@0x100000010",1); // tx interrupt 1
 	
-	INTR->connectInterrupt(&INTR,"gpio@0x100000000",0); // tx interrupt 0
-	INTR->connectInterrupt(&INTR,"gpio@0x100000010",1); // tx interrupt 1
 	
-	ENET->addPollSock(&ENET, COMM_PORT);
-	ENET->connectPollSock(&ENET, COMM_PORT);
-
-    ENET->addPollSock(&ENET,TX_RECV_PORT);
-    ENET->addPollSock(&ENET,TX_RECV_PORT);
-
 	int timeout_ms = 1000;
-	int ummmm=0;
-	struct timespec difftime;
+	int nfds;
 	
 	while(RUN_MAIN == 1){
-
+		printf("into loop!\n");
 		nfds = epoll_wait(epfd, events, MAX_SOCKETS, timeout_ms);
 		if( nfds < 0 ){
 			perror("error sending data:");
 		}
 		if( nfds > 0 ){
 			
-            for(n = 0; n < nfds; n++){
-
-                enet = (ENETsock *)events[n].data.ptr;
-                
-			    if ( enet->is_tx_interrupt ) {
-					clock_gettime(CLOCK_MONOTONIC, &gend);
-					difftime = diff(gstart,gend);
-					
-					
-				} else if ( enet->is_rcv_interrupt ) {
-					if( RCV.getInterruptMsg(&RCV) == ADC_INTERRUPT_DATA_IS_READY ){
-                        if( RCV.isLocal ){
-                            if ( RCV.copyDataToMem( &RCV ) ){
-                                RCV.currentPulse++;
-                                DREF32(RCV.controlComms) = RCV_UNSET_INTERRUPT; 
-                            } else {
-                                printf("error copying data from RCV to local\n");
-                            }
-                            // TODO: set up actions for when data is done being captured locally
-                            if ( RCV.currentPulse == RCV.nPulses ) {
-                                printf("now what?\n");
-                            }
-                        } else {
-						    ENET->sendAcqdData(&ENET,&RCV,0);
-                        }
-					}
-					
-				} else if ( enet->is_commsock ) {
-					nrecv = recv(enet->sockfd,&enetmsg,enetMsgSize,0);	
-					setsockopt(enet->sockfd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-					
-					if(nrecv > 0){
-						
-						switch(enetmsg[0]){
-							case(CASE_BOARD_SETTINGS):{
-								BOARD_settings(&RCV, &ENET, &enetmsg[1]);
-								break;
-							}
-							
-							case(CASE_ADC_SETTINGS):{
-								ADC_Settings(&ADC, &ENET, INTR, &enetmsg[1]);							
-								break;
-							}
-							
-							case(CASE_TX_SETTINGS):{
-                                TX_Settings(&TX, &ENET, &enetmsg[1]); 
-								
-								break;
-							}
-															
-							case(CASE_CLOSE_PROGRAM):{
-								RUN_MAIN = 0;
-								break;
-							}
-							
-							case(CASE_KILLPROGRAM):{
-								RUN_MAIN = 0;
-								break;
-							}
-							
-							default:{
-								ADC_Controller(&FPGA, &ADC, &TX, &ENET, phaseDelays, chargeTimes);
-								break;
-							}
-						}
-					} else {
-						printf("nrecv = %d\n",nrecv);
-						RUN_MAIN = 0;
-					}
-
-				} else if ( enet->is_tx_recvsock ) {
-                    ntxrecv = recv(enet->sockfd,&txrcv_buff,TX->recvBuff,MSG_WAITALL); // grr... waitall. much inefficient.
-                    setsockopt(enet->sockfd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-                    TX->parseRecvdInstructions(TX);
-                } else {
-					DREF32(TX.controlComms) = 0;
-					nrecv = recv(enet->sockfd,&enetmsg,enetMsgSize,0);
-                    if(nrecv == 0){
-                        disconnectSock(&ENET, enet->portNum);
-                    } else if (nrecv == -1){
-                        perror("recv being dumb\n");
-                    } else {
-                        printf("illegal recv (n = %d) on port %d, msg = [%lu, %lu, %lu, %lu]\n, shutting down client\n",nrecv,enet->portNum,(unsigned long)enetmsg[0],(unsigned long)enetmsg[1],(unsigned long)enetmsg[2],(unsigned long)enetmsg[3]);
-                        RUN_MAIN = 0;
-                    }
-				}
-			}
+            printf("nfds = %d\n",nfds);
 		}
+
 	}
+	
+	
+	
+	
+    //~ uint32_t enetmsg[ENET_MSG_SIZE] = {0}; // messaging variable to handle messages from cServer
+    //~ uint32_t emsg[ENET_MSG_SIZE] = {0}; // messaging variable to send to messages to cServer
+	
+    //~ // declare and initialize variables for the select loop
+	//~ int n;
+	//~ char dummybuff[100];
+	//~ int nready,nrecv;
+	//~ int nrecv_reg;
+	//~ int nfds;
+
+	
+	
+	
+	
+	//~ ENETsock *enet;
+
+    //~ ENET->addPollSock(&ENET,TX_RECV_PORT);
+    //~ ENET->addPollSock(&ENET,TX_RECV_PORT);
+
+	//~ int timeout_ms = 1000;
+	//~ int ummmm=0;
+	//~ struct timespec difftime;
+	
+	//~ while(RUN_MAIN == 1){
+
+		//~ nfds = epoll_wait(epfd, events, MAX_SOCKETS, timeout_ms);
+		//~ if( nfds < 0 ){
+			//~ perror("error sending data:");
+		//~ }
+		//~ if( nfds > 0 ){
+			
+            //~ for(n = 0; n < nfds; n++){
+
+                //~ enet = (ENETsock *)events[n].data.ptr;
+                
+			    //~ if ( enet->is_tx_interrupt ) {
+					//~ clock_gettime(CLOCK_MONOTONIC, &gend);
+					//~ difftime = diff(gstart,gend);
+					
+					
+				//~ } else if ( enet->is_rcv_interrupt ) {
+					//~ if( RCV.getInterruptMsg(&RCV) == ADC_INTERRUPT_DATA_IS_READY ){
+                        //~ if( RCV.isLocal ){
+                            //~ if ( RCV.copyDataToMem( &RCV ) ){
+                                //~ RCV.currentPulse++;
+                                //~ DREF32(RCV.controlComms) = RCV_UNSET_INTERRUPT; 
+                            //~ } else {
+                                //~ printf("error copying data from RCV to local\n");
+                            //~ }
+                            //~ // TODO: set up actions for when data is done being captured locally
+                            //~ if ( RCV.currentPulse == RCV.nPulses ) {
+                                //~ printf("now what?\n");
+                            //~ }
+                        //~ } else {
+						    //~ ENET->sendAcqdData(&ENET,&RCV,0);
+                        //~ }
+					//~ }
+					
+				//~ } else if ( enet->is_commsock ) {
+					//~ nrecv = recv(enet->sockfd,&enetmsg,enetMsgSize,0);	
+					//~ setsockopt(enet->sockfd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
+					
+					//~ if(nrecv > 0){
+						
+						//~ switch(enetmsg[0]){
+							//~ case(CASE_BOARD_SETTINGS):{
+								//~ BOARD_settings(&RCV, &ENET, &enetmsg[1]);
+								//~ break;
+							//~ }
+							
+							//~ case(CASE_ADC_SETTINGS):{
+								//~ ADC_Settings(&ADC, &ENET, INTR, &enetmsg[1]);							
+								//~ break;
+							//~ }
+							
+							//~ case(CASE_TX_SETTINGS):{
+                                //~ TX_Settings(&TX, &ENET, &enetmsg[1]); 
+								
+								//~ break;
+							//~ }
+															
+							//~ case(CASE_CLOSE_PROGRAM):{
+								//~ RUN_MAIN = 0;
+								//~ break;
+							//~ }
+							
+							//~ case(CASE_KILLPROGRAM):{
+								//~ RUN_MAIN = 0;
+								//~ break;
+							//~ }
+							
+							//~ default:{
+								//~ ADC_Controller(&FPGA, &ADC, &TX, &ENET, phaseDelays, chargeTimes);
+								//~ break;
+							//~ }
+						//~ }
+					//~ } else {
+						//~ printf("nrecv = %d\n",nrecv);
+						//~ RUN_MAIN = 0;
+					//~ }
+
+				//~ } else if ( enet->is_tx_recvsock ) {
+                    //~ ntxrecv = recv(enet->sockfd,&txrcv_buff,TX->recvBuff,MSG_WAITALL); // grr... waitall. much inefficient.
+                    //~ setsockopt(enet->sockfd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
+                    //~ TX->parseRecvdInstructions(TX);
+                //~ } else {
+					//~ DREF32(TX.controlComms) = 0;
+					//~ nrecv = recv(enet->sockfd,&enetmsg,enetMsgSize,0);
+                    //~ if(nrecv == 0){
+                        //~ disconnectSock(&ENET, enet->portNum);
+                    //~ } else if (nrecv == -1){
+                        //~ perror("recv being dumb\n");
+                    //~ } else {
+                        //~ printf("illegal recv (n = %d) on port %d, msg = [%lu, %lu, %lu, %lu]\n, shutting down client\n",nrecv,enet->portNum,(unsigned long)enetmsg[0],(unsigned long)enetmsg[1],(unsigned long)enetmsg[2],(unsigned long)enetmsg[3]);
+                        //~ RUN_MAIN = 0;
+                    //~ }
+				//~ }
+			//~ }
+		//~ }
+	//~ }
     
-    while( ENET != NULL ){
-        enet = ENET;
-        ENET = enet->next;
-        free(enet);
-    }
+    //~ while( ENET != NULL ){
+        //~ enet = ENET;
+        //~ ENET = enet->next;
+        //~ free(enet);
+    //~ }
     
-    free(*(ADC.data));
-    free(ADC.data);
-    free(txOutputControlReg); free(txTimingReg);
-    free(txLoopAddressReg); free(txLoopCounterReg);
-    free(phaseDelays); free(chargeTimes);
+    //~ free(*(ADC.data));
+    //~ free(ADC.data);
+    //~ free(txOutputControlReg); free(txTimingReg);
+    //~ free(txLoopAddressReg); free(txLoopCounterReg);
+    //~ free(phaseDelays); free(chargeTimes);
     
-    FPGAclose(&FPGA);
-	sleep(1);
-    return( 0 );
+    //~ FPGAclose(&FPGA);
+	//~ sleep(1);
+    //~ return( 0 );
 }
 
  
