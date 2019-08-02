@@ -19,8 +19,7 @@
 #include <dirent.h>
 #include <error.h>
 #include <errno.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
+
 #define soc_cv_av
 
 #include "hwlib.h"  // /intelFPGA/17.1/embedded/ip/altera/hps/altera_hps/hwlib/include/hwlib.h
@@ -28,6 +27,7 @@
 #include "soc_cv_av/socal/hps.h" // /intelFPGA/17.1/embedded/ip/altera/hps/altera_hps/hwlib/include/soc_cv_av/socal/hps.h
 #include "soc_cv_av/socal/alt_gpio.h"       
 #include "hps_0_fancy.h"
+
 
 #define HW_REGS_BASE ( ALT_STM_OFST )  
 #define HW_REGS_SPAN ( 0x04000000 )   
@@ -39,9 +39,8 @@
 #define HW_FPGA_AXI_SPAN ( 0x40000000 ) // Bridge span 1GB
 #define HW_FPGA_AXI_MASK ( HW_FPGA_AXI_SPAN - 1 )
 
-#define DREFPTV(X)	( (struct timeval *) X )
-#define DREFTV(X)	( *(struct timeval *) X )
-#define DREF8(X)	( *(uint8_t *) X )
+
+#define DREF8(X)	( *( uint8_t *) X )
 #define DREF16(X)	( *( uint16_t *) X )
 #define DREF32(X)	( *( uint32_t *) X )
 #define DREFP8(X)	( ( uint8_t *) X )
@@ -50,111 +49,6 @@
 #define DREFP32S(X)	( ( int32_t *) X )
 
 
-
-
-#define MAX_ENET_TRANSMIT_SIZE ( 1460 )
-#define ADC_CLK		(25)	// MHz
-#define ADC_NBITS	(12)
-#define ADC_NCHAN	(8)
-
-#define TX_CLK		(100)
-#define TX_NCHAN	(8)
-#define MAX_HPS_MAIN_SOCKETS (10)
-#define MAX_RCV_SYS_SOCKETS (64)
-#define MAX_TX_SYS_SOCKETS (4)
-#define ENET_MSG_SIZE ( 10 )
-
-
-
-#define ADC_NBITS	(12)
-#define ADC_NCHAN	(8)
-#define ADC_BYTES_PER_TIMEPOINT ((ADC_NBITS*ADC_NCHAN)/8)
-
-#define ADC_SERIAL_CLOCK_RATE		( 1 )
-
-// states defined in the lvds.v module
-#define ADC_POWER_OFF				( 0x00 )
-#define ADC_POWER_ON				( 0x80 )
-
-// lvds needs to be powered on to issue commands so all states other 
-// than power off are defined as ( ADC_POWER_ON | STATE )
-#define ADC_IDLE_STATE				( ADC_POWER_ON | 0x00 )
-#define ADC_BUFFER_SERIAL_COMMAND	( ADC_POWER_ON | 0x01 )
-#define ADC_ISSUE_SERIAL_COMMAND	( ADC_POWER_ON | 0x02 )
-#define ADC_SYNC_COMMAND			( ADC_POWER_ON | 0x04 )
-
-
-// address field of the lvds serial commands
-#define ADC_SOFTWARE_RESET_ADDR 	( 0x00 )
-#define ADC_SET_TGC_ADDR 			( 0x00 )
-#define ADC_SET_UNSIGNED_INT_ADDR	( 0x04 )
-#define ADC_SET_FIXED_GAIN_ADDR 	( 0x99 )
-#define ADC_SET_COARSE_GAIN_ADDR 	( 0x9a )
-#define ADC_SET_FINE_GAIN_ADDR		( 0x99 )
-
-// command field of the lvds serial commands
-#define ADC_SOFTWARE_RESET_CMD		( 0x0001 )
-#define ADC_SET_TGC_CMD 			( 0x0004 )
-#define ADC_SET_UNSIGNED_INT_CMD	( 0x0008 )
-#define ADC_SET_FIXED_GAIN_CMD		( 0x0008 ) 
-#define ADC_SET_COARSE_GAIN_CMD(X)	( (X) & 0x003f ) 
-#define ADC_SET_FINE_GAIN_CMD(X) 	( ( (X) & 0x0007 ) | 0x0008 )
-
-// commands for Output_Control_Module
-#define	TX_HARD_RESET 			( 0x00 )
-#define	TX_SOFT_RESET 			( 0x01 )
-#define TX_LOAD_PROGRAM			( 0x02 )
-#define TX_SET_TRIG_OUTPUT		( 0x04 )
-#define TX_SET_TRIG_REST_LEVEL	( 0x05 )
-#define TX_TEST_TRIG_OUTPUT		( 0x06 )
-#define TX_SET_LED_OUTPUT		( 0x08 )
-#define TX_RUN_PROGRAM			( 0x80 )
-
-
-#define INIT_PORT 3400
-
-#define CASE_BOARD_SETTINGS 0
-#define CASE_ADC_SETTINGS 1
-#define CASE_TX_SETTINGS 2
-
-// adc settings
-#define CASE_RCV_RECORD_LENGTH 0
-#define CASE_RCV_TRIGGER_DELAY 1
-#define CASE_RCV_SET_LOCAL_STORAGE 2
-#define CASE_RCV_TOGGLE_DATA_ACQ 3
-#define CASE_RCV_DIRECT_CONTROL_COMMS 4
-#define CASE_RESET_RCV_SYSTEM 5
-
-#define CASE_ADC_POWER 2
-#define CASE_ADC_SYNC 3
-#define CASE_ADC_INITIALIZE 4		
-#define CASE_ADC_GAIN 5
-#define CASE_ADC_DIRECT_SERIAL_COMMAND 6
-#define CASE_INTERRUPT_THYSELF 7
-#define CASE_UNINTERRUPT_THYSELF 8
-#define CASE_ADC_DIRECT_CONTROL_COMMS 9
-
-// interrupt messages from adc
-#define ADC_INTERRUPT_DATA_IS_READY (0x01)
-#define RCV_UNSET_INTERRUPT (0x90) //0b10010000
-
-// case flags for switch statement in FPGA_dataAcqController
-
-#define CASE_CLOSE_PROGRAM 100
-#define CASE_KILLPROGRAM 101
-
-
-#define MAX_RECLEN 8192
-#define MIN_PACKETSIZE 128
-
-#define COMM_PORT 0
-#define RCV_COMM_PORT 100
-#define TX_COMM_PORT 200
-
-#define LAUNCH_RECV_SUBSYS 1
-#define CASE_RECV_SYS_ACTIONS 1
-#define CASE_TX_SYS_ACTIONS 2
-//~ #define IPC_SHARED_MEM_KEY 1234
 
 uint32_t g_boardData[10] = {0};
 uint32_t g_boardNum;
@@ -167,9 +61,7 @@ uint32_t emsg[10] = {0}; // messaging variable to send to messages to cServer
 int RUN_MAIN = 1;
 const int ONE = 1;
 const int ZERO = 0;	
-key_t g_shmkey_fpga = 1000;
-key_t g_shmkey_board = 2000;
-key_t g_shmkey_rcv = 3000;
+
 
 size_t enetMsgSize = ENET_MSG_SIZE*sizeof(uint32_t);
 
@@ -181,81 +73,124 @@ struct timespec gstart, gend;
 
 // load user defined functions 
 #include "structure_defs.h"
-
 #include "enet_funcs.h"
 #include "ipc_funcs.h"
-#include "adc_funcs.h"
-#include "recv_funcs.h"
-#include "init_funcs.h"
 
 
-#include "recv_sys.h"
-
-
+//~ ADCchip ADC;
+RCVsys RCV;
+ENETsettings_t enet_settings;
 //~ TXvars TX;
 //~ extern void recvSysMain(int);
+
+
+void launchRecvSys(IPCsock_t *IPC, int *epfd, struct epoll_event *ev, struct epoll_event *events){
+	
+	int sv[2];
+	char buf;
+	
+	if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) == -1) {
+		perror("socketpair");
+		exit(1);
+	}
+	
+	pid_t pid;
+	
+	pid = fork();
+	if(pid == -1){
+		printf("forking error!\n");
+	} else if (!pid) { // child process
+		close(sv[0]);
+		//~ recvSysMain(sv[1]);
+	} else {
+		close(sv[1]);
+		IPC->sock.fd = sv[0];
+		
+		IPC->epfd = epfd;
+		IPC->ev = ev;
+		IPC->events = events;
+		
+		IPC->ev->data.ptr = &(IPC->sock);
+		IPC->ev->events = EPOLLIN;
+		epoll_ctl(*(IPC->epfd), EPOLL_CTL_ADD, IPC->sock.fd, IPC->ev);
+	}
+}
+
+
+void recvSysHandler(IPCsock_t **IPC, int *epfd, struct epoll_event *ev, struct epoll_event *events, uint32_t *msg){
+	pid_t cpid;
+	int status;
+	
+	if( msg[0] != LAUNCH_RECV_SUBSYS ){
+									
+		if( IPC[0] == NULL ){
+			IPC[0] = (IPCsock_t *)calloc(1,sizeof(IPCsock_t));
+			//~ launchRecvSys(IPC[0], epfd, ev, events);
+			
+		} else {
+			cpid = waitpid(IPC[0]->ipc_pid,&status,WNOHANG);
+			
+			if( !cpid ){
+				printf("Can't launch, RCV_SYS still running\n");
+				
+			} else if (cpid>0){
+				
+				printf("child exited\n");
+				//~ launchRecvSys(IPC[0], epfd, ev, events);
+				
+			} else {
+				
+				printf("recv_sys exit() error\n");
+				
+			}
+		}
+	}
+}
+
 
 
 int main(int argc, char *argv[]) { printf("into main!\n");
 	g_serverIP=argv[1];
 	
-	// variables shared between sub-processes
-	// TODO: should probably throw in some mutexs
-	FPGAvars *FPGA;
-	FPGA = FPGA_init(1);
+	FPGAvars FPGA;
+	FPGA_init(&FPGA);
 	
-	BOARDdata *BOARD;
-	BOARD = BOARD_init(1);
+	BOARDdata BOARD;
+	loadBoardData(&BOARD);
 	
-	RCVsys *RCV;
-	RCV = RCV_init( FPGA, 1 );
-	
-	// variables req'd to setup epoll to monitor sockets/interrupts for activity
+	// create the function to poll sockets for activity
 	int epfd;
 	struct epoll_event ev;
-	struct epoll_event events[MAX_HPS_MAIN_SOCKETS];
-	epfd = epoll_create(MAX_HPS_MAIN_SOCKETS);
+	struct epoll_event events[MAX_SOCKETS];
+	epfd = epoll_create(MAX_SOCKETS);
 	
     // create ethernet socket to communicate with server and establish connection
 	ENETsock_t **ENET;
-	ENETsettings_t enet_settings;
 	ENET = (ENETsock_t **)calloc(1,sizeof(ENETsock_t *));
 	ENET_init(ENET, &epfd, &ev, events, &enet_settings, COMM_PORT);
 	
-	// create ipc sockets to communicate with tx/rcv subsystems
 	IPCsock_t **IPC;
-	IPC = (IPCsock_t **)calloc(2,sizeof(IPCsock_t *));
-	IPC[0]=NULL; // rcv subsys ipc
-	IPC[1]=NULL; // tx subsys ipc
-	
+	IPC = (IPCsock_t **)calloc(1,sizeof(IPCsock_t *));
+	setupIPCserver(IPC, &epfd, &ev, events);
 	
 	// create connections to the interrupt lines
 	//~ ENETsock *INTR = NULL;
 	//~ connectInterrupt_intr(&INTR,"gpio@0x100000000",0); // tx interrupt 0
 	//~ connectInterrupt_intr(&INTR,"gpio@0x100000010",1); // tx interrupt 1
 	
-	
-	/* contains: fd, socket type, (void *)ptr to parent
-	 * makes it easier to poll variables that have a common type
-	 * to access the fields of each specific type of socket
-	 * cast ptr to parent to appropriate type and dereference it
-	*/
 	SOCKgeneric_t *sock;
 	
 	int timeout_ms = 1000;
 	int nfds;
 	int n;
 	int nrecv;
-	pid_t cpid;
+	
 	
 	while(RUN_MAIN == 1){
 		printf("into loop!\n");
-		sleep(1);
-		
 		if (IPC[0] == NULL)
 			recvSysHandler(IPC, &epfd, &ev, events, &enetmsg[1]);
-		
-		nfds = epoll_wait(epfd, events, MAX_HPS_MAIN_SOCKETS, timeout_ms);
+		nfds = epoll_wait(epfd, events, MAX_SOCKETS, timeout_ms);
 		if( nfds < 0 ){
 			perror("error sending data:");
 		}
@@ -267,17 +202,15 @@ int main(int argc, char *argv[]) { printf("into main!\n");
                 sock = (SOCKgeneric_t *)events[n].data.ptr;
                 nrecv = recv(sock->fd,&enetmsg,enetMsgSize,0);
 				setsockopt(sock->fd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-				printf("elbows = %d\n",FPGA->elbows);
+				
 				if(nrecv > 0){
-					
-					printf("nrecv %d\n",nrecv);
-					for(int i=0;i<10;i++) printf("\tmsg[%d]:%d\n",i,enetmsg[i]);
+					printf("nrecv %d\n\tmsg[0]:%d\n\tmsg[1]:%d\n\tmsg[2]:%d\n\tmsg[3]:%d\n\tmsg[4]:%d\n\tmsg[5]:%d\n\tmsg[6]:%d\n\tmsg[7]:%d\n\tmsg[8]:%d\n\tmsg[9]:%d\n",nrecv,enetmsg[0],enetmsg[1],enetmsg[2],enetmsg[3],enetmsg[4],enetmsg[5],enetmsg[6],enetmsg[7],enetmsg[8],enetmsg[9]);
 					
 					if (sock->is.enetCommSock){
 						switch(enetmsg[0]){
 							case(CASE_RECV_SYS_ACTIONS):{
 								
-								//~ recvSysHandler(IPC, &epfd, &ev, events, &enetmsg[1]);
+								recvSysHandler(IPC, &epfd, &ev, events, &enetmsg[1]);
 								
 								break;
 							}
@@ -291,24 +224,8 @@ int main(int argc, char *argv[]) { printf("into main!\n");
 								break;
 							}
 						}	
-					} else {
-						printf("nobgo nopgo = %d\n",enetmsg[0]);
-						enetmsg[0]++;
-						send(IPC[0]->sock.fd, &enetmsg, 10*sizeof(uint32_t), 0);
 					}
 					
-				} else {
-					if(sock->is.ipcRx){
-						epoll_ctl(epfd, EPOLL_CTL_DEL, sock->fd, &ev);
-						close(sock->fd);
-						cpid = waitpid( ((IPCsock_t *)(sock->parent))->ipc_pid, NULL , 0 );
-						printf("the child is dead, a, %d, %p\n",cpid,(sock->parent));
-						if(cpid>0){
-							free(sock->parent);
-							IPC[0]=NULL;
-						}
-							
-					}	
 				}
 			}
                 

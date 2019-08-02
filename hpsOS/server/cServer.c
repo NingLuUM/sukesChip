@@ -23,7 +23,7 @@ extern int errno;
 #define INIT_PORT 3400
 #define MAX_IPC 5
 #define MAX_FPGAS 64
-#define MAX_DATA_PORTS 64
+#define MAX_DATA_PORTS 300 //64
 #define MAX_PORTS ( MAX_DATA_PORTS + 1 )
 #define MAX_SOCKETS ( MAX_FPGAS * MAX_PORTS + MAX_IPC )
 #define IPCSOCK "./lithium_ipc"
@@ -1015,6 +1015,7 @@ int main(int argc, char *argv[]) { printf("into main!\n");
                 } else {
                     if( ps->is_listener ){ /* accept new connections from socs */
                         acceptENETconnection(&psock,ps);
+                        printf("ACCEPTED!\n");
                     
                     } else if( ps->portNum == ENET_COMMPORT ) { /* handle incoming communications from socs */
                         printf("trying to recv from commport\n");
@@ -1052,9 +1053,9 @@ int main(int argc, char *argv[]) { printf("into main!\n");
                         }
                         
                         /* if all data has been collected by cServer, let the python UI know so it can move on with the program */
-                        if( recvCount == g_recLen*ADC_BYTES_PER_TIMEPOINT*g_numBoards ){
+                        if( nrecv && (recvCount == g_recLen*ADC_BYTES_PER_TIMEPOINT*g_numBoards) ){
                             if(send(g_ipcCommFd,&n,sizeof(int),0) == -1){
-                                perror("IPC send failed, recvCount notification: ");
+                                perror("IPC send failed, recvCount notification (1058): ");
                                 exit(1);
                             }
                             /* reset the sockets partial index variables */

@@ -11,7 +11,7 @@ ARCH= arm
 
 build: $(TARGET)
 $(TARGET): HPSmain.o 
-	$(CC) -O3 $(LDFLAGS)  $^ -o $@ 
+	$(CC) -O3 $(LDFLAGS) $^ -o $@ 
 %.o : %.c
 	$(CC) -O3 $(CFLAGS) -c $< -o $@ 
 	

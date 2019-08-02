@@ -1,16 +1,16 @@
 /**** function prototypes for ENET ****
-void setnonblocking_enet(int sock);
-void connectInterrupt_intr(ENETsock **INTR, char *gpio_lab, int portnum);
-void disconnectInterrupt_intr(ENETsock **INTR);
-void addPollSock_enet(ENETsock **ENET, int portNum);
-void connectPollSock_enet(ENETsock **ENET, int portNum);
-void disconnectSock_enet(ENETsock **ENET, int portNum);
-void setPacketSize_enet(ENETsock *ENET, uint32_t packetsize);
-void sendAcqdData_enet(ENETsock **ENET, RCVsys *ADC, int portNum);
+void setnonblocking(int sock);
+void connectInterrupt_intr(ENETsock_t **INTR, char *gpio_lab, int portnum);
+void disconnectInterrupt_intr(ENETsock_t **INTR);
+void addPollSock_enet(ENETsock_t **ENET, int portNum);
+void connectPollSock_enet(ENETsock_t **ENET, int portNum);
+void disconnectSock_enet(ENETsock_t **ENET, int portNum);
+void setPacketSize_enet(ENETsock_t *ENET, uint32_t packetsize);
+void sendAcqdData_enet(ENETsock_t **ENET, RCVsys *ADC, int portNum);
 */
 
 // Done
-void setnonblocking_enet(int sock){
+void setnonblocking(int sock){
     int opts;
     if((opts=fcntl(sock,F_GETFL))<0) perror("GETFL nonblocking failed");
     
@@ -20,24 +20,24 @@ void setnonblocking_enet(int sock){
 
 
 // Done
-void connectInterrupt_intr(ENETsock **INTR, char *gpio_lab, int portnum){
+void connectInterrupt_intr(ENETsock_t **INTR, char *gpio_lab, int portnum){
 	
-	ENETsock* enet;	
-	enet = (ENETsock *)malloc(sizeof(ENETsock));
+	ENETsock_t* enet;	
+	enet = (ENETsock_t *)malloc(sizeof(ENETsock_t));
     setupENETsockFunctionPointers_intr(enet);
     enet->next = *INTR;
 	enet->prev = NULL;
-    enet->sockfd = 0;
+    enet->sock.fd = 0;
 	enet->portNum = portnum;
 	if(portnum < 2){
-		enet->type.isInterruptRcv = 0;
-		enet->type.isInterruptTx = 1;
+		enet->sock.is.interruptRcv = 0;
+		enet->sock.is.interruptTx = 1;
 	} else {
-		enet->type.isInterruptRcv = 1;
-		enet->type.isInterruptTx = 0;
+		enet->sock.is.interruptRcv = 1;
+		enet->sock.is.interruptTx = 0;
 	}
-    enet->is_active = 1;
-	enet->type.isEnetCommSock = 0;
+    enet->sock.is.active = 1;
+	enet->sock.is.enetCommSock = 0;
 	
 	if(*INTR != NULL){
 		(*INTR)->prev = enet;
@@ -46,7 +46,7 @@ void connectInterrupt_intr(ENETsock **INTR, char *gpio_lab, int portnum){
 	// CHANGE THIS TO DESIRED LABEL
 	const char *gpio_label = gpio_lab;//"gpio@0x100000080";
 	const char *edge_type = "rising";
-	//~ int poll_interval = 1000;
+	//~ //int poll_interval = 1000;
 
 	// Other vars
 	DIR *gpio_dir;
@@ -62,7 +62,7 @@ void connectInterrupt_intr(ENETsock **INTR, char *gpio_lab, int portnum){
 	char gpio_number_buffer[PATH_MAX + 1] = {0};
 	char *str_result = NULL;
 	char *newline_ptr;
-	//~ struct pollfd pollfd_struct;
+	//~ //struct pollfd pollfd_struct;
 
 	// Open the sysfs gpio directory
 	gpio_dir = opendir(gpio_dir_path);
@@ -225,26 +225,26 @@ void connectInterrupt_intr(ENETsock **INTR, char *gpio_lab, int portnum){
 	if (result == PATH_MAX)
 		error(1, errno, "buffer overflow reading '%s'", path);
 
-	enet->sockfd = file_fd;
+	enet->sock.fd = file_fd;
 
 	*INTR = enet;
 		
-    ev.data.ptr = enet;
-    ev.events = EPOLLIN | EPOLLET;
-    epoll_ctl(epfd, EPOLL_CTL_ADD, enet->sockfd, &ev);
+    enet->ev->data.ptr = &(enet->sock);
+    enet->ev->events = EPOLLIN | EPOLLET;
+    epoll_ctl(*(enet->epfd), EPOLL_CTL_ADD, enet->sock.fd, enet->ev);
     
 }
 
 // Done
-void disconnectInterrupt_intr(ENETsock **INTR){
+void disconnectInterrupt_intr(ENETsock_t **INTR){
 	
-	ENETsock **enet, *prev, *next;
+	ENETsock_t **enet, *prev, *next;
     enet = INTR;
     while((*enet) != NULL){
         next = (*enet)->next;
         prev = (*enet)->prev;
-        epoll_ctl(epfd, EPOLL_CTL_DEL, (*enet)->sockfd, &ev);
-        close((*enet)->sockfd);
+        epoll_ctl(*((*enet)->epfd), EPOLL_CTL_DEL, (*enet)->sock.fd, (*enet)->ev);
+        close((*enet)->sock.fd);
         
         
 		free(*enet);
@@ -262,25 +262,30 @@ void disconnectInterrupt_intr(ENETsock **INTR){
 
 
 // Done
-void addPollSock_enet(ENETsock **ENET, int portNum){
-    ENETsock* enet;	
-	enet = (ENETsock *)malloc(sizeof(ENETsock));
+void addEnetSock_enet(ENETsock_t **ENET, int portNum, int makeCommSock){
+    ENETsock_t* enet;	
+	enet = (ENETsock_t *)malloc(sizeof(ENETsock_t));
     setupENETsockFunctionPointers_enet(enet);
     enet->next = *ENET;
 	enet->prev = NULL;
     enet->sock.fd = 0;
 	enet->portNum = portNum;
-	enet->sock.type.isInterruptTx = 0;
-	enet->sock.type.isInterruptTx = 0;
-    enet->is_active = 0;
-    enet->sock.type.isEnetCommSock = 0;
+	enet->sock.is.interruptTx = 0;
+	enet->sock.is.interruptTx = 0;
+    enet->sock.is.active = 0;
+    enet->sock.is.enetCommSock = 0;
     enet->sock.parent = enet;
+    
 	if(portNum == COMM_PORT){
-		enet->sock.type.isEnetCommSock = 1;
-        enet->commsock = enet;
-	} else if (portNum == TX_RECV_PORT){
-		enet->sock.type.isEnetRecvLargeBuffer = 1;
+		enet->sock.is.enetCommSock = 1;  
+	} else if (portNum == TX_COMM_PORT){
+		enet->sock.is.enetRecvLargeBuffer = 1;
 	}
+	
+	if(makeCommSock){
+		enet->commsock = enet;
+	}
+	
 	if(*ENET != NULL){
 		(*ENET)->prev = enet;
         enet->commsock = (*ENET)->commsock;
@@ -289,11 +294,12 @@ void addPollSock_enet(ENETsock **ENET, int portNum){
 }
 
 // Done
-void connectPollSock_enet(ENETsock **ENET, int portNum){ /* function to accept incoming ethernet connections from the socs */
+void connectEnetSock_enet(ENETsock_t **ENET, int portNum){ /* function to accept incoming ethernet connections from the socs */
     struct sockaddr_in server_sockaddr;	
 	struct timeval t0,t1;
 	int diff;
-	ENETsock *enet, *enet0;
+	ENETsock_t *enet = NULL;
+	ENETsock_t *enet0 = NULL;
 
 	enet = (*ENET)->commsock;
     while(enet->portNum != portNum){
@@ -317,16 +323,16 @@ void connectPollSock_enet(ENETsock **ENET, int portNum){ /* function to accept i
     }  
     setsockopt(enet->sock.fd,IPPROTO_TCP,TCP_NODELAY,&ONE,sizeof(int));
     setsockopt(enet->sock.fd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-	setnonblocking_enet(enet->sock.fd);
+	setnonblocking(enet->sock.fd);
 
-    enet->is_active = 1;	
+    enet->sock.is.active = 1;	
     
-    ev.data.ptr = &(enet->sock);
-    ev.events = EPOLLIN;
-    epoll_ctl(epfd, EPOLL_CTL_ADD, enet->sock.fd, &ev);
+    enet->ev->data.ptr = &(enet->sock);
+    enet->ev->events = EPOLLIN;
+    epoll_ctl(*(enet->epfd), EPOLL_CTL_ADD, enet->sock.fd, enet->ev);
     
 	while(enet != NULL){
-        if(enet->is_active){
+        if(enet->sock.is.active){
             enet0 = enet;
         }
 		enet = enet->prev;
@@ -336,8 +342,8 @@ void connectPollSock_enet(ENETsock **ENET, int portNum){ /* function to accept i
 }
 
 // Done
-void disconnectSock_enet(ENETsock **ENET, int portNum){ 
-    ENETsock *enet, *prev, *next;
+void disconnectSock_enet(ENETsock_t **ENET, int portNum){ 
+    ENETsock_t *enet, *prev, *next;
     int sockfd = -1;
     enet = (*ENET);
     while(enet != NULL){
@@ -361,32 +367,39 @@ void disconnectSock_enet(ENETsock **ENET, int portNum){
     }
     
     if(sockfd>(-1)){
-		epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, &ev);
+		epoll_ctl(*(enet->epfd), EPOLL_CTL_DEL, sockfd, enet->ev);
 		close(sockfd);
 	}
 }
 
 
-void ENET_init(ENETsock **ENET){
-	addPollSock_enet(ENET, COMM_PORT);
-	(*ENET)->connectPollSock(ENET, COMM_PORT);
+void ENET_init(ENETsock_t **ENET, int *epfd, struct epoll_event *ev, struct epoll_event *events, ENETsettings_t *settings, int portNum){
+	addEnetSock_enet(ENET, portNum, 1);
+	(*ENET)->epfd = epfd;
+	(*ENET)->ev = ev;
+	(*ENET)->events = events;
+	(*ENET)->settings = settings;
+	(*ENET)->settings->packetsize = 1024;
+	(*ENET)->settings->queryMode = 0;
+	(*ENET)->connectEnetSock(ENET, portNum);
 }
 
-//~ void sendAcqdData_enet(ENETsock **ENET, RCVsys *RCV, int portNum){
-	//~ struct ENETsock *enet0, *commsock;
+
+//~ void sendAcqdData_enet(ENETsock_t **ENET, RCVsys *RCV, int portNum){
+	//~ struct ENETsock_t *enet0, *commsock;
 	//~ commsock = (*ENET)->commsock;
 	//~ static int tmp = 0;
     //~ int nsent;
     
 	//~ printf("sendAcqdData, tmp=%d\n",tmp);
-	//~ if( RCV->board->queryMode == 0 || tmp == 0 ){
+	//~ if( (*ENET)->settings->queryMode == 0 || tmp == 0 ){
 		//~ RCV->copyDataToMem(RCV);
 	//~ }
 	//~ printf("sendAcqdData, tmp=%d\n",tmp);
-	//~ printf("g_queryMode=%d\n",RCV->board->queryMode);
-	//~ if(RCV->board->queryMode == 0){
+	//~ printf("g_queryMode=%d\n",(*ENET)->settings->queryMode);
+	//~ if((*ENET)->settings->queryMode == 0){
 		//~ enet0 = commsock->prev;
-		//~ while( enet0 != NULL && enet0->is_active ){
+		//~ while( enet0 != NULL && enet0->sock.is.active ){
 			//~ setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_CORK,&ONE,sizeof(int));
 			//~ nsent = send(enet0->sockfd, enet0->dataAddr, enet0->bytesInPacket,0);	
 			//~ setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_CORK,&ZERO,sizeof(int));
@@ -426,29 +439,29 @@ void ENET_init(ENETsock **ENET){
 //~ }
 
 
-//~ void setPacketSize_enet(ENETsock *ENET, uint32_t packetsize){
-	//~ ENET->board->packetsize = packetsize;
-//~ }
+void setPacketSize_enet(ENETsock_t *ENET, uint32_t packetsize){
+	ENET->settings->packetsize = packetsize;
+}
 
 
-void setupENETsockFunctionPointers_intr(ENETsock *tmp){
+void setupENETsockFunctionPointers_intr(ENETsock_t *tmp){
     tmp->connectInterrupt = &connectInterrupt_intr;
     tmp->disconnectInterrupt = &disconnectInterrupt_intr;
 }
 
 
-void setupENETsockFunctionPointers_enet(ENETsock *tmp){
-    tmp->addPollSock = &addPollSock_enet;
-    tmp->connectPollSock = &connectPollSock_enet;
+void setupENETsockFunctionPointers_enet(ENETsock_t *tmp){
+    tmp->addEnetSock = &addEnetSock_enet;
+    tmp->connectEnetSock = &connectEnetSock_enet;
     tmp->disconnectSock = &disconnectSock_enet;
-    //~ tmp->setPacketSize = &setPacketSize_enet;
+    tmp->setPacketSize = &setPacketSize_enet;
     //~ tmp->sendAcqdData = &sendAcqdData_enet;
 }
 
 
-//~ void ENET_Settings(ENETsock **ENET, uint32_t *msg){
+//~ void ENET_Settings(ENETsock_t **ENET, uint32_t *msg){
 
-    //~ ENETsock *commsock;
+    //~ ENETsock_t *commsock;
     //~ commsock = (*ENET)->commsock;
 
     //~ switch(msg[0]){

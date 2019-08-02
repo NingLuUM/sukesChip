@@ -88,7 +88,7 @@ void issueDirectSerialCommand_adc(RCVsys *RCV, uint32_t addr, uint32_t cmd){
 	
 }
 
-void ADC_Settings(RCVsys *RCV, ENETsock **ENET, ENETsock *INTR, uint32_t *msg){
+void ADC_Settings(RCVsys *RCV, ENETsock_t **ENET, ENETsock_t *INTR, uint32_t *msg){
 	
 	switch(msg[0]){
 		
@@ -100,7 +100,7 @@ void ADC_Settings(RCVsys *RCV, ENETsock **ENET, ENETsock *INTR, uint32_t *msg){
 			} else {
 				RCV->ADC->powerOff(RCV);
 				INTR->disconnectSock(&INTR,2); // adc interrupt
-				printf("lvds power = off (%lu)\n",msg[1]);
+				printf("lvds power = off (%u)\n",msg[1]);
 			}
 			break;
 		}
