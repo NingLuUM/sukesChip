@@ -66,40 +66,6 @@
 
 
 
-#define ADC_NBITS	(12)
-#define ADC_NCHAN	(8)
-#define ADC_BYTES_PER_TIMEPOINT ((ADC_NBITS*ADC_NCHAN)/8)
-
-#define ADC_SERIAL_CLOCK_RATE		( 1 )
-
-// states defined in the lvds.v module
-#define ADC_POWER_OFF				( 0x00 )
-#define ADC_POWER_ON				( 0x80 )
-
-// lvds needs to be powered on to issue commands so all states other 
-// than power off are defined as ( ADC_POWER_ON | STATE )
-#define ADC_IDLE_STATE				( ADC_POWER_ON | 0x00 )
-#define ADC_BUFFER_SERIAL_COMMAND	( ADC_POWER_ON | 0x01 )
-#define ADC_ISSUE_SERIAL_COMMAND	( ADC_POWER_ON | 0x02 )
-#define ADC_SYNC_COMMAND			( ADC_POWER_ON | 0x04 )
-
-
-// address field of the lvds serial commands
-#define ADC_SOFTWARE_RESET_ADDR 	( 0x00 )
-#define ADC_SET_TGC_ADDR 			( 0x00 )
-#define ADC_SET_UNSIGNED_INT_ADDR	( 0x04 )
-#define ADC_SET_FIXED_GAIN_ADDR 	( 0x99 )
-#define ADC_SET_COARSE_GAIN_ADDR 	( 0x9a )
-#define ADC_SET_FINE_GAIN_ADDR		( 0x99 )
-
-// command field of the lvds serial commands
-#define ADC_SOFTWARE_RESET_CMD		( 0x0001 )
-#define ADC_SET_TGC_CMD 			( 0x0004 )
-#define ADC_SET_UNSIGNED_INT_CMD	( 0x0008 )
-#define ADC_SET_FIXED_GAIN_CMD		( 0x0008 ) 
-#define ADC_SET_COARSE_GAIN_CMD(X)	( (X) & 0x003f ) 
-#define ADC_SET_FINE_GAIN_CMD(X) 	( ( (X) & 0x0007 ) | 0x0008 )
-
 // commands for Output_Control_Module
 #define	TX_HARD_RESET 			( 0x00 )
 #define	TX_SOFT_RESET 			( 0x01 )
@@ -117,22 +83,6 @@
 #define CASE_ADC_SETTINGS 1
 #define CASE_TX_SETTINGS 2
 
-// adc settings
-#define CASE_RCV_RECORD_LENGTH 0
-#define CASE_RCV_TRIGGER_DELAY 1
-#define CASE_RCV_SET_LOCAL_STORAGE 2
-#define CASE_RCV_TOGGLE_DATA_ACQ 3
-#define CASE_RCV_DIRECT_CONTROL_COMMS 4
-#define CASE_RESET_RCV_SYSTEM 5
-
-#define CASE_ADC_POWER 2
-#define CASE_ADC_SYNC 3
-#define CASE_ADC_INITIALIZE 4		
-#define CASE_ADC_GAIN 5
-#define CASE_ADC_DIRECT_SERIAL_COMMAND 6
-#define CASE_INTERRUPT_THYSELF 7
-#define CASE_UNINTERRUPT_THYSELF 8
-#define CASE_ADC_DIRECT_CONTROL_COMMS 9
 
 // interrupt messages from adc
 #define ADC_INTERRUPT_DATA_IS_READY (0x01)
@@ -251,7 +201,8 @@ int main(int argc, char *argv[]) { printf("into main!\n");
 	while(RUN_MAIN == 1){
 		printf("into loop!\n");
 		sleep(1);
-		
+	
+        // TODO: THIS IS JUST FOR TESTING. DELETE IT LATER	
 		if (IPC[0] == NULL)
 			recvSysHandler(IPC, &epfd, &ev, events, &enetmsg[1]);
 		

@@ -1,8 +1,57 @@
 
 
+#define ADC_NBITS	(12)
+#define ADC_NCHAN	(8)
+#define ADC_BYTES_PER_TIMEPOINT ((ADC_NBITS*ADC_NCHAN)/8)
+
+#define ADC_SERIAL_CLOCK_RATE		( 1 )
+
+// states defined in the lvds.v module
+#define ADC_POWER_OFF				( 0x00 )
+#define ADC_POWER_ON				( 0x80 )
+
+// lvds needs to be powered on to issue commands so all states other 
+// than power off are defined as ( ADC_POWER_ON | STATE )
+#define ADC_IDLE_STATE				( ADC_POWER_ON | 0x00 )
+#define ADC_BUFFER_SERIAL_COMMAND	( ADC_POWER_ON | 0x01 )
+#define ADC_ISSUE_SERIAL_COMMAND	( ADC_POWER_ON | 0x02 )
+#define ADC_SYNC_COMMAND			( ADC_POWER_ON | 0x04 )
+
+
+// address field of the lvds serial commands
+#define ADC_SOFTWARE_RESET_ADDR 	( 0x00 )
+#define ADC_SET_TGC_ADDR 			( 0x00 )
+#define ADC_SET_UNSIGNED_INT_ADDR	( 0x04 )
+#define ADC_SET_FIXED_GAIN_ADDR 	( 0x99 )
+#define ADC_SET_COARSE_GAIN_ADDR 	( 0x9a )
+#define ADC_SET_FINE_GAIN_ADDR		( 0x99 )
+
+// command field of the lvds serial commands
+#define ADC_SOFTWARE_RESET_CMD		( 0x0001 )
+#define ADC_SET_TGC_CMD 			( 0x0004 )
+#define ADC_SET_UNSIGNED_INT_CMD	( 0x0008 )
+#define ADC_SET_FIXED_GAIN_CMD		( 0x0008 ) 
+#define ADC_SET_COARSE_GAIN_CMD(X)	( (X) & 0x003f ) 
+#define ADC_SET_FINE_GAIN_CMD(X) 	( ( (X) & 0x0007 ) | 0x0008 )
 
 
 
+// adc settings
+#define CASE_RCV_RECORD_LENGTH 0
+#define CASE_RCV_TRIGGER_DELAY 1
+#define CASE_RCV_SET_LOCAL_STORAGE 2
+#define CASE_RCV_TOGGLE_DATA_ACQ 3
+#define CASE_RCV_DIRECT_CONTROL_COMMS 4
+#define CASE_RESET_RCV_SYSTEM 5
+
+#define CASE_ADC_POWER 6
+#define CASE_ADC_SYNC 7
+#define CASE_ADC_INITIALIZE 8		
+#define CASE_ADC_GAIN 9
+#define CASE_ADC_DIRECT_SERIAL_COMMAND 10
+#define CASE_INTERRUPT_THYSELF 11
+#define CASE_UNINTERRUPT_THYSELF 12
+#define CASE_ADC_DIRECT_CONTROL_COMMS 13
 
 void recvSysMain(int sv){
 	FPGAvars *FPGA;
@@ -35,7 +84,7 @@ void recvSysMain(int sv){
 	int nfds;
 	int n;
 	int nrecv;
-	uint32_t buf[10]={0};
+	uint32_t msg[10]={0};
 	
 	while(1){
 		printf("into loop!\n");
@@ -50,16 +99,80 @@ void recvSysMain(int sv){
             for(n = 0; n < nfds; n++){
 				
                 sock = (SOCKgeneric_t *)events[n].data.ptr;
-                nrecv = recv(sock->fd,&buf,10*sizeof(uint32_t),0);
+                nrecv = recv(sock->fd,&msg,10*sizeof(uint32_t),0);
 				setsockopt(sock->fd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-				printf("bongo pongo = %d,%d\n",buf[0],nrecv);
-				buf[0]++;
-				send(IPC[0]->sock.fd, &buf, 10*sizeof(uint32_t), 0);
+				printf("bongo pongo = %d,%d\n",msg[0],nrecv);
+				msg[0]++;
+				send(IPC[0]->sock.fd, &msg, 10*sizeof(uint32_t), 0);
+                
+                switch(msg[0]){
+                    case(CASE_RCV_RECORD_LENGTH):{
+                        RCV->setRecLen(RCV,msg[1]);
+                        break;
+                    }
+                    case(CASE_RCV_TRIGGER_DELAY):{
+                        RCV->setTrigDelay(RCV,msg[1]);
+                        break;
+                    }
+                    case(CASE_RCV_SET_LOCAL_STORAGE):{
+                        RCV->setLocalStorage(RCV,msg[1],msg[2]);
+                        break;
+                    }
+                    case(CASE_RCV_TOGGLE_DATA_ACQ):{
+                        break;
+                    }
+                    case(CASE_RCV_DIRECT_CONTROL_COMMS):{
+                        break;
+                    }
+                    case(CASE_RESET_RCV_SYSTEM):{
+                        RCV->stateResetFPGA(RCV);
+                        RCV->resetVars(RCV);
+                        break;
+                    }
+                    case(CASE_ADC_POWER):{
+                        if(msg[1]){
+                            RCV->ADC->powerOn(RCV);
+                        } else {
+                            RCV->ADC->powerOff(RCV);
+                        }
+                        break;
+                    }
+                    case(CASE_ADC_SYNC):{
+                        RCV->ADC->sync(RCV);
+                        break;
+                    }
+                    case(CASE_ADC_INITIALIZE):{
+                        RCV->ADC->initializeSettings(RCV);
+                        break;
+                    }
+                    case(CASE_ADC_GAIN):{
+                        RCV->ADC->setGain(RCV,msg[1],msg[2]);
+                        break;
+                    }
+                    case(CASE_ADC_DIRECT_SERIAL_COMMAND):{
+                        RCV->ADC->issueDirectSerialCommand(RCV,msg[1],msg[2]);
+                        break;
+                    }
+                    case(CASE_INTERRUPT_THYSELF):{
+                        break;
+                    }
+                    case(CASE_UNINTERRUPT_THYSELF):{
+                        break;
+                    }
+                    case(CASE_ADC_DIRECT_CONTROL_COMMS):{
+                        DREF32(RCV->controlComms);
+                        break;
+                    }
+                    default:{
+                        break;
+                    }
+
+                }
 
 			}
                 
 		}
-		if(buf[0]>5){
+		if(msg[0]>5){
 			break;
 		}
 	}
@@ -86,8 +199,8 @@ void recvSysMain(int sv){
 	FPGA->elbows=35;
 	
 	//~ printf("childaaaa in\n");
-	//~ send(sv, &buf, 10*sizeof(uint32_t), 0);
-	//~ printf("child: sent '%d'\n", buf[0]);
+	//~ send(sv, &msg, 10*sizeof(uint32_t), 0);
+	//~ printf("child: sent '%d'\n", msg[0]);
 	sleep(1);
 	exit(0);
 }
