@@ -1,23 +1,23 @@
 
 	
-void powerOn_adc(RCVsys *RCV){
+void powerOn_adc(RCVsys_t *RCV){
 	DREF32(RCV->controlComms) = ADC_POWER_ON;
 	usleep(10);
 }
 
-void powerOff_adc(RCVsys *RCV){
+void powerOff_adc(RCVsys_t *RCV){
 	DREF32(RCV->controlComms) = ADC_POWER_OFF;
 	usleep(10);
 }
 
-void sync_adc(RCVsys *RCV){
+void sync_adc(RCVsys_t *RCV){
 	DREF32(RCV->controlComms) = ADC_SYNC_COMMAND;
 	usleep(10);
 	DREF32(RCV->controlComms) = ADC_IDLE_STATE;
 	usleep(10);
 }
 
-void initializeSettings_adc(RCVsys *RCV){
+void initializeSettings_adc(RCVsys_t *RCV){
 	//~ // turn on ADC
 	DREF32(RCV->controlComms) = ADC_POWER_ON;
 	usleep(100000);
@@ -53,7 +53,7 @@ void initializeSettings_adc(RCVsys *RCV){
 	usleep(10);
 }
 
-void setGain_adc(RCVsys *RCV, uint32_t coarseGain, uint32_t fineGain){
+void setGain_adc(RCVsys_t *RCV, uint32_t coarseGain, uint32_t fineGain){
 	
 	DREF32(RCV->ADC->serialCommand) = ( ( ADC_SET_COARSE_GAIN_ADDR << 16 ) | ADC_SET_COARSE_GAIN_CMD( coarseGain ) );
 	usleep(10);
@@ -74,7 +74,7 @@ void setGain_adc(RCVsys *RCV, uint32_t coarseGain, uint32_t fineGain){
 	usleep(10);
 }
 
-void issueDirectSerialCommand_adc(RCVsys *RCV, uint32_t addr, uint32_t cmd){
+void issueDirectSerialCommand_adc(RCVsys_t *RCV, uint32_t addr, uint32_t cmd){
 
 	
 	DREF32(RCV->ADC->serialCommand) = ( ( addr << 16 ) | cmd );
@@ -88,7 +88,7 @@ void issueDirectSerialCommand_adc(RCVsys *RCV, uint32_t addr, uint32_t cmd){
 	
 }
 
-void ADC_Settings(RCVsys *RCV, ENETsock_t **ENET, ENETsock_t *INTR, uint32_t *msg){
+void ADC_Settings(RCVsys_t *RCV, ENETsock_t **ENET, ENETsock_t *INTR, uint32_t *msg){
 	
 	switch(msg[0]){
 		

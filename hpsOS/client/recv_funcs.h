@@ -1,4 +1,4 @@
-void resetVars_rcv(RCVsys *RCV){
+void resetVars_rcv(RCVsys_t *RCV){
 	DREF32(RCV->recLen) = 2048; 
 	DREF32(RCV->trigDelay) = 0;
 	DREF32(RCV->controlComms) = 0;
@@ -11,17 +11,17 @@ void resetVars_rcv(RCVsys *RCV){
 	RCV->allocateLocalStorage(RCV);
 }
 	
-void setRecLen_rcv(RCVsys *RCV, uint32_t recLen){
+void setRecLen_rcv(RCVsys_t *RCV, uint32_t recLen){
 	DREF32(RCV->recLen) = recLen;
 	RCV->recLen_ref = recLen;
 }
 
-void setTrigDelay_rcv(RCVsys *RCV, uint32_t trigDelay){
+void setTrigDelay_rcv(RCVsys_t *RCV, uint32_t trigDelay){
 	DREF32(RCV->trigDelay) = trigDelay;
 	RCV->trigDelay_ref = trigDelay;
 }
 
-void stateResetFPGA_rcv(RCVsys *RCV){
+void stateResetFPGA_rcv(RCVsys_t *RCV){
 	DREF32(RCV->stateReset)=1; 
 	usleep(5);
 	DREF32(RCV->stateReset)=0;
@@ -34,7 +34,7 @@ void adcmemcpy(char *dest, int32_t volatile *sourceData, size_t nbytes){
 		dest[i] = src[i];
 }
 
-void copyDataToMem_rcv(RCVsys *RCV){
+void copyDataToMem_rcv(RCVsys_t *RCV){
 	size_t nbytes = (RCV->recLen_ref)*sizeof(int32_t);
     int curPos = 3*(RCV->currentPulse)*(RCV->recLen_ref)*sizeof(int32_t);	
     adcmemcpy(&(*(RCV->data))[ curPos ],DREFP32S(RCV->ramBank0),nbytes);
@@ -42,7 +42,7 @@ void copyDataToMem_rcv(RCVsys *RCV){
 	adcmemcpy(&(*(RCV->data))[ curPos + 2*(RCV->recLen_ref)*sizeof(int32_t) ],DREFP32S(RCV->ramBank2),nbytes);
 }
 
-void setDataAddrPointers_rcv(RCVsys *RCV, ENETsock_t **ENET){
+void setDataAddrPointers_rcv(RCVsys_t *RCV, ENETsock_t **ENET){
     ENETsock_t *enet;
     int sendbuff;
     enet = (*ENET)->commsock;
@@ -93,7 +93,7 @@ void setDataAddrPointers_rcv(RCVsys *RCV, ENETsock_t **ENET){
 	}
 }
 
-void setLocalStorage_rcv(RCVsys *RCV, uint32_t isLocal, uint32_t nPulses){
+void setLocalStorage_rcv(RCVsys_t *RCV, uint32_t isLocal, uint32_t nPulses){
 	RCV->isLocal = isLocal;
 	if( isLocal ){
 		RCV->nPulses = nPulses;
@@ -104,18 +104,18 @@ void setLocalStorage_rcv(RCVsys *RCV, uint32_t isLocal, uint32_t nPulses){
 	}
 }
 
-void allocateLocalStorage_rcv(RCVsys *RCV){
+void allocateLocalStorage_rcv(RCVsys_t *RCV){
 	free(*(RCV->data));
 	*(RCV->data) = (char *)malloc((RCV->nPulses)*(RCV->recLen_ref)*(RCV->sizeof_bytesPerTimePoint));
 }
 
 
-uint32_t getInterruptMsg_rcv(RCVsys *RCV){
+uint32_t getInterruptMsg_rcv(RCVsys_t *RCV){
 	return (DREF32(RCV->interrupt0));
 }
 
 
-void RCV_Settings(RCVsys *RCV, ENETsock_t **ENET, ENETsock_t *INTR, uint32_t *msg){
+void RCV_Settings(RCVsys_t *RCV, ENETsock_t **ENET, ENETsock_t *INTR, uint32_t *msg){
 	
 	switch(msg[0]){
 		

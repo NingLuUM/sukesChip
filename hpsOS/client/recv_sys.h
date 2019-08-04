@@ -54,10 +54,10 @@
 #define CASE_ADC_DIRECT_CONTROL_COMMS 13
 
 void recvSysMain(int sv){
-	FPGAvars *FPGA;
+	FPGAvars_t *FPGA;
 	FPGA = getSharedFpga();
 	
-	RCVsys *RCV;
+	RCVsys_t *RCV;
 	RCV = getSharedRcv();
 	
 	char *data;

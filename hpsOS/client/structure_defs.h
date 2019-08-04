@@ -11,10 +11,10 @@ struct TX_PhaseDelayReg_;
 struct TX_SteeringLoopDefs_;
 typedef struct ENETsock_ ENETsock_t;
 typedef struct IPCsock_ IPCsock_t;
-typedef struct BOARDdata_ BOARDdata;
-typedef struct FPGAvars_ FPGAvars;
-typedef struct ADCchip_ ADCchip;
-typedef struct RCVsys_ RCVsys;
+typedef struct BOARDdata_ BOARDdata_t;
+typedef struct FPGAvars_ FPGAvars_t;
+typedef struct ADCchip_ ADCchip_t;
+typedef struct RCVsys_ RCVsys_t;
 typedef struct TXsys_ TXsys;
 typedef struct TX_PhaseDelayReg_ TX_PhaseDelayReg_t;
 typedef struct TX_SteeringLoopDefs_ TX_SteeringLoopDefs_t;
@@ -25,24 +25,24 @@ typedef union TX_InputCommands_ TX_InputCommands_t;
 typedef union TX_InstructionReg_ TX_InstructionReg_t;
 
 // function prototypes for ADC
-void powerOn_adc(RCVsys *RCV);
-void powerOff_adc(RCVsys *RCV);
-void sync_adc(RCVsys *RCV);
-void initializeSettings_adc(RCVsys *RCV);
-void issueDirectSerialCommand_adc(RCVsys *RCV, uint32_t addr, uint32_t cmd);
-void setGain_adc(RCVsys *RCV, uint32_t coarseGain, uint32_t fineGain);
+void powerOn_adc(RCVsys_t *RCV);
+void powerOff_adc(RCVsys_t *RCV);
+void sync_adc(RCVsys_t *RCV);
+void initializeSettings_adc(RCVsys_t *RCV);
+void issueDirectSerialCommand_adc(RCVsys_t *RCV, uint32_t addr, uint32_t cmd);
+void setGain_adc(RCVsys_t *RCV, uint32_t coarseGain, uint32_t fineGain);
 
 // function prototypes for RCV subsystem
-void resetVars_rcv(RCVsys *RCV);	
-void stateResetFPGA_rcv(RCVsys *RCV);
-void setRecLen_rcv(RCVsys *RCV, uint32_t recLen);
-void setTrigDelay_rcv(RCVsys *RCV, uint32_t trigDelay);
+void resetVars_rcv(RCVsys_t *RCV);	
+void stateResetFPGA_rcv(RCVsys_t *RCV);
+void setRecLen_rcv(RCVsys_t *RCV, uint32_t recLen);
+void setTrigDelay_rcv(RCVsys_t *RCV, uint32_t trigDelay);
 void adcmemcpy_rcv(char *dest, int32_t volatile *sourceData, size_t nbytes);
-void copyDataToMem_rcv(RCVsys *RCV);
-void setDataAddrPointers_rcv(RCVsys *RCV, ENETsock_t **ENET);
-void setLocalStorage_rcv(RCVsys *RCV, uint32_t isLocal, uint32_t nPulses);
-void allocateLocalStorage_rcv(RCVsys *RCV);
-uint32_t getInterruptMsg_rcv(RCVsys *RCV);
+void copyDataToMem_rcv(RCVsys_t *RCV);
+void setDataAddrPointers_rcv(RCVsys_t *RCV, ENETsock_t **ENET);
+void setLocalStorage_rcv(RCVsys_t *RCV, uint32_t isLocal, uint32_t nPulses);
+void allocateLocalStorage_rcv(RCVsys_t *RCV);
+uint32_t getInterruptMsg_rcv(RCVsys_t *RCV);
 
 // function prototypes for ENET
 void setnonblocking_enet(int sock);
@@ -52,7 +52,7 @@ void addEnetSock_enet(ENETsock_t **ENET, int portNum, int makeCommSock);
 void connectEnetSock_enet(ENETsock_t **ENET, int portNum);
 void disconnectSock_enet(ENETsock_t **ENET, int portNum);
 void setPacketSize_enet(ENETsock_t *ENET, uint32_t packetsize);
-void sendAcqdData_enet(ENETsock_t **ENET, RCVsys *ADC, int portNum);
+void sendAcqdData_enet(ENETsock_t **ENET, RCVsys_t *ADC, int portNum);
 void setupENETsockFunctionPointers_intr(ENETsock_t *tmp);
 void setupENETsockFunctionPointers_enet(ENETsock_t *tmp);
 
@@ -62,7 +62,7 @@ typedef struct BOARDdata_{
 	int elements_in_array;
 	int *subelement_list;
 	float *element_coords;
-} BOARDdata;
+} BOARDdata_t;
 
 
 typedef struct SOCKgeneric_{
@@ -158,7 +158,7 @@ typedef struct FPGAvars_{ // structure to hold variables that are mapped to the 
 	int fd_pio;
 	int fd_ram;	
 	int elbows;
-} FPGAvars;
+} FPGAvars_t;
 
 
 typedef struct ADCchip_{
@@ -167,14 +167,14 @@ typedef struct ADCchip_{
 	uint32_t volatile *serialCommand;
 		
 	// functions that act on ADC vars
-	void (*powerOn)(RCVsys *);
-	void (*powerOff)(RCVsys *);
-	void (*sync)(RCVsys *);
-	void (*initializeSettings)(RCVsys *);
-	void (*setGain)(RCVsys *, uint32_t, uint32_t);
-	void (*issueDirectSerialCommand)(RCVsys *, uint32_t, uint32_t);
+	void (*powerOn)(RCVsys_t *);
+	void (*powerOff)(RCVsys_t *);
+	void (*sync)(RCVsys_t *);
+	void (*initializeSettings)(RCVsys_t *);
+	void (*setGain)(RCVsys_t *, uint32_t, uint32_t);
+	void (*issueDirectSerialCommand)(RCVsys_t *, uint32_t, uint32_t);
 
-} ADCchip;
+} ADCchip_t;
 
 
 typedef struct RCVsys_{
@@ -203,18 +203,18 @@ typedef struct RCVsys_{
 	
 	char **data;
 	
-    ADCchip *ADC;
+    ADCchip_t *ADC;
 
-	void (*resetVars)(RCVsys *);
-	void (*stateResetFPGA)(RCVsys *);
-	void (*setRecLen)(RCVsys *, uint32_t);
-	void (*setTrigDelay)(RCVsys *, uint32_t);
-	void (*copyDataToMem)(RCVsys *);
-	void (*setDataAddrPointers)(RCVsys *, ENETsock_t **);
-	void (*setLocalStorage)(RCVsys *, uint32_t, uint32_t);
-    void (*allocateLocalStorage)(RCVsys *);
-	uint32_t (*getInterruptMsg)(RCVsys *);
-} RCVsys;
+	void (*resetVars)(RCVsys_t *);
+	void (*stateResetFPGA)(RCVsys_t *);
+	void (*setRecLen)(RCVsys_t *, uint32_t);
+	void (*setTrigDelay)(RCVsys_t *, uint32_t);
+	void (*copyDataToMem)(RCVsys_t *);
+	void (*setDataAddrPointers)(RCVsys_t *, ENETsock_t **);
+	void (*setLocalStorage)(RCVsys_t *, uint32_t, uint32_t);
+    void (*allocateLocalStorage)(RCVsys_t *);
+	uint32_t (*getInterruptMsg)(RCVsys_t *);
+} RCVsys_t;
 
 
 //~ typedef union TX_InputCommands_{ 

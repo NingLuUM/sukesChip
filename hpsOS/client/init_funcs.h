@@ -1,6 +1,6 @@
 
 
-void FPGAclose(FPGAvars *FPGA){ // closes the memory mapped file with the FPGA hardware registers
+void FPGAclose(FPGAvars_t *FPGA){ // closes the memory mapped file with the FPGA hardware registers
 	
 	if( munmap( FPGA->virtual_base, HW_REGS_SPAN ) != 0 ) {
 		printf( "ERROR: munmap() failed...\n" );
@@ -16,7 +16,7 @@ void FPGAclose(FPGAvars *FPGA){ // closes the memory mapped file with the FPGA h
 }
 
 
-int FPGA_mmap_vars(FPGAvars *FPGA){ // maps the FPGA hardware registers to the variables in the FPGAvars struct
+int FPGA_mmap_vars(FPGAvars_t *FPGA){ // maps the FPGA hardware registers to the variables in the FPGAvars_t struct
 	
 	if( ( FPGA->fd_pio = open( "/dev/mem", ( O_RDWR | O_SYNC ) ) ) == -1 ) {
 		printf( "ERROR: could not open \"/dev/mem\"...\n" );
@@ -48,20 +48,20 @@ int FPGA_mmap_vars(FPGAvars *FPGA){ // maps the FPGA hardware registers to the v
 }
 
 
-FPGAvars *FPGA_init(int gettingKey) {  
-    static FPGAvars *FPGA = NULL;
+FPGAvars_t *FPGA_init(int gettingKey) {  
+    static FPGAvars_t *FPGA = NULL;
     static int shmid;
     
     if(gettingKey){
 		printf("getting shared FPGA vars\n");
 		
         // Create a shared memory segment of size: data_size and obtain its shared memory id
-        if((shmid = shmget(g_shmkey_fpga, sizeof(FPGAvars), IPC_CREAT | 0660)) < 0) {
+        if((shmid = shmget(g_shmkey_fpga, sizeof(FPGAvars_t), IPC_CREAT | 0660)) < 0) {
             printf("Error getting shared memory id\n");
         }
 
         // Make shared_memory point to the newly created shared memory segment
-        if((FPGA = shmat(shmid, NULL, 0)) == (FPGAvars *) -1) {
+        if((FPGA = shmat(shmid, NULL, 0)) == (FPGAvars_t *) -1) {
             printf("Error attaching shared memory\n");
         }
 		
@@ -83,7 +83,7 @@ FPGAvars *FPGA_init(int gettingKey) {
 }
 
 
-void ADC_setup(FPGAvars *FPGA, ADCchip *ADC){
+void ADC_setup(FPGAvars_t *FPGA, ADCchip_t *ADC){
 
 	ADC->serialCommand = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_SERIAL_COMMAND_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	ADC->powerOn = &powerOn_adc;
@@ -95,26 +95,26 @@ void ADC_setup(FPGAvars *FPGA, ADCchip *ADC){
 }
 
 
-RCVsys *RCV_init(FPGAvars *FPGA, int gettingKey){
-	RCVsys *RCV = NULL;
+RCVsys_t *RCV_init(FPGAvars_t *FPGA, int gettingKey){
+	RCVsys_t *RCV = NULL;
 	int shmid;
 	
 	if(gettingKey){
-		printf("getting shared RCVsys\n");
+		printf("getting shared RCVsys_t\n");
 		
         // Create a shared memory segment of size: data_size and obtain its shared memory id
-        if((shmid = shmget(g_shmkey_rcv, sizeof(RCVsys), IPC_CREAT | 0660)) < 0) {
+        if((shmid = shmget(g_shmkey_rcv, sizeof(RCVsys_t), IPC_CREAT | 0660)) < 0) {
             printf("Error getting shared memory id\n");
         }
 
         // Make shared_memory point to the newly created shared memory segment
-        if((RCV = shmat(shmid, NULL, 0)) == (RCVsys *) -1) {
-            printf("Error attaching shared memory RCVsys\n");
+        if((RCV = shmat(shmid, NULL, 0)) == (RCVsys_t *) -1) {
+            printf("Error attaching shared memory RCVsys_t\n");
         }
         
-        ADCchip *ADC;
+        ADCchip_t *ADC;
         
-        ADC = (ADCchip *)calloc(1,sizeof(ADCchip));
+        ADC = (ADCchip_t *)calloc(1,sizeof(ADCchip_t));
         ADC_setup(FPGA,ADC);
         
 		RCV->ADC = ADC;
@@ -153,7 +153,7 @@ RCVsys *RCV_init(FPGAvars *FPGA, int gettingKey){
 }
 
 /*
-//~ int TX_init(FPGAvars *FPGA, TXsys *TX){
+//~ int TX_init(FPGAvars_t *FPGA, TXsys *TX){
 	
 	//~ TX->interrupt0 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_TX_INTERRUPT_GENERATOR_0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	//~ TX->interrupt1 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_TX_INTERRUPT_GENERATOR_1_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
@@ -187,20 +187,20 @@ RCVsys *RCV_init(FPGAvars *FPGA, int gettingKey){
 //~ } */
 
 
-BOARDdata *BOARD_init(int gettingKey){ // load the boards specific data from files stored on SoC	
-	static BOARDdata *BOARD = NULL;
+BOARDdata_t *BOARD_init(int gettingKey){ // load the boards specific data from files stored on SoC	
+	static BOARDdata_t *BOARD = NULL;
     static int shmid;
     
     if(gettingKey){
 		printf("getting shared Board Data\n");
 		
         // Create a shared memory segment of size: data_size and obtain its shared memory id
-        if((shmid = shmget(g_shmkey_board, sizeof(BOARDdata), IPC_CREAT | 0660)) < 0) {
+        if((shmid = shmget(g_shmkey_board, sizeof(BOARDdata_t), IPC_CREAT | 0660)) < 0) {
             printf("Error getting shared memory id\n");
         }
 
         // Make shared_memory point to the newly created shared memory segment
-        if((BOARD = shmat(shmid, NULL, 0)) == (BOARDdata *) -1) {
+        if((BOARD = shmat(shmid, NULL, 0)) == (BOARDdata_t *) -1) {
             printf("Error attaching shared memory\n");
         }
 
@@ -229,19 +229,19 @@ BOARDdata *BOARD_init(int gettingKey){ // load the boards specific data from fil
 }
 
 
-RCVsys *getSharedRcv(){
-	RCVsys *RCV;
+RCVsys_t *getSharedRcv(){
+	RCVsys_t *RCV;
 	static int shmid;
-    shmid = shmget(g_shmkey_rcv, sizeof(RCVsys), IPC_CREAT | 0660);
+    shmid = shmget(g_shmkey_rcv, sizeof(RCVsys_t), IPC_CREAT | 0660);
 	RCV = shmat(shmid, NULL, 0);
 	return(RCV);
 }
 
 
-FPGAvars *getSharedFpga(){
-	FPGAvars *FPGA;
+FPGAvars_t *getSharedFpga(){
+	FPGAvars_t *FPGA;
 	static int shmid;
-    shmid = shmget(g_shmkey_fpga, sizeof(FPGAvars), IPC_CREAT | 0660);
+    shmid = shmget(g_shmkey_fpga, sizeof(FPGAvars_t), IPC_CREAT | 0660);
 	FPGA = shmat(shmid, NULL, 0);
 	return(FPGA);
 }

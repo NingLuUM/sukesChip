@@ -151,13 +151,13 @@ int main(int argc, char *argv[]) { printf("into main!\n");
 	
 	// variables shared between sub-processes
 	// TODO: should probably throw in some mutexs
-	FPGAvars *FPGA;
+	FPGAvars_t *FPGA;
 	FPGA = FPGA_init(1);
 	
-	BOARDdata *BOARD;
+	BOARDdata_t *BOARD;
 	BOARD = BOARD_init(1);
 	
-	RCVsys *RCV;
+	RCVsys_t *RCV;
 	RCV = RCV_init( FPGA, 1 );
 	
 	// variables req'd to setup epoll to monitor sockets/interrupts for activity
