@@ -42,16 +42,19 @@
 #define CASE_RCV_SET_LOCAL_STORAGE 2
 #define CASE_RCV_TOGGLE_DATA_ACQ 3
 #define CASE_RCV_DIRECT_CONTROL_COMMS 4
-#define CASE_RESET_RCV_SYSTEM 5
+#define CASE_RCV_SET_PACKETSIZE 5
 
-#define CASE_ADC_POWER 6
-#define CASE_ADC_SYNC 7
-#define CASE_ADC_INITIALIZE 8		
-#define CASE_ADC_GAIN 9
-#define CASE_ADC_DIRECT_SERIAL_COMMAND 10
-#define CASE_INTERRUPT_THYSELF 11
-#define CASE_UNINTERRUPT_THYSELF 12
-#define CASE_ADC_DIRECT_CONTROL_COMMS 13
+#define CASE_RESET_RCV_SYSTEM 6
+
+#define CASE_ADC_POWER 10
+#define CASE_ADC_SYNC 11
+#define CASE_ADC_INITIALIZE 12		
+#define CASE_ADC_GAIN 13
+#define CASE_ADC_DIRECT_SERIAL_COMMAND 14
+
+#define CASE_INTERRUPT_THYSELF 21
+#define CASE_UNINTERRUPT_THYSELF 22
+#define CASE_ADC_DIRECT_CONTROL_COMMS 23
 
 void recvSysMain(int sv){
 	FPGAvars_t *FPGA;
@@ -69,10 +72,10 @@ void recvSysMain(int sv){
 	epfd = epoll_create(MAX_RCV_SYS_SOCKETS);
 	
     // create ethernet socket to communicate with server and establish connection
-	ENETsock_t **ENET;
+    ENETsock_t *enetComm;
 	ENETsettings_t enet_settings;
-	ENET = (ENETsock_t **)calloc(1,sizeof(ENETsock_t *));
-	ENET_init(ENET, &epfd, &ev, events, &enet_settings, RCV_COMM_PORT);
+	RCV->ENET = (ENETsock_t **)calloc(1,sizeof(ENETsock_t *));
+	ENET_init(RCV->ENET, &epfd, &ev, events, &enet_settings, RCV_COMM_PORT);
 	
 	IPCsock_t **IPC;
 	IPC = (IPCsock_t **)calloc(1,sizeof(IPCsock_t *));
@@ -85,6 +88,7 @@ void recvSysMain(int sv){
 	int n;
 	int nrecv;
 	uint32_t msg[10]={0};
+    int retval;
 	
 	while(1){
 		printf("into loop!\n");
@@ -107,7 +111,11 @@ void recvSysMain(int sv){
                 
                 switch(msg[0]){
                     case(CASE_RCV_RECORD_LENGTH):{
-                        RCV->setRecLen(RCV,msg[1]);
+                        retval = RCV->setRecLen(RCV,msg[1]);
+                        if(retval){
+                            printf("illegal record length, defaulting to 2048.\n");
+                        }
+
                         break;
                     }
                     case(CASE_RCV_TRIGGER_DELAY):{

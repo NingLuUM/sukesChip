@@ -139,6 +139,8 @@ RCVsys_t *RCV_init(FPGAvars_t *FPGA, int gettingKey){
 		RCV->setLocalStorage = &setLocalStorage_rcv;
 		RCV->allocateLocalStorage = &allocateLocalStorage_rcv;
 		RCV->getInterruptMsg = &getInterruptMsg_rcv;
+        RCV->setDataTransferPacketSize = &setDataTransferPacketSize_rcv;
+        RCV->spawnDataTransferSocks = &spawnDataTransferSocks_rcv;
 		
 	} else if (!gettingKey && ( RCV != NULL ) ){
         printf("releasing the shared memory\n");

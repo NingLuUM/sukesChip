@@ -11,12 +11,19 @@ void resetVars_rcv(RCVsys_t *RCV){
 	RCV->allocateLocalStorage(RCV);
 }
 	
-void setRecLen_rcv(RCVsys_t *RCV, uint32_t recLen){
-	DREF32(RCV->recLen) = recLen;
-	RCV->recLen_ref = recLen;
+int setRecLen_rcv(RCVsys_t *RCV, uint32_t recLen){
+    if(recLen<=MAX_RECLEN){
+        DREF32(RCV->recLen) = recLen;
+        RCV->recLen_ref = recLen;
+        return(0);
+    } else {
+        DREF32(RCV->recLen) = 2048;
+        RCV->recLen_ref = 2048;
+        return(1);
+    }
 }
 
-void setTrigDelay_rcv(RCVsys_t *RCV, uint32_t trigDelay){
+int setTrigDelay_rcv(RCVsys_t *RCV, uint32_t trigDelay){
 	DREF32(RCV->trigDelay) = trigDelay;
 	RCV->trigDelay_ref = trigDelay;
 }
@@ -115,63 +122,12 @@ uint32_t getInterruptMsg_rcv(RCVsys_t *RCV){
 }
 
 
-void RCV_Settings(RCVsys_t *RCV, ENETsock_t **ENET, ENETsock_t *INTR, uint32_t *msg){
-	
-	switch(msg[0]){
-		
-		case(CASE_RCV_RECORD_LENGTH):{ // change record length
-			if( msg[1]<=MAX_RECLEN ){
-				RCV->setRecLen(RCV,msg[1]);
-			} else {
-				RCV->setRecLen(RCV,2048);
-				printf("invalid recLen, defaulting to 2048, packetsize to 512\n");
-			}
-			break;
-		}
-		
-		case(CASE_RCV_TRIGGER_DELAY):{ // change adc trig delay
-			RCV->setTrigDelay(RCV, ADC_CLK*msg[1]);
-			printf("RCV: Trig Delay -- %.2f\n",((float) RCV->trigDelay_ref)/((float)ADC_CLK));
-			break;
-		}
+void setDataTransferPacketSize_rcv(RCVsys_t *RCV, uint32_t packetsize){
 
-		case(CASE_RCV_SET_LOCAL_STORAGE):{
-            // msg[1] = isLocal ( 0 = False , 1 = True )
-            // msg[2] = nPulses 
-			RCV->setLocalStorage(RCV,msg[1],msg[2]);
-			break;
-		}
-		
-		case(CASE_RCV_TOGGLE_DATA_ACQ):{
-            g_dataAcqGo = ( msg[1] == 1 || msg[1] == 0 ) ? msg[1] : 0;
-			if( g_dataAcqGo ){
-                RCV->allocateLocalStorage(RCV);
-                (*ENET)->settings->numPorts = (RCV->recLen_ref-1)/((*ENET)->settings->packetsize) + 1;
-                if(RCV->isLocal==0){
-                    RCV->setDataAddrPointers(RCV, ENET);
-                }
-                RCV->setDataAddrPointers(RCV, ENET);
-            }
-			break;
-		}
-		
-		case(CASE_RCV_DIRECT_CONTROL_COMMS):{
-			DREF32(RCV->controlComms) = msg[1];
-			printf("adccomms[%d], %lu\n",msg[1],(long unsigned int)msg[2]);			
-			break;
-		}					
-	
-        case(CASE_RESET_RCV_SYSTEM):{
-            RCV->resetVars(RCV);
-            RCV->setDataAddrPointers(RCV,ENET);
-            break;
-        }
+}
 
-		default:{
-			printf("default case ADC_settings, doing nothing\n");
-            break;
-		}
-		
-	}
+
+void spawnDataTransferSocks_rcv(RCVsys_t *RCV){
+
 }
 

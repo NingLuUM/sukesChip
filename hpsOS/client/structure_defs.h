@@ -35,13 +35,15 @@ void setGain_adc(RCVsys_t *RCV, uint32_t coarseGain, uint32_t fineGain);
 // function prototypes for RCV subsystem
 void resetVars_rcv(RCVsys_t *RCV);	
 void stateResetFPGA_rcv(RCVsys_t *RCV);
-void setRecLen_rcv(RCVsys_t *RCV, uint32_t recLen);
-void setTrigDelay_rcv(RCVsys_t *RCV, uint32_t trigDelay);
+int setRecLen_rcv(RCVsys_t *RCV, uint32_t recLen);
+int setTrigDelay_rcv(RCVsys_t *RCV, uint32_t trigDelay);
 void adcmemcpy_rcv(char *dest, int32_t volatile *sourceData, size_t nbytes);
 void copyDataToMem_rcv(RCVsys_t *RCV);
-void setDataAddrPointers_rcv(RCVsys_t *RCV, ENETsock_t **ENET);
+void setDataAddrPointers_rcv(RCVsys_t *RCV);
 void setLocalStorage_rcv(RCVsys_t *RCV, uint32_t isLocal, uint32_t nPulses);
 void allocateLocalStorage_rcv(RCVsys_t *RCV);
+void setDataTransferPacketSize_rcv(RCVsys_t *RCV, uint32_t packetsize);
+void spawnDataTransferSocks_rcv(RCVsys_t *RCV);
 uint32_t getInterruptMsg_rcv(RCVsys_t *RCV);
 
 // function prototypes for ENET
@@ -202,17 +204,20 @@ typedef struct RCVsys_{
 	uint32_t currentPulse;
 	
 	char **data;
-	
+    
+    ENETsock_t **ENET;
     ADCchip_t *ADC;
 
 	void (*resetVars)(RCVsys_t *);
 	void (*stateResetFPGA)(RCVsys_t *);
-	void (*setRecLen)(RCVsys_t *, uint32_t);
-	void (*setTrigDelay)(RCVsys_t *, uint32_t);
+	int (*setRecLen)(RCVsys_t *, uint32_t);
+	int (*setTrigDelay)(RCVsys_t *, uint32_t);
 	void (*copyDataToMem)(RCVsys_t *);
-	void (*setDataAddrPointers)(RCVsys_t *, ENETsock_t **);
+	void (*setDataAddrPointers)(RCVsys_t *);
 	void (*setLocalStorage)(RCVsys_t *, uint32_t, uint32_t);
     void (*allocateLocalStorage)(RCVsys_t *);
+    void (*setDataTransferPacketSize)(RCVsys_t *);
+    void (*spawnDataTransferSocks)(RCVsys_t *);
 	uint32_t (*getInterruptMsg)(RCVsys_t *);
 } RCVsys_t;
 
