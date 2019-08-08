@@ -57,11 +57,11 @@
 #define CASE_ADC_DIRECT_CONTROL_COMMS 23
 
 void recvSysMain(int sv){
-	FPGAvars_t *FPGA;
-	FPGA = getSharedFpga();
+	FPGAvars_t FPGA;
+	FPGA_init(&FPGA);
 	
-	RCVsys_t *RCV;
-	RCV = getSharedRcv();
+	RCVsys_t RCV;
+	RCV_init(&RCV);
 	
 	char *data;
 	data = *(RCV->data);
@@ -191,7 +191,7 @@ void recvSysMain(int sv){
 	}
 	
 	ENETsock_t *enet, *tmp;
-	enet = (*ENET)->commsock;
+	enet = (*(RCV->ENET))->commsock;
 	while(enet->prev != NULL){
 		enet = enet->prev;
 	}
@@ -201,7 +201,7 @@ void recvSysMain(int sv){
 		free(tmp);
 	}
 
-	free(ENET);
+	free(RCV->ENET);
 	free(*IPC);
 	free(IPC);
 	FPGA->elbows=35;

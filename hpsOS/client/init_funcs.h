@@ -16,7 +16,7 @@ void FPGAclose(FPGAvars_t *FPGA){ // closes the memory mapped file with the FPGA
 }
 
 
-int FPGA_mmap_vars(FPGAvars_t *FPGA){ // maps the FPGA hardware registers to the variables in the FPGAvars_t struct
+int FPGA_init(FPGAvars_t *FPGA){ // maps the FPGA hardware registers to the variables in the FPGAvars_t struct
 	
 	if( ( FPGA->fd_pio = open( "/dev/mem", ( O_RDWR | O_SYNC ) ) ) == -1 ) {
 		printf( "ERROR: could not open \"/dev/mem\"...\n" );
@@ -48,41 +48,6 @@ int FPGA_mmap_vars(FPGAvars_t *FPGA){ // maps the FPGA hardware registers to the
 }
 
 
-FPGAvars_t *FPGA_init(int gettingKey) {  
-    static FPGAvars_t *FPGA = NULL;
-    static int shmid;
-    
-    if(gettingKey){
-		printf("getting shared FPGA vars\n");
-		
-        // Create a shared memory segment of size: data_size and obtain its shared memory id
-        if((shmid = shmget(g_shmkey_fpga, sizeof(FPGAvars_t), IPC_CREAT | 0660)) < 0) {
-            printf("Error getting shared memory id\n");
-        }
-
-        // Make shared_memory point to the newly created shared memory segment
-        if((FPGA = shmat(shmid, NULL, 0)) == (FPGAvars_t *) -1) {
-            printf("Error attaching shared memory\n");
-        }
-		
-		FPGA_mmap_vars(FPGA); 
-		FPGA->elbows = 11;
-		printf("shmid init = %d\n",shmid);
-		
-        
-        
-    } else if ( !gettingKey && ( FPGA != NULL ) ){
-        printf("releasing the shared memory\n");
-        FPGAclose(FPGA);
-        shmdt(FPGA);
-        shmctl(shmid, IPC_RMID, NULL);
-    } else {
-        printf("bad shared memory something or other\n");
-    }
-    return(FPGA);
-}
-
-
 void ADC_setup(FPGAvars_t *FPGA, ADCchip_t *ADC){
 
 	ADC->serialCommand = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_SERIAL_COMMAND_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
@@ -95,63 +60,36 @@ void ADC_setup(FPGAvars_t *FPGA, ADCchip_t *ADC){
 }
 
 
-RCVsys_t *RCV_init(FPGAvars_t *FPGA, int gettingKey){
-	RCVsys_t *RCV = NULL;
-	int shmid;
+void RCV_init(FPGAvars_t *FPGA, RCVsys_t *RCV, ADCchip_t *ADC){
+    
+    ADC = (ADCchip_t *)calloc(1,sizeof(ADCchip_t));
+    ADC_setup(FPGA,ADC);
+    
+    RCV->ADC = ADC;
+
+    RCV->stateReset = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_FPGA_STATE_RESET_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    RCV->controlComms = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_CONTROL_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    RCV->recLen = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_SET_ADC_RECORD_LENGTH_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    RCV->trigDelay = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_SET_ADC_TRIG_DELAY_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    RCV->interrupt0 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_INTERRUPT_GENERATOR_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    RCV->ramBank0 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK0_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+    RCV->ramBank1 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK1_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+    RCV->ramBank2 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK2_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+
+    RCV->data = (char **)malloc(sizeof(char *));
+    *(RCV->data)=NULL;
+    RCV->resetVars = &resetVars_rcv;
+    RCV->stateResetFPGA = &stateResetFPGA_rcv;
+    RCV->setRecLen = &setRecLen_rcv;
+    RCV->setTrigDelay = &setTrigDelay_rcv;
+    RCV->copyDataToMem = &copyDataToMem_rcv;
+    RCV->setDataAddrPointers = &setDataAddrPointers_rcv;
+    RCV->setLocalStorage = &setLocalStorage_rcv;
+    RCV->allocateLocalStorage = &allocateLocalStorage_rcv;
+    RCV->getInterruptMsg = &getInterruptMsg_rcv;
+    RCV->setDataTransferPacketSize = &setDataTransferPacketSize_rcv;
+    RCV->spawnDataTransferSocks = &spawnDataTransferSocks_rcv;
 	
-	if(gettingKey){
-		printf("getting shared RCVsys_t\n");
-		
-        // Create a shared memory segment of size: data_size and obtain its shared memory id
-        if((shmid = shmget(g_shmkey_rcv, sizeof(RCVsys_t), IPC_CREAT | 0660)) < 0) {
-            printf("Error getting shared memory id\n");
-        }
-
-        // Make shared_memory point to the newly created shared memory segment
-        if((RCV = shmat(shmid, NULL, 0)) == (RCVsys_t *) -1) {
-            printf("Error attaching shared memory RCVsys_t\n");
-        }
-        
-        ADCchip_t *ADC;
-        
-        ADC = (ADCchip_t *)calloc(1,sizeof(ADCchip_t));
-        ADC_setup(FPGA,ADC);
-        
-		RCV->ADC = ADC;
-
-		RCV->stateReset = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_FPGA_STATE_RESET_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-		RCV->controlComms = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_CONTROL_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-		RCV->recLen = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_SET_ADC_RECORD_LENGTH_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-		RCV->trigDelay = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_SET_ADC_TRIG_DELAY_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-		RCV->interrupt0 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_INTERRUPT_GENERATOR_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-		RCV->ramBank0 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK0_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-		RCV->ramBank1 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK1_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-		RCV->ramBank2 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK2_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-
-		RCV->data = (char **)malloc(sizeof(char *));
-		*(RCV->data)=NULL;
-		RCV->resetVars = &resetVars_rcv;
-		RCV->stateResetFPGA = &stateResetFPGA_rcv;
-		RCV->setRecLen = &setRecLen_rcv;
-		RCV->setTrigDelay = &setTrigDelay_rcv;
-		RCV->copyDataToMem = &copyDataToMem_rcv;
-		RCV->setDataAddrPointers = &setDataAddrPointers_rcv;
-		RCV->setLocalStorage = &setLocalStorage_rcv;
-		RCV->allocateLocalStorage = &allocateLocalStorage_rcv;
-		RCV->getInterruptMsg = &getInterruptMsg_rcv;
-        RCV->setDataTransferPacketSize = &setDataTransferPacketSize_rcv;
-        RCV->spawnDataTransferSocks = &spawnDataTransferSocks_rcv;
-		
-	} else if (!gettingKey && ( RCV != NULL ) ){
-        printf("releasing the shared memory\n");
-        shmdt(RCV);
-        shmctl(shmid, IPC_RMID, NULL);
-        
-    } else {
-        printf("bad shared memory something or other\n");
-    }
-	
-	return(RCV);
 }
 
 /*
@@ -230,21 +168,4 @@ BOARDdata_t *BOARD_init(int gettingKey){ // load the boards specific data from f
     	
 }
 
-
-RCVsys_t *getSharedRcv(){
-	RCVsys_t *RCV;
-	static int shmid;
-    shmid = shmget(g_shmkey_rcv, sizeof(RCVsys_t), IPC_CREAT | 0660);
-	RCV = shmat(shmid, NULL, 0);
-	return(RCV);
-}
-
-
-FPGAvars_t *getSharedFpga(){
-	FPGAvars_t *FPGA;
-	static int shmid;
-    shmid = shmget(g_shmkey_fpga, sizeof(FPGAvars_t), IPC_CREAT | 0660);
-	FPGA = shmat(shmid, NULL, 0);
-	return(FPGA);
-}
 
