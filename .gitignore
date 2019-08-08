@@ -107,3 +107,7 @@ output_files/*
 
 # ignore all Quartus .sof files (fairly large)
 *.sof
+
+# ignore vim swap files
+
+*.swp
