@@ -57,11 +57,12 @@
 #define CASE_ADC_DIRECT_CONTROL_COMMS 23
 
 void recvSysMain(int sv){
+
 	FPGAvars_t FPGA;
 	FPGA_init(&FPGA);
 	
 	RCVsys_t RCV;
-	RCV_init(&RCV);
+	RCV_init(&FPGA, &RCV);
 	
 	char *data;
 	data = *(RCV->data);
@@ -204,7 +205,6 @@ void recvSysMain(int sv){
 	free(RCV->ENET);
 	free(*IPC);
 	free(IPC);
-	FPGA->elbows=35;
 	
 	//~ printf("childaaaa in\n");
 	//~ send(sv, &msg, 10*sizeof(uint32_t), 0);

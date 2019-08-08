@@ -60,8 +60,8 @@ void ADC_setup(FPGAvars_t *FPGA, ADCchip_t *ADC){
 }
 
 
-void RCV_init(FPGAvars_t *FPGA, RCVsys_t *RCV, ADCchip_t *ADC){
-    
+void RCV_init(FPGAvars_t *FPGA, RCVsys_t *RCV){
+    ADCchip_t *ADC;   
     ADC = (ADCchip_t *)calloc(1,sizeof(ADCchip_t));
     ADC_setup(FPGA,ADC);
     

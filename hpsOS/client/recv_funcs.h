@@ -1,3 +1,4 @@
+
 void resetVars_rcv(RCVsys_t *RCV){
 	DREF32(RCV->recLen) = 2048; 
 	DREF32(RCV->trigDelay) = 0;
