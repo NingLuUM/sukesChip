@@ -76,8 +76,8 @@ void RCV_init(FPGAvars_t *FPGA, RCVsys_t *RCV){
     RCV->ramBank1 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK1_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
     RCV->ramBank2 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK2_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 
-    RCV->data = (char **)malloc(sizeof(char *));
-    *(RCV->data)=NULL;
+    RCV->data = (char **)calloc(1,sizeof(char *));
+    *(RCV->data)=(char *)calloc(MAX_RECLEN*ADC_NBITS*ADC_NCHAN/BITS_PER_BYTE,sizeof(uint32_t));
     RCV->resetVars = &resetVars_rcv;
     RCV->stateResetFPGA = &stateResetFPGA_rcv;
     RCV->setRecLen = &setRecLen_rcv;
@@ -167,5 +167,46 @@ BOARDdata_t *BOARD_init(int gettingKey){ // load the boards specific data from f
     return(BOARD);
     	
 }
+
+// TODO
+// need to decide if this should be shared segment or mapped file
+char *makeLocalDataShare(int gettingKey,uint32_t dataSize) {  
+    static char *localData = NULL;
+    static int shmid;
+    
+    if(gettingKey){
+        printf("getting shared FPGA vars\n");
+               
+        // Create a shared memory segment of size: data_size and obtain its shared memory id
+        if((shmid = shmget(g_shmkey_localData, dataSize*sizeof(uint32_t), IPC_CREAT | 0660)) < 0) {
+            printf("Error getting shared memory id\n");
+        }
+
+        // Make shared_memory point to the newly created shared memory segment
+        if((FPGA = shmat(shmid, NULL, 0)) == (char *) -1) {
+            printf("Error attaching shared memory\n");
+        }
+        printf("shmid init = %d\n",shmid);
+        
+    } else if ( !gettingKey && ( localData != NULL ) ){
+        printf("releasing the shared memory\n");
+        shmdt(localData);
+        shmctl(shmid, IPC_RMID, NULL);
+    } else {
+        printf("bad shared memory something or other\n");
+    }
+    return(localData);
+}
+
+
+char *getLocalDataShare(uint32_t dataSize){
+    char *localData;
+    static int shmid;
+    shmid = shmget(g_shmkey_localData, dataSize*sizeof(char *), IPC_CREAT | 0660);
+    localData = shmat(shmid, NULL, 0);
+    return(localData);
+}
+
+
 
 

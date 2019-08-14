@@ -204,6 +204,7 @@ typedef struct RCVsys_{
 	uint32_t currentPulse;
 	
 	char **data;
+    char *localData;
     
     ENETsock_t **ENET;
     ADCchip_t *ADC;

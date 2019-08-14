@@ -56,6 +56,7 @@
 #define ADC_CLK		(25)	// MHz
 #define ADC_NBITS	(12)
 #define ADC_NCHAN	(8)
+#define BITS_PER_BYTE (8)
 
 #define TX_CLK		(100)
 #define TX_NCHAN	(8)
