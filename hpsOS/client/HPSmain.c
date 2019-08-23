@@ -27,7 +27,8 @@
 #include "soc_cv_av/socal/socal.h" // /intelFPGA/17.1/embedded/ip/altera/hps/altera_hps/hwlib/include/soc_cv_av/socal/socal.h
 #include "soc_cv_av/socal/hps.h" // /intelFPGA/17.1/embedded/ip/altera/hps/altera_hps/hwlib/include/soc_cv_av/socal/hps.h
 #include "soc_cv_av/socal/alt_gpio.h"       
-#include "hps_0_fancy.h"
+//~ #include "hps_0_receiveOnly.h"
+#include "hps_0_largeRecv.h"
 
 #define HW_REGS_BASE ( ALT_STM_OFST )  
 #define HW_REGS_SPAN ( 0x04000000 )   
@@ -48,361 +49,119 @@
 #define DREFP16(X)	( ( uint16_t *) X )
 #define DREFP32(X)	( ( uint32_t *) X )
 #define DREFP32S(X)	( ( int32_t *) X )
+#define DREFP64(X)	( ( uint64_t *) X )
+#define DREFP64S(X)	( ( int64_t *) X )
+#define DREFPCHAR(X)	( ( char *) X )
 
+#define INIT_PORT 3400
+#define MAX_RECLEN 32768
+#define COMM_PORT 0
+#define MAX_SOCKETS (10)
+#define ENET_MSG_SIZE (10)
 
-
-
-#define MAX_ENET_TRANSMIT_SIZE ( 1460 )
 #define ADC_CLK		(25)	// MHz
 #define ADC_NBITS	(12)
 #define ADC_NCHAN	(8)
 #define BITS_PER_BYTE (8)
 
-#define TX_CLK		(100)
-#define TX_NCHAN	(8)
-#define MAX_HPS_MAIN_SOCKETS (10)
-#define MAX_RCV_SYS_SOCKETS (64)
-#define MAX_TX_SYS_SOCKETS (4)
-#define ENET_MSG_SIZE ( 10 )
+// states defined in the lvds.v module
+#define ADC_HARDWARE_RESET				( 0xFF )
 
+#define GEN_SERIAL_CMD(ADDR,CMD) ( ( ADDR<<16 ) | CMD )
 
-
-// commands for Output_Control_Module
-#define	TX_HARD_RESET 			( 0x00 )
-#define	TX_SOFT_RESET 			( 0x01 )
-#define TX_LOAD_PROGRAM			( 0x02 )
-#define TX_SET_TRIG_OUTPUT		( 0x04 )
-#define TX_SET_TRIG_REST_LEVEL	( 0x05 )
-#define TX_TEST_TRIG_OUTPUT		( 0x06 )
-#define TX_SET_LED_OUTPUT		( 0x08 )
-#define TX_RUN_PROGRAM			( 0x80 )
-
-
-#define INIT_PORT 3400
-
-#define CASE_BOARD_SETTINGS 0
-#define CASE_ADC_SETTINGS 1
-#define CASE_TX_SETTINGS 2
-
-
-// interrupt messages from adc
-#define ADC_INTERRUPT_DATA_IS_READY (0x01)
-#define RCV_UNSET_INTERRUPT (0x90) //0b10010000
-
-// case flags for switch statement in FPGA_dataAcqController
-
-#define CASE_CLOSE_PROGRAM 100
-#define CASE_KILLPROGRAM 101
-
-
-#define MAX_RECLEN 8192
-#define MIN_PACKETSIZE 128
-
-#define COMM_PORT 0
-#define RCV_COMM_PORT 100
-#define TX_COMM_PORT 200
-
-#define LAUNCH_RECV_SUBSYS 1
-#define CASE_RECV_SYS_ACTIONS 1
-#define CASE_TX_SYS_ACTIONS 2
-//~ #define IPC_SHARED_MEM_KEY 1234
-
-uint32_t g_boardData[10] = {0};
-uint32_t g_boardNum;
-uint32_t enetmsg[10] = {0}; // messaging variable to handle messages from cServer
-uint32_t emsg[10] = {0}; // messaging variable to send to messages to cServer
-
-
-
-
-int RUN_MAIN = 1;
-const int ONE = 1;
-const int ZERO = 0;	
-key_t g_shmkey_fpga = 1000;
-key_t g_shmkey_board = 2000;
-key_t g_shmkey_rcv = 3000;
-
-size_t enetMsgSize = ENET_MSG_SIZE*sizeof(uint32_t);
-
-int g_dataAcqGo=0;
-
-const char *g_serverIP;
+#define ADC_IDLE_STATE				( 0x00 )
+#define ADC_BUFFER_SERIAL_COMMAND	( 0x01 )
+#define ADC_ISSUE_SERIAL_COMMAND	( 0x02 )
+#define ADC_SYNC_COMMAND			( 0x04 )
 
 struct timespec gstart, gend;
 
-// load user defined functions 
-#include "structure_defs.h"
-
-#include "enet_funcs.h"
-#include "ipc_funcs.h"
-#include "adc_funcs.h"
-#include "recv_funcs.h"
-#include "init_funcs.h"
-
-
-#include "recv_sys.h"
-
-
-//~ TXvars TX;
-//~ extern void recvSysMain(int);
-
-
-int main(int argc, char *argv[]) { printf("into main!\n");
-	g_serverIP=argv[1];
-	
-	// variables shared between sub-processes
-	// TODO: should probably throw in some mutexs
-	FPGAvars_t FPGA;
-	FPGA_init(&FPGA);
-	
-	BOARDdata_t *BOARD;
-	BOARD = BOARD_init(1);
-	
-	// variables req'd to setup epoll to monitor sockets/interrupts for activity
-	int epfd;
-	struct epoll_event ev;
-	struct epoll_event events[MAX_HPS_MAIN_SOCKETS];
-	epfd = epoll_create(MAX_HPS_MAIN_SOCKETS);
-	
-    // create ethernet socket to communicate with server and establish connection
-	ENETsock_t **ENET;
-	ENETsettings_t enet_settings;
-	ENET = (ENETsock_t **)calloc(1,sizeof(ENETsock_t *));
-	ENET_init(ENET, &epfd, &ev, events, &enet_settings, COMM_PORT);
-	
-	// create ipc sockets to communicate with tx/rcv subsystems
-	IPCsock_t **IPC;
-	IPC = (IPCsock_t **)calloc(2,sizeof(IPCsock_t *));
-	IPC[0]=NULL; // rcv subsys ipc
-	IPC[1]=NULL; // tx subsys ipc
-	
-	
-	// create connections to the interrupt lines
-	//~ ENETsock *INTR = NULL;
-	//~ connectInterrupt_intr(&INTR,"gpio@0x100000000",0); // tx interrupt 0
-	//~ connectInterrupt_intr(&INTR,"gpio@0x100000010",1); // tx interrupt 1
-	
-	
-	/* contains: fd, socket type, (void *)ptr to parent
-	 * makes it easier to poll variables that have a common type
-	 * to access the fields of each specific type of socket
-	 * cast ptr to parent to appropriate type and dereference it
-	*/
-	SOCKgeneric_t *sock;
-	
-	int timeout_ms = 1000;
-	int nfds;
-	int n;
-	int nrecv;
-	pid_t cpid;
-	
-	while(RUN_MAIN == 1){
-		printf("into loop!\n");
-		sleep(1);
-	
-        // TODO: THIS IS JUST FOR TESTING. DELETE IT LATER	
-		if (IPC[0] == NULL)
-			recvSysHandler(IPC, &epfd, &ev, events, &enetmsg[1]);
-		
-		nfds = epoll_wait(epfd, events, MAX_HPS_MAIN_SOCKETS, timeout_ms);
-		if( nfds < 0 ){
-			perror("error sending data:");
-		}
-		if( nfds > 0 ){
-			
-            printf("nfds = %d\n",nfds);
-            for(n = 0; n < nfds; n++){
-				
-                sock = (SOCKgeneric_t *)events[n].data.ptr;
-                nrecv = recv(sock->fd,&enetmsg,enetMsgSize,0);
-				setsockopt(sock->fd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-				printf("elbows = %d\n",FPGA->elbows);
-				if(nrecv > 0){
-					
-					printf("nrecv %d\n",nrecv);
-					for(int i=0;i<10;i++) printf("\tmsg[%d]:%d\n",i,enetmsg[i]);
-					
-					if (sock->is.enetCommSock){
-						switch(enetmsg[0]){
-							case(CASE_RECV_SYS_ACTIONS):{
-								
-								//~ recvSysHandler(IPC, &epfd, &ev, events, &enetmsg[1]);
-								
-								break;
-							}
-							
-							case(CASE_TX_SYS_ACTIONS):{
-								
-								break;
-							}
-							
-							case(CASE_CLOSE_PROGRAM):{
-								break;
-							}
-						}	
-					} else {
-						printf("nobgo nopgo = %d\n",enetmsg[0]);
-						enetmsg[0]++;
-						send(IPC[0]->sock.fd, &enetmsg, 10*sizeof(uint32_t), 0);
-					}
-					
-				} else {
-					if(sock->is.ipcRx){
-						epoll_ctl(epfd, EPOLL_CTL_DEL, sock->fd, &ev);
-						close(sock->fd);
-						cpid = waitpid( ((IPCsock_t *)(sock->parent))->ipc_pid, NULL , 0 );
-						printf("the child is dead, a, %d, %p\n",cpid,(sock->parent));
-						if(cpid>0){
-							free(sock->parent);
-							IPC[0]=NULL;
-						}
-							
-					}	
-				}
-			}
-                
-		}
+struct timespec diff(struct timespec start, struct timespec end){
+	struct timespec temp;
+	if ((end.tv_nsec-start.tv_nsec)<0) {
+		temp.tv_sec = end.tv_sec-start.tv_sec-1;
+		temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
+	} else {
+		temp.tv_sec = end.tv_sec-start.tv_sec;
+		temp.tv_nsec = end.tv_nsec-start.tv_nsec;
 	}
+	return temp;
 	
-	
-	
-	
-    //~ uint32_t enetmsg[ENET_MSG_SIZE] = {0}; // messaging variable to handle messages from cServer
-    //~ uint32_t emsg[ENET_MSG_SIZE] = {0}; // messaging variable to send to messages to cServer
-	
-    //~ // declare and initialize variables for the select loop
-	//~ int n;
-	//~ char dummybuff[100];
-	//~ int nready,nrecv;
-	//~ int nrecv_reg;
-	//~ int nfds;
+	//~ clock_gettime(CLOCK_MONOTONIC, &gstart);
+	//~ something();
+	//~ clock_gettime(CLOCK_MONOTONIC, &gend);
+	//~ difftime = diff(gstart,gend);
+	//~ printf("adcmemcpy: %ld us\n",difftime.tv_nsec/1000);
+};
 
-	
-	
-	
-	
-	//~ ENETsock *enet;
+#include "client_funcs.h"
 
-    //~ ENET->addPollSock(&ENET,TX_RECV_PORT);
-    //~ ENET->addPollSock(&ENET,TX_RECV_PORT);
-
-	//~ int timeout_ms = 1000;
-	//~ int ummmm=0;
-	//~ struct timespec difftime;
+void cmdFileReader(ADCvars_t *ADC){
+	ADCREG_t cmdreg;
+	FILE *cmdfile = fopen("command_file.txt","r");
+	char line[256];
 	
-	//~ while(RUN_MAIN == 1){
+    while( fgets(line, sizeof(line), cmdfile) ){
+        cmdreg.adccmd = (uint32_t )atoi(line);
+        printf("fileread: %u\n",cmdreg.adccmd);
+        if(cmdreg.adccmd){
+			adcIssueSerialCmd(ADC,(cmdreg.adccmd & 0x00ffffff) );
+		}
+        usleep(1000);
+    }  
+    fclose(cmdfile);
+	
+}
 
-		//~ nfds = epoll_wait(epfd, events, MAX_SOCKETS, timeout_ms);
-		//~ if( nfds < 0 ){
-			//~ perror("error sending data:");
-		//~ }
-		//~ if( nfds > 0 ){
-			
-            //~ for(n = 0; n < nfds; n++){
 
-                //~ enet = (ENETsock *)events[n].data.ptr;
-                
-			    //~ if ( enet->is_tx_interrupt ) {
-					//~ clock_gettime(CLOCK_MONOTONIC, &gend);
-					//~ difftime = diff(gstart,gend);
-					
-					
-				//~ } else if ( enet->is_rcv_interrupt ) {
-					//~ if( RCV.getInterruptMsg(&RCV) == ADC_INTERRUPT_DATA_IS_READY ){
-                        //~ if( RCV.isLocal ){
-                            //~ if ( RCV.copyDataToMem( &RCV ) ){
-                                //~ RCV.currentPulse++;
-                                //~ DREF32(RCV.controlComms) = RCV_UNSET_INTERRUPT; 
-                            //~ } else {
-                                //~ printf("error copying data from RCV to local\n");
-                            //~ }
-                            //~ // TODO: set up actions for when data is done being captured locally
-                            //~ if ( RCV.currentPulse == RCV.nPulses ) {
-                                //~ printf("now what?\n");
-                            //~ }
-                        //~ } else {
-						    //~ ENET->sendAcqdData(&ENET,&RCV,0);
-                        //~ }
-					//~ }
-					
-				//~ } else if ( enet->is_commsock ) {
-					//~ nrecv = recv(enet->sockfd,&enetmsg,enetMsgSize,0);	
-					//~ setsockopt(enet->sockfd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-					
-					//~ if(nrecv > 0){
-						
-						//~ switch(enetmsg[0]){
-							//~ case(CASE_BOARD_SETTINGS):{
-								//~ BOARD_settings(&RCV, &ENET, &enetmsg[1]);
-								//~ break;
-							//~ }
-							
-							//~ case(CASE_ADC_SETTINGS):{
-								//~ ADC_Settings(&ADC, &ENET, INTR, &enetmsg[1]);							
-								//~ break;
-							//~ }
-							
-							//~ case(CASE_TX_SETTINGS):{
-                                //~ TX_Settings(&TX, &ENET, &enetmsg[1]); 
-								
-								//~ break;
-							//~ }
-															
-							//~ case(CASE_CLOSE_PROGRAM):{
-								//~ RUN_MAIN = 0;
-								//~ break;
-							//~ }
-							
-							//~ case(CASE_KILLPROGRAM):{
-								//~ RUN_MAIN = 0;
-								//~ break;
-							//~ }
-							
-							//~ default:{
-								//~ ADC_Controller(&FPGA, &ADC, &TX, &ENET, phaseDelays, chargeTimes);
-								//~ break;
-							//~ }
-						//~ }
-					//~ } else {
-						//~ printf("nrecv = %d\n",nrecv);
-						//~ RUN_MAIN = 0;
-					//~ }
 
-				//~ } else if ( enet->is_tx_recvsock ) {
-                    //~ ntxrecv = recv(enet->sockfd,&txrcv_buff,TX->recvBuff,MSG_WAITALL); // grr... waitall. much inefficient.
-                    //~ setsockopt(enet->sockfd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-                    //~ TX->parseRecvdInstructions(TX);
-                //~ } else {
-					//~ DREF32(TX.controlComms) = 0;
-					//~ nrecv = recv(enet->sockfd,&enetmsg,enetMsgSize,0);
-                    //~ if(nrecv == 0){
-                        //~ disconnectSock(&ENET, enet->portNum);
-                    //~ } else if (nrecv == -1){
-                        //~ perror("recv being dumb\n");
-                    //~ } else {
-                        //~ printf("illegal recv (n = %d) on port %d, msg = [%lu, %lu, %lu, %lu]\n, shutting down client\n",nrecv,enet->portNum,(unsigned long)enetmsg[0],(unsigned long)enetmsg[1],(unsigned long)enetmsg[2],(unsigned long)enetmsg[3]);
-                        //~ RUN_MAIN = 0;
-                    //~ }
-				//~ }
-			//~ }
-		//~ }
-	//~ }
-    
-    //~ while( ENET != NULL ){
-        //~ enet = ENET;
-        //~ ENET = enet->next;
-        //~ free(enet);
-    //~ }
-    
-    //~ free(*(ADC.data));
-    //~ free(ADC.data);
-    //~ free(txOutputControlReg); free(txTimingReg);
-    //~ free(txLoopAddressReg); free(txLoopCounterReg);
-    //~ free(phaseDelays); free(chargeTimes);
-    
-    //~ FPGAclose(&FPGA);
-	//~ sleep(1);
-    //~ return( 0 );
+int main(int argc, char *argv[]) { printf("into main! %d\n",argc);
+	
+	remove("data_file.dat");
+	
+	FPGAvars_t FPGA;
+	ADCvars_t ADC;
+	
+	FPGA_init(&FPGA);
+	ADC_init(&FPGA,&ADC);
+
+	setLEDS(&ADC,0x1f);
+
+	uint32_t recLen = 2048;
+	uint32_t varGain = 0;
+	double gain = 0.0;
+	uint32_t set_unsigned = 0;
+	uint32_t set_lownoise = 0;
+	
+	if(argc>1) recLen = (uint32_t )atoi(argv[1]);
+	if(argc>2) varGain = (uint32_t )atoi(argv[2]);
+	if(argc>3) gain = atof(argv[3]);
+	if(argc>4) set_unsigned = (uint32_t )atoi(argv[4]);
+	if(argc>5) set_lownoise = (uint32_t )atoi(argv[5]);
+	
+	setRecLen(&ADC,recLen);
+	setVarGain(&ADC,varGain);
+	
+	adcInitializeSettings(&ADC);
+	usleep(100);
+	
+	adcSetGain(&ADC,gain);
+	usleep(100);
+	adcSetDTypeUnsignedInt(&ADC, set_unsigned);
+	usleep(100);
+	adcSetLowNoiseMode(&ADC, set_lownoise);
+
+	adcSetReg1(&ADC);
+	usleep(100);
+	adcSetReg7(&ADC);
+	usleep(100);
+	
+	//~ cmdFileReader(&ADC);
+
+	queryData(&ADC);
+	
+	FPGAclose(&FPGA);
+	return(0);
 }
 
  

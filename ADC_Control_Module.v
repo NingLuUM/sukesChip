@@ -11,57 +11,36 @@ module ADC_Control_Module(
 	
 	output reg				ADC_SDATA,
 	output reg				ADC_SEN,
-	output reg				ADC_PDN,
 	
 	input					ADC_SCLK,
 	input					ADC_SDOUT,	
 	input [7:0]				ADC_INPUT_DATA_LINES,
 	
 	input					iSystemTrig,
-	input					iTxTrigger,
 	
-	input [31:0]			iTrigDelay,
-	input [12:0]			iRecLength,
+	input [14:0]			iRecLength,
 	input					iStateReset,
+	output reg [7:0]	oDataReady,
 	
-	output reg				oTriggerAck,
-	output reg [2:0][31:0]	oADCData,
-	output reg [2:0]		oWREN,
-	output reg [12:0]		oWAddr,
+	output reg [7:0]	oBYTEEN0,
+	output reg [63:0]	oADCData0,
 	
-	output reg [7:0]		oArmInterrupt
+	output reg [3:0]	oBYTEEN1,
+	output reg [31:0]	oADCData1,
+	
+	output reg [1:0]		oWREN,
+	output reg [1:0]		oCLKEN,
+	output reg [1:0]		oCHIPSEL,
+
+	output reg [14:0]		oWAddr
+
 );
 
-initial
-begin
-	ADC_PDN = 1'b1;
-	ADC_RESET = 1'b0;
-	ADC_SEN = 1'b1;
-	ADC_SYNC = 1'b0;
-	ADC_SDATA = 1'b0;
-end
 
-// regs and wires
-reg [1:0] trig_received_flag = 2'b0;
-reg write_complete_flag = 1'b0;
-
-
-
-reg [12:0] 	waddr_cntr;
-reg [31:0] txReadyTimeout = 32'b0;
-
-
-wire [7:0][11:0] data_out; 
-
-
-wire [ 7: 0] data_out_h;
-wire [ 7: 0] data_out_l;
 reg [ 7: 0][11:0] data_sr;
 reg [ 7: 0][9:0] data_prev;
 
-
-reg powerCycleWaitFlag = 1'b1;
-reg syncFlag = 1'b0;
+reg syncFlag;
 
 // SERIAL CLOCK AND COMMANDS:
 // Serial commands (Address is 8 bits, register contents are 16 bits)
@@ -71,30 +50,61 @@ reg syncFlag = 1'b0;
 //parameter set_coarse_gain 	= 8'b10011010;//0000000000001100; //
 //parameter set_fine_gain		= 8'b10011001;
 
-wand [7:0] adc_state;
-assign adc_state[0] = adc_control_comm[0]; assign adc_state[0] = adc_control_comm[7]; 
-assign adc_state[1] = adc_control_comm[1]; assign adc_state[1] = adc_control_comm[7]; 
-assign adc_state[2] = adc_control_comm[2]; assign adc_state[2] = adc_control_comm[7]; 
-assign adc_state[3] = adc_control_comm[3]; assign adc_state[3] = adc_control_comm[7]; 
-assign adc_state[4] = adc_control_comm[4]; assign adc_state[4] = adc_control_comm[7]; 
-assign adc_state[5] = adc_control_comm[5]; assign adc_state[5] = adc_control_comm[7]; 
-assign adc_state[6] = adc_control_comm[6]; assign adc_state[6] = adc_control_comm[7]; 
-assign adc_state[7] = adc_control_comm[7]; 
+reg [7:0] adc_state;
+reg [7:0] last_adc_control_comm;
 
-reg [23:0] cmd_buff = 24'b0; // initialize the buffer to software reset
-reg [4:0] senCnt = 5'b0;
-reg [31:0] reset_counter = 32'b0;
+reg [23:0] cmd_buff; // initialize the buffer to software reset
+reg [4:0] senCnt;
 
-reg interruptInUseFlag = 1'b0;
+reg [1:0] trig_received_flag;
+reg write_complete_flag;
 
-parameter [7:0] power_off = 8'b00000000;
-parameter [7:0] power_on  = 8'b10000000;
+reg [14:0] 	waddr_cntr;
 
-parameter [7:0] buffer_serial_command 	= 8'b10000001;
-parameter [7:0] issue_serial_command 	= 8'b10000010;
-parameter [7:0] sync_adc 					= 8'b10000100;
-parameter [7:0] set_interrupt				= 8'b10001000;
-parameter [7:0] unset_interrupt			= 8'b10010000;
+initial
+begin
+	ADC_RESET = 1'b0;
+	ADC_SEN = 1'b1;				//***
+	ADC_SYNC = 1'b0;
+	ADC_SDATA = 1'b0;
+	oWREN = 2'b00;
+	oCLKEN = 2'b00;
+	oCHIPSEL = 2'b00;
+	oBYTEEN0 = 8'b00000000;
+	oBYTEEN1 = 4'b0000;
+	
+	trig_received_flag = 2'b0;
+	write_complete_flag = 1'b0;
+	waddr_cntr = 15'b0;
+	senCnt = 5'b0;
+	cmd_buff = 24'b0;
+	
+	adc_state = 8'b0;
+	last_adc_control_comm = 8'b0;
+	syncFlag = 1'b0;
+	
+	oDataReady <= 8'b0;
+	
+	data_sr[0] = 12'b0; data_sr[1] = 12'b0; data_sr[2] = 12'b0; data_sr[3] = 12'b0;
+	data_sr[4] = 12'b0; data_sr[5] = 12'b0; data_sr[6] = 12'b0; data_sr[7] = 12'b0;
+	
+	data_prev[0] = 10'b0; data_prev[1] = 10'b0; data_prev[2] = 10'b0; data_prev[3] = 10'b0;
+	data_prev[4] = 10'b0; data_prev[5] = 10'b0; data_prev[6] = 10'b0; data_prev[7] = 10'b0;
+end
+
+
+
+
+wire [7:0][11:0] data_out;
+wire [ 7: 0] data_out_h;
+wire [ 7: 0] data_out_l;
+
+
+parameter [7:0] hardware_reset = 8'b11111111;
+parameter [7:0] idle_state  = 8'b00000000;
+parameter [7:0] buffer_serial_command 	= 8'b00000001;
+parameter [7:0] issue_serial_command 	= 8'b00000010;
+parameter [7:0] sync_adc 					= 8'b00000100;
 
 
 always @(posedge ref_frame_clk)
@@ -102,127 +112,99 @@ begin
 
 	if ( !iStateReset )
 	begin
-		if ( !trig_received_flag && iTxTrigger )
+		if ( !trig_received_flag && iSystemTrig )
 		begin
-			oTriggerAck <= 1'b1;
 			trig_received_flag <= 2'b11;
-			waddr_cntr <= 13'b0;
+			waddr_cntr <= 15'b0;
 			write_complete_flag <= 1'b0;
-			txReadyTimeout <= 32'b0;
-		end
-		else if ( trig_received_flag[1] && !iTxTrigger )
-		begin
-			trig_received_flag[1]<=1'b0;
-			txReadyTimeout <= txReadyTimeout + 1'b1;
-		end
-		else if ( !trig_received_flag && !iTxTrigger && txReadyTimeout[31] && write_complete_flag )
-		begin
-			oWREN[2:0] <= 3'b000;
-			trig_received_flag <= 2'b00;
-			write_complete_flag <= 1'b0;
-			waddr_cntr <= 13'b0;
-		end
-		else
-		begin
-			txReadyTimeout <= txReadyTimeout + 1'b1;
+			oDataReady <= 8'b0;
 		end
 	
 		
-		if ( trig_received_flag )
+		if ( trig_received_flag[0] )
 		begin
 			if ( !write_complete_flag )
 			begin
-				if ( oTriggerAck ) oTriggerAck <= 1'b0;
-				if ( !oWREN ) oWREN[2:0] <= 3'b111;
+				if ( !oWREN ) 
+				begin
+					oWREN <= 2'b11;
+					oCLKEN <= 2'b11;
+					oCHIPSEL <= 2'b11;
+					oBYTEEN0 <= 8'b11111111;
+					oBYTEEN1 <= 4'b1111;
+				end
 				oWAddr <= waddr_cntr;
 				
-				oADCData[0][11:0] <= data_out[0]; 
-				oADCData[0][23:12] <= data_out[1];
-				oADCData[0][31:24] <= data_out[6][11:4];
+				oADCData0[11:0] <= data_out[0]; 
+				oADCData0[23:12] <= data_out[1];
+				oADCData0[35:24] <= data_out[2];
+				oADCData0[47:36] <= data_out[3];
+				oADCData0[59:48] <= data_out[4];
+				oADCData0[63:60] <= data_out[5][3:0];
 				
-				oADCData[1][11:0] <= data_out[2]; 
-				oADCData[1][23:12] <= data_out[3];
-				oADCData[1][27:24] <= data_out[7][11:8];
-				oADCData[1][31:28] <= data_out[6][3:0];
+				oADCData1[7:0] <= data_out[5][11:4]; 
+				oADCData1[19:8] <= data_out[6];
+				oADCData1[31:20] <= data_out[7];
 				
-				oADCData[2][11:0] <= data_out[4]; 
-				oADCData[2][23:12] <= data_out[5];
-				oADCData[2][31:24] <= data_out[7][7:0];
-			
 				waddr_cntr <= waddr_cntr + 1'b1;
 				
 				if ( waddr_cntr == iRecLength ) // iRecLength
 				begin
-					oWREN[2:0] <= 3'b000;
+					oWREN <= 2'b00;
+					oCLKEN <= 2'b00;
+					oCHIPSEL <= 2'b00;
+					oBYTEEN0 <= 8'b00000000;
+					oBYTEEN1 <= 4'b0000;
 					write_complete_flag <= 1'b1;
 					trig_received_flag[0] <= 1'b0;
+					oDataReady <= 8'b11111111;
 				end
 			end
 		end
 	end
 	else // iStateReset == 1
 	begin
-		oWREN[2:0] <= 3'b000;
+		oWREN <= 2'b00;
+		oCLKEN <= 2'b00;
+		oCHIPSEL <= 2'b00;
+		oBYTEEN0 <= 8'b00000000;
+		oBYTEEN1 <= 4'b0000;
 		trig_received_flag <= 2'b00;
 		write_complete_flag <= 1'b0;
-		waddr_cntr <= 13'b0;
+		waddr_cntr <= 15'b0;
+		oDataReady <= 8'b0;
 	end
 end
 
 
 always @ (negedge ADC_SCLK) //SCLK = 2MHz
 begin
-	if ( write_complete_flag )
+
+	if( adc_control_comm != last_adc_control_comm )
 	begin
-		interruptInUseFlag <= 1'b1;
-		oArmInterrupt <= 8'b00000001;
-	end
-	else
-	begin
-		interruptInUseFlag <= 1'b0;
-		if ( oArmInterrupt ) oArmInterrupt <= 8'b0;
+		last_adc_control_comm <= adc_control_comm;
+		adc_state <= adc_control_comm;
 	end
 	
 	case( adc_state )
-		power_off:
-			begin
-				if( !ADC_PDN )
-				begin
-					ADC_PDN <= 1'b1;
-					ADC_RESET <= 1'b0;
-					ADC_SEN <= 1'b1;
-					ADC_SYNC <= 1'b0;
-					ADC_SDATA <= 1'b0;	
-					syncFlag <= 1'b0;
-					powerCycleWaitFlag <= 1'b1;
-					reset_counter <= 32'b0;
-					senCnt <= 5'b0;
-				end
-			end
-		
-		power_on:
+		hardware_reset:
 			begin
 				syncFlag <= 1'b0;
-				if ( ADC_PDN )
-				begin
-					ADC_PDN <= 1'b0;
-					ADC_RESET <= 1'b0;
-					ADC_SEN <= 1'b1;
-					ADC_SYNC <= 1'b0;
-					ADC_SDATA <= 1'b0;
-					reset_counter <= 32'b0;
-					senCnt <= 5'b0;
-					powerCycleWaitFlag <= 1'b1;
-				end
-				else if ( !ADC_PDN & powerCycleWaitFlag )
-				begin
-					if ( reset_counter[17] ) // --> ~66ms (min. 12ms)
-					begin
-						ADC_RESET <= ~ADC_RESET;
-						if ( ADC_RESET ) powerCycleWaitFlag <= 1'b0;
-					end
-					reset_counter <= reset_counter + 1'b1;	
-				end
+				ADC_RESET <= 1'b1;
+				ADC_SEN <= 1'b1;
+				ADC_SYNC <= 1'b0;
+				ADC_SDATA <= 1'b0;
+				senCnt <= 5'b0;
+			end
+		
+		idle_state:
+			begin
+				syncFlag <= 1'b0;
+				ADC_RESET <= 1'b0;
+				ADC_SEN <= 1'b1;
+				ADC_SYNC <= 1'b0;
+				ADC_SDATA <= 1'b0;
+				senCnt <= 5'b0;
 			end
 		
 		buffer_serial_command:
@@ -257,37 +239,10 @@ begin
 					if ( ADC_SYNC ) syncFlag <= 1'b1;
 				end	
 			end
-		
-		set_interrupt:
-			begin
-				if ( !oArmInterrupt & !interruptInUseFlag & !write_complete_flag )
-				begin
-					oArmInterrupt <= 8'b1;
-				end
-			end
-			
-		unset_interrupt:
-			begin
-				if ( oArmInterrupt & !interruptInUseFlag & !write_complete_flag )
-				begin
-					oArmInterrupt <= 8'b0;
-				end
-			end
 			
 		default:
 			begin
-				if( !ADC_PDN | !ADC_SEN )
-				begin
-					ADC_PDN <= 1'b1;
-					ADC_RESET <= 1'b0;
-					ADC_SEN <= 1'b1;
-					ADC_SYNC <= 1'b0;
-					ADC_SDATA <= 1'b0;	
-					syncFlag <= 1'b0;
-					powerCycleWaitFlag <= 1'b1;
-					reset_counter <= 32'b0;
-					senCnt <= 5'b0;
-				end
+				adc_state <= idle_state;
 			end
 	endcase
 end

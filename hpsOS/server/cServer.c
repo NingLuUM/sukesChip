@@ -38,56 +38,17 @@ extern int errno;
 #define ADC_BYTES_PER_TIMEPOINT ((ADC_NBITS*ADC_NCHAN)/8)
 
 
-#define CASE_LVDS_POWER 0
-#define CASE_LVDS_CONTROL_COMMS 1
-#define CASE_LVDS_INITIALIZE 2
-#define CASE_LVDS_SAMPLING_FREQ 3
-#define CASE_LVDS_GAIN 4
+#define CASE_ADC_RECORD_LENGTH 			1		
+#define CASE_ADC_TRIGGER_DELAY			2
+#define CASE_QUERY_ADC_FOR_DATA			3
+#define CASE_ADC_POWER					4
+#define CASE_ADC_SYNC					5
+#define CASE_ADC_INITIALIZE				6
+#define CASE_ADC_GAIN					7
+#define CASE_ADC_DIRECT_INSTRUCTION		8
+#define CASE_ADC_CONTROL_COMMS			9	
 
-#define CASE_ADC_STATE 5
-#define CASE_ADC_STATE_RESET 6
-#define CASE_ADC_RECORD_LENGTH 7
-#define CASE_ADC_TRIGGER_DELAY 8
-#define CASE_ADC_TOGGLE_DATA_ACQ 9
-#define CASE_QUERY_ADC_FOR_DATA 10
-#define CASE_SET_QUERY_DATA_TIMEOUT 11
-#define CASE_QUERY_BOARD_INFO 12
-
-#define CASE_ENET_INTERLEAVE_DEPTH_AND_TIMER 13
-#define CASE_ENET_SET_PACKETSIZE 14
-
-#define CASE_LVDS_DIRECT_INSTRUCTION 15
-#define CASE_LVDS_SYNC 16
-
-#define CASE_TX_CONTROL_COMMS 20
-#define CASE_TX_SEND_OUTPUT_CONTROL_REG_SINGLE 21
-#define CASE_TX_SEND_TIMING_REG_SINGLE 22
-#define CASE_TX_SEND_LOOP_CONTROL_REG_SINGLE 23
-#define CASE_TX_SEND_OUTPUT_CONTROL_REG_ALL 24								
-#define CASE_TX_SEND_TIMING_REG_ALL 25
-#define CASE_TX_SEND_LOOP_CONTROL_REG_ALL 26
-#define CASE_RESET_TX_REGISTERS_ALL 27
-
-#define CASE_TX_SEND_PHASE_DELAYS_SINGLE 28
-#define CASE_TX_SEND_CHARGE_TIMES_SINGLE 29
-
-#define CASE_TX_INIT_PROGRAM_UPLOAD 30
-
-//~ #define CASE_TX_FIRE 30
-#define CASE_TX_HALT 31
-#define CASE_TX_LOADINCR_CHIPMEM 32
-#define CASE_TX_SET_AMP 33
-
-#define CASE_TX_USER_MASK 34
-#define CASE_TX_DISABLE_TRANSDUCER_SAFETY_TIMEOUT 35
-
-
-#define CASE_INTERRUPT_THYSELF 55
-#define CASE_UNINTERRUPT_THYSELF 56
-
-
-#define CASE_SET_CSERVER_DATA_ARRAY_SIZE 80
-#define CASE_ALLOCATE_CSERVER_DATA_ARRAY_MEM 81
+#define CASE_KILLPROGRAM				100	
 
 #define CASE_DECLARE_CSERVER_DATA_ARRAY_INDEX 82
 #define CASE_RESET_GLOBAL_VARIABLES 83
@@ -98,9 +59,6 @@ extern int errno;
 #define CASE_GET_BOARD_INFO_IPC 86
 #define CASE_SAVE_CSERVER_DATA_LOGICALLY 87
 
-
-#define CASE_CLOSE_PROGRAM 100
-#define CASE_KILLPROGRAM 101
 
 
 const int ONE = 1;  /* need to have a variable that can be pointed to that always equals '1' for some of the socket options */
@@ -575,7 +533,7 @@ int main(int argc, char *argv[]) { printf("into main!\n");
 
     char **data;                                                      /* array to store acquired data */
     data = (char **)malloc(sizeof(char *));
-    *data = (char *)malloc(MAX_FPGAS*g_recLen*sizeof_bytesPerTimePoint);
+    *data = (char *)malloc(g_recLen*sizeof_bytesPerTimePoint);
     unsigned long data_idx;                                             /* index of where to write incoming data in the 'data' array */
 	printf("help\n");
     int recvIndividually;
@@ -623,7 +581,15 @@ int main(int argc, char *argv[]) { printf("into main!\n");
 
                         } else {
                             switch(fmsg.msg[0]){ /* msg[0] contains the command code for the message */
-                                
+                                //~ #define CASE_ADC_RECORD_LENGTH 			1		
+//~ #define CASE_ADC_TRIGGER_DELAY			2
+//~ #define CASE_QUERY_ADC_FOR_DATA			3
+//~ #define CASE_ADC_POWER					4
+//~ #define CASE_ADC_SYNC					5
+//~ #define CASE_ADC_INITIALIZE				6
+//~ #define CASE_ADC_GAIN					7
+//~ #define CASE_ADC_DIRECT_INSTRUCTION		8
+//~ #define CASE_ADC_CONTROL_COMMS			9	
 								case(CASE_ADC_RECORD_LENGTH):{ 
                                     
                                     if(fmsg.msg[1] >= MIN_PACKETSIZE && fmsg.msg[1] <= MAX_RECLEN){
@@ -665,21 +631,6 @@ int main(int argc, char *argv[]) { printf("into main!\n");
                                     break;
                                 }
 
-								case(CASE_ADC_TOGGLE_DATA_ACQ):{ 
-                                    
-                                    if(fmsg.msg[1] == 1){
-                                        dataAcqGo = fmsg.msg[1];
-                                        sendENETmsg(fmsg.msg,0);
-                                        printf("data acquisition started\n\n");
-                                    } else {
-                                        dataAcqGo = 0;
-                                        fmsg.msg[1] = 0;
-                                        sendENETmsg(fmsg.msg,0);
-                                        printf("data acquisition stopped\n\n");
-                                    }
-                                    break;
-                                }
-
 								case(CASE_QUERY_ADC_FOR_DATA):{
                                     recvIndividually = 0;
                                     if(fmsg.msg[1])
@@ -687,37 +638,6 @@ int main(int argc, char *argv[]) { printf("into main!\n");
                                     //~ printf("recvIndividually = %d\n",recvIndividually);
                                     sendENETmsg(fmsg.msg,0);
                                     recvCount = 0;
-                                    break;
-                                }
-                                
-                                case(CASE_SET_QUERY_DATA_TIMEOUT):{
-									
-                                    if(fmsg.msg[1] > 999){
-										g_queryTimeout = fmsg.msg[1];
-									} else {
-										g_queryTimeout = 10000;
-									}
-									sendENETmsg(fmsg.msg,0);
-                                    break;
-                                }
-                                                               
-								case(CASE_ENET_INTERLEAVE_DEPTH_AND_TIMER):{
-                                    if( fmsg.msg[1] > 0 && fmsg.msg[2] < 5000 && fmsg.msg[3] < 5000){
-                                        printf("boardModulo = %u, moduloTimer = %u, packetWait = %u\n\n",fmsg.msg[1],fmsg.msg[2],fmsg.msg[3]);
-                                    } else {
-                                        fmsg.msg[1] = 1;
-                                        fmsg.msg[2] = 0;
-                                        fmsg.msg[3] = 0;
-                                        printf("invalid boardModulo, moduloTimer setting to 1, 0\n\n");
-                                    }
-                                    sendENETmsg(fmsg.msg,0);
-                                    break;
-                                }
-
-								case(CASE_QUERY_BOARD_INFO):{
-                                    printf("Querying SoCs for board info\n");
-                                    broadcastENETmsg(&psock,fmsg.msg);
-                                    printf("broadcasted\n");
                                     break;
                                 }
                                                              

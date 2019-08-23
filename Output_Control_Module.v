@@ -149,7 +149,6 @@ parameter [3:0] set_leds = 4'b0010; // 2
 parameter [3:0] trigger_recv = 4'b0011; // 3
 parameter [3:0] is_loop_start_point = 4'b0100; // 4
 parameter [3:0] is_loop_end_point = 4'b0101; // 5
-parameter [3:0]
 parameter [3:0] fire_pulse = 4'b0110; // 6
 parameter [3:0] fire_at = 4'b0111; // 7
 parameter [3:0] set_charge_time = 4'b1000; // 8

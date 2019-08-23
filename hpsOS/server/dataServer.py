@@ -353,11 +353,11 @@ class dataServer():
 		self.ipcsock.close()
 		time.sleep(0.05)
 		
-	def connect(self): 
+	def connectsock(self): 
 		# connect to the C server. 
 		# Note: python will block until it is connected to the cServer. if the python program gets 'stuck' before it begins it's likely because the cServer stopped running or crashed, just relaunch and python should connect to it. You don't have to restart python before (re)launching the cServer, but if it still hangs or returns an error restart them both. If it still doesn't work, delete the files 'data_pipe' and 'lithium_ipc' in the folder containing the cServer and restart the cServer and python program again. 
-		self.ipcsock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-		self.ipcsock.connect(self.IPCSOCK)
+		self.ipcsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.ipcsock.connect(('localhost',3700))
 	
 	def ipcWait(self,to=None):
 		# tells python to wait for confirmation from the cServer that all data has been received from the SoCs. used to synchronize transmit and receive systems
@@ -399,63 +399,23 @@ class dataServer():
 		self.boardCount = 0
 		self.boardNums = []
 		
-		self.phaseDelays = 0
-		self.chargeTime = 0
-		
-		self.CASE_LVDS_POWER = 0
-		self.CASE_LVDS_CONTROL_COMMS = 1
-		self.CASE_LVDS_INITIALIZE = 2
-		self.CASE_LVDS_SAMPLING_FREQ = 3
-		self.CASE_LVDS_GAIN = 4
-
-		self.CASE_ADC_STATE = 5
-		self.CASE_ADC_STATE_RESET = 6
-		
-		self.CASE_ADC_RECORD_LENGTH = 7
-		self.CASE_ADC_TRIGGER_DELAY = 8
-		self.CASE_ADC_TOGGLE_DATA_ACQ = 9
-		self.CASE_QUERY_ADC_FOR_DATA = 10
-		self.CASE_SET_QUERY_DATA_TIMEOUT = 11
-		self.CASE_QUERY_BOARD_INFO = 12
-		
-		self.CASE_ENET_INTERLEAVE_DEPTH_AND_TIMER = 13
-		self.CASE_ENET_SET_PACKETSIZE = 14
-		
-		self.CASE_LVDS_DIRECT_INSTRUCTION = 15
-		self.CASE_LVDS_SYNC = 16
-		
-		self.CASE_TX_CONTROL_COMMS = 20
-		self.CASE_TX_SEND_OUTPUT_CONTROL_REG_SINGLE = 21
-		self.CASE_TX_SEND_TIMING_REG_SINGLE = 22
-		self.CASE_TX_SEND_LOOP_CONTROL_REG_SINGLE = 23
-		self.CASE_TX_SEND_OUTPUT_CONTROL_REG_ALL = 24								
-		self.CASE_TX_SEND_TIMING_REG_ALL = 25
-		self.CASE_TX_SEND_LOOP_CONTROL_REG_ALL = 26
-		self.CASE_RESET_TX_REGISTERS_ALL = 27
-		self.CASE_TX_SEND_PHASE_DELAYS_SINGLE = 28
-		self.CASE_TX_SEND_CHARGE_TIMES_SINGLE = 29
-		self.CASE_TX_INIT_PROGRAM_UPLOAD = 30
-		
-		self.CASE_TX_USER_MASK = 34
-		self.CASE_TX_DISABLE_TRANSDUCER_SAFETY_TIMEOUT = 35
-		
-		self.CASE_INTERRUPT_THYSELF = 55
-		self.CASE_UNINTERRUPT_THYSELF = 56
-		
-		self.CASE_SET_CSERVER_DATA_ARRAY_SIZE = 80
-		self.CASE_ALLOCATE_CSERVER_DATA_ARRAY_MEM = 81
-		self.CASE_DECLARE_CSERVER_DATA_ARRAY_INDEX = 82
-		self.CASE_RESET_GLOBAL_VARIABLES = 83
-		self.CASE_SAVE_CSERVER_DATA = 84
-		self.CASE_SEND_CSERVER_DATA_IPC = 85
-		self.CASE_GET_BOARD_INFO_IPC = 86
-		self.CASE_SAVE_CSERVER_DATA_LOGICALLY = 87
+		self.CASE_ADC_RECORD_LENGTH 		= 1		
+		self.CASE_ADC_TRIGGER_DELAY			= 2
+		self.CASE_QUERY_ADC_FOR_DATA		= 3
+		self.CASE_ADC_POWER					= 4
+		self.CASE_ADC_SYNC					= 5
+		self.CASE_ADC_INITIALIZE			= 6
+		self.CASE_ADC_GAIN					= 7
+		self.CASE_ADC_DIRECT_INSTRUCTION	= 8
+		self.CASE_ADC_CONTROL_COMMS			= 9	
+		self.CASE_KILLPROGRAM				= 100	
 		
 		self.CASE_CLOSE_PROGRAM = 100
 		self.CASE_KILLPROGRAM = 101
 		
 
 	
-
+d = dataServer()
+d.connectsock()
 
 

@@ -73,17 +73,6 @@ module DE10_NANO_SoC_GHRD(
 	//*****************************************//
 	//************* NON-GHRD CODE *************//
 	//*****************************************//
-	input				MASTER_SYNC,			// SYNC line from backplane
-	input				MASTER_CLK,			// CLK line from backplane (10 MHz)
-	
-	// SYNCHRONIZER ONLY I/Os //
-	input	[ 1: 0]		iTRIG,					// input triggers 1 and 2
-	output	[ 9: 0]		RED_LED,				// red RGB led bank
-	output	[ 9: 0]		GREEN_LED,			// green RGB led bank
-	output	[ 9: 0]		BLUE_LED,				// blue RGB led bank
-	output	[ 7: 0]		oTRIG,					// eight output triggers on Synchronizer board
-	output				MASTER_CLK_OUT,		// 10 MHz clock from synchronizer board
-	output				MASTER_SYNC_OUT,   // SYNC line from synchronizer board
 	
 	// TRIDENT ONLY I/Os //
 	input				EXTERNAL_TRIGGER_INPUT,				// external input trigger via SMA on each 8-channel board
@@ -93,19 +82,16 @@ module DE10_NANO_SoC_GHRD(
 	input				FRAME_CLK,			// frame clock from ADC 
 	input				ADC_SDOUT,			// ADC serial data register readout
 	
-	output	[ 7: 0]		TRANSDUCER_OUTPUT_PINS,			// outputs to gate driver of amplifier channels
 	
 	output				ADC_RESET,
 	output				ADC_CLKINP,
 	output				ADC_SCLK,
 	output				ADC_SDATA,
 	output				ADC_SEN,
-	output				ADC_PDN,
 	output				ADC_SYNC, 
 	
-	output				COMLED0,				// automatic communications LED
-	output				COMLED1,				// user-programmed
-	output				COMLED2				// user-programmed
+	output [4:0]		COMLED,
+	output [1:0]		VARGAIN
 
 );
 
@@ -133,27 +119,29 @@ assign stm_hw_events = {{15{1'b0}}, SW, fpga_led_internal, fpga_debounced_button
 //************* NON-GHRD CODE *************//
 //*****************************************//
 
+reg gnd = 1'b0;
 
-wire [7:0] tx_output_pins;
-assign TRANSDUCER_OUTPUT_PINS[7:0] = tx_output_pins[7:0];
+wire [7:0] led_pins;
+assign COMLED[0] = led_pins[0];
+assign COMLED[1] = led_pins[1];
+assign COMLED[2] = led_pins[2];
+assign COMLED[3] = led_pins[3];
+assign COMLED[4] = led_pins[4];
 
-wire [7:0] tx_trigger_pins;
-assign oTRIG[7:0] = tx_trigger_pins;
-
-wire [7:0] tx_led_pins;
-assign RED_LED[7:0] = tx_led_pins;
+wire [7:0] var_gain;
+assign VARGAIN[0] = var_gain[0];
+assign VARGAIN[1] = var_gain[1];
 
 wire CLK2, CLK25, CLK100, CLK200;
 assign ADC_SCLK = CLK2;
 assign ADC_CLKINP = CLK25;
 
 // wires and assignments for adc outputs
-wire adc_reset, adc_sen, adc_sdata, adc_pdn, adc_sync;
+wire adc_reset, adc_sen, adc_sdata, adc_sync;
 
 assign ADC_RESET	= adc_reset; 
 assign ADC_SEN		= adc_sen;
 assign ADC_SDATA	= adc_sdata; 
-assign ADC_PDN		= adc_pdn;
 assign ADC_SYNC		= adc_sync;
 
 
@@ -161,59 +149,28 @@ assign ADC_SYNC		= adc_sync;
 //  Structural coding
 //=======================================================
 
-wire	[7:0]			adc_to_arm_interrupt;
-wire	[31:0]			tx_to_arm_user_issued_interrupt;
-wire	[31:0]			tx_to_arm_error_detected_interrupt;
-wire	[31:0]			tx_to_arm_msg_from_interrupt;
-
 
 wire	[23:0]			adc_serial_command;
 wire	[7:0]			adc_control_comms;
 
-wire	[12:0]			adc_write_addr;
+wire	[14:0]			adc_write_addr;
 wire					adc_state_reset;
 
 wire	[1:0]			adc_state;
-wire	[31:0]			adc_trig_delay;
-wire	[12:0]			adc_record_length;
-
-wire  	[2:0]       	adc_wren_bank;
-wire  	[2:0][31:0] 	adc_writedata_bank;
-
-wire					tx_to_adc_trig;
-wire					adc_to_tx_trigack;
-
-wire	[7:0]			tx_transducer_output_error_msg;
-wire	[31:0]			arm_to_tx_interrupt_response;
-	
-wire	[7:0]			tx_led_reg;
-wire	[7:0]			tx_trig_reg;
-wire	[7:0]			tx_trig_rest_level_reg;
+wire	[14:0]			adc_record_length;
 
 
-wire	[3:0]			tx_state;
-wire	[7:0]			tx_control_comms;
-wire	[7:0]			tx_user_mask;
+wire  	[1:0]       	adc_wren_bank;
+wire  	[1:0]       	adc_chipsel_bank;
+wire  	[1:0]       	adc_clken_bank;
+wire		[7:0]		adc_byteen_bank0;
+wire  	[63:0] 	adc_writedata_bank0;
+wire		[3:0]		adc_byteen_bank1;
+wire  	[31:0] 	adc_writedata_bank1;
 
-
-// for reading tx instructions from FPGA RAM
-wire	[63:0]			tx_instruction_reg;
-wire	[12:0]			tx_set_instruction_read_addr;
-wire	[12:0]			tx_instr_read_addr; // 8191 instructions (13bit)
-
-
-// for reading 'fire' cmd phase delays from FPGA RAM
-wire	[127:0]			tx_phase_delay_reg;
-wire	[13:0]			tx_phase_delay_read_addr; // 16384 locations (14bit)
-
-
-// for reading 'fireAt' cmd phase delays from FPGA RAM
-wire	[127:0]			tx_fire_at_phase_delay_reg;
-wire	[11:0]			tx_fire_at_phase_delay_read_addr; // 4096 locations (12bit)
-
-
-wire					FRAMECLK_SHIFT;
-wire 					BITCLK_SHIFT;
+wire [7:0]			adc_data_ready_flag;
+wire					FRAME_CLK_SHIFT;
+wire 					BIT_CLK_SHIFT;
 
 assign rst = 0;
 
@@ -225,16 +182,17 @@ ADCclock u4 (
 	.outclk_1 			(CLK25),		// 25 MHz
 	.outclk_2			(CLK100),	// 100 MHz
 	.outclk_3			(CLK200),		// 200 MHz
-	.outclk_4			(BITCLK_SHIFT),
-	.outclk_5			(FRAMECLK_SHIFT)
+	.outclk_4			(BIT_CLK_SHIFT),
+	.outclk_5			(FRAME_CLK_SHIFT)
 );
 
 		
 ADC_Control_Module u2(
 
 	.ref_frame_clk			(CLK25),
-	.frame_clk				(FRAMECLK_SHIFT),
-	.bit_clk				(BITCLK_SHIFT),
+	
+	.frame_clk				(FRAME_CLK_SHIFT),
+	.bit_clk				(BIT_CLK_SHIFT),
 	
 	.adc_control_comm		(adc_control_comms),
 	.adc_serial_cmd			(adc_serial_command),
@@ -243,91 +201,41 @@ ADC_Control_Module u2(
 	.ADC_SYNC				(adc_sync),
 	.ADC_SDATA				(adc_sdata),
 	.ADC_SEN				(adc_sen),
-	.ADC_PDN				(adc_pdn),
 	
 	.ADC_SCLK				(ADC_SCLK),
 	.ADC_SDOUT				(ADC_SDOUT),
 	.ADC_INPUT_DATA_LINES	(ADC_DATA_LINES),
 	
 	.iSystemTrig			(EXTERNAL_TRIGGER_INPUT),
-	.iTxTrigger				(tx_to_adc_trig),
 	
-	.iTrigDelay				(adc_trig_delay),
 	.iRecLength				(adc_record_length),
 	.iStateReset			(adc_state_reset),
 	
-	.oTriggerAck			(adc_to_tx_trigack),
-	.oADCData				(adc_writedata_bank),
+	.oDataReady				(adc_data_ready_flag),
+	
+	.oBYTEEN0				(adc_byteen_bank0),
+	.oADCData0				(adc_writedata_bank0),
+	
+	.oBYTEEN1				(adc_byteen_bank1),
+	.oADCData1				(adc_writedata_bank1),
+	
 	.oWREN					(adc_wren_bank),
-	.oWAddr					(adc_write_addr),
+	.oCLKEN					(adc_clken_bank),
+	.oCHIPSEL				(adc_chipsel_bank),
 
-	.oArmInterrupt			(adc_to_arm_interrupt)	
+	.oWAddr					(adc_write_addr)
 );
 
 
-Output_Control_Module u3(
 
-	.txCLK							(CLK100),
-	
-	.iSystemTrig					(EXTERNAL_TRIGGER_INPUT),
-	.itxControlComms				(tx_control_comms),
-	
-	// procedural controls for instructions
-	.itxInstruction					(tx_instruction_reg),
-	.oInstructionReadAddr			(tx_instr_read_addr),
-	
-	// for 'fire' cmd
-	.itxPhaseDelays					(tx_phase_delay_reg),
-	.oPhaseDelayReadAddr			(tx_phase_delay_read_addr),
-	
-	// for 'fireAt' cmd
-	.itxFireAtPhaseDelays			(tx_fire_at_phase_delay_reg),
-	.oFireAtPhaseDelayReadAddr		(tx_fire_at_phase_delay_read_addr),
-	
-	// controls for physical outputs (transducers)
-	.itxTransducerChannelMask		(tx_user_mask),
-	.otxTransducerOutput			(tx_output_pins),
-	.otxTransducerOutputError		(tx_transducer_output_error_msg),
-	
-	// controls for physical outputs (trigger & led pins)
-	.itxMasterToDaughter_Sync		(EXTERNAL_TRIGGER_INPUT),
-	.otxToAll_Danger_KillProgram	(tx_to_all_danger_kill_program),
-	.otxDaughterToMaster_WaitForMe	(tx_daughter_to_master_wait_for_me),
-	.otxTriggerOutput				(tx_trigger_pins),
-	.otxLedOutput					(tx_led_pins),
-	
-	// recv system
-	.itxADCTriggerAck				(adc_to_tx_trigack),
-	.otxADCTriggerLine				(tx_to_adc_trig),
-	
-	// arm interrupts
-	.otxArmUserInterrupt			(tx_to_arm_interrupt_user_issued),
-	.otxArmErrorInterrupt			(tx_to_arm_interrupt_error_detected),
-	
-	.otxUserIssuedInterruptMsg		(tx_to_arm_msg_from_interrupt),
-	.itxArmInterruptResponse		(arm_to_tx_interrupt_response),
-	
-	// allow trigs and leds to be set without running program
-	.led_pioReg						(tx_led_reg),
-	.trig_pioReg					(tx_trig_reg),
-	.trigRestLevel_pioReg			(tx_trig_rest_level_reg)
-);
-
-	
 //=======================================================
 //  Structural coding
 //=======================================================
 soc_system u0(
-		.pio_adc_interrupt_generator_export			(adc_to_arm_interrupt),
-		.pio_tx_interrupt_generator_0_export		(tx_to_arm_interrupt_user_issued),
-		.pio_tx_interrupt_generator_1_export		(tx_to_arm_interrupt_error_detected),
-		.pio_tx_control_comms_export				(tx_control_comms),
-		.pio_set_tx_channel_mask_export				(tx_user_mask),
 		
-		.pio_led_external_connection_export			(tx_led_reg),
-		.pio_trig_val_export						(tx_trig_reg),
-		.pio_trig_rest_levels_export				(tx_trig_rest_level_reg),
-
+		
+		.pio_led_external_connection_export			(led_pins),
+		.pio_var_gain_setting_export				(var_gain),
 		
 		.pio_adc_serial_command_export				(adc_serial_command),
 		.pio_adc_control_comms_export				(adc_control_comms),
@@ -335,71 +243,29 @@ soc_system u0(
 		.pio_adc_fpga_state_reset_export			(adc_state_reset),
 
 		.pio_set_adc_record_length_export			(adc_record_length),
-		.pio_set_adc_trig_delay_export				(adc_trig_delay),
-		
-		.tx_output_error_msg_export					(tx_transducer_output_error_msg),
-		.tx_error_comms_export						(arm_to_tx_interrupt_response),
-		
-		.pio_tx_user_issued_msg_from_interrupt_export	(tx_to_arm_msg_from_interrupt),
 
+		.data_ready_export			(adc_data_ready_flag),
+		
 		.adc_ram_bank0_address						(adc_write_addr),
-		.adc_ram_bank0_write						(adc_wren_bank[0]),
-		.adc_ram_bank0_writedata					(adc_writedata_bank[0]),
+		.adc_ram_bank0_byteenable					(adc_byteen_bank0),
+		.adc_ram_bank0_write							(adc_wren_bank[0]),
+		.adc_ram_bank0_chipselect					(adc_chipsel_bank[0]),
+		.adc_ram_bank0_clken							(adc_clken_bank[0]),
+		.adc_ram_bank0_writedata					(adc_writedata_bank0),
+		.adc_ram_bank0_readdata						(64'b0), //(32'b0)
 		
 		.adc_ram_bank1_address						(adc_write_addr),
-		.adc_ram_bank1_write						(adc_wren_bank[1]),
-		.adc_ram_bank1_writedata					(adc_writedata_bank[1]),
-		
-		.adc_ram_bank2_address						(adc_write_addr),
-		.adc_ram_bank2_write						(adc_wren_bank[2]),
-		.adc_ram_bank2_writedata					(adc_writedata_bank[2]),
-		
+		.adc_ram_bank1_byteenable					(adc_byteen_bank1),
+		.adc_ram_bank1_write							(adc_wren_bank[1]),
+		.adc_ram_bank1_chipselect					(adc_chipsel_bank[1]),
+		.adc_ram_bank1_clken							(adc_clken_bank[1]),
+		.adc_ram_bank1_writedata					(adc_writedata_bank1),
+		.adc_ram_bank1_readdata						(32'b0),
 
-		.tx_instruction_register_address			(tx_read_addr),	
-		.tx_instruction_register_readdata			(tx_instruction_reg),
 		
-		.tx_phase_delay_register_address			(tx_phase_delay_read_addr),
-		.tx_phase_delay_register_readdata			(tx_phase_delay_reg),
-	
-		.tx_fire_at_phase_delay_register_address	(tx_fire_at_phase_delay_read_addr),
-		.tx_fire_at_phase_delay_register_readdata	(tx_fire_at_phase_delay_reg),
-
 		.ram_clock_bridge_clk						(CLK200), 
 		.adc_clock_bridge_clk						(CLK25), 
 		
-		.adc_ram_bank0_chipselect					(1'b1),
-		.adc_ram_bank0_byteenable					(4'b1111),
-		.adc_ram_bank0_clken						(1'b1),
-		.adc_ram_bank0_readdata						(32'b0),
-		
-		.adc_ram_bank1_chipselect					(1'b1),
-		.adc_ram_bank1_byteenable					(4'b1111),
-		.adc_ram_bank1_clken						(1'b1),
-		.adc_ram_bank1_readdata						(32'b0),
-		
-		.adc_ram_bank2_chipselect					(1'b1),
-		.adc_ram_bank2_byteenable					(4'b1111),
-		.adc_ram_bank2_clken						(1'b1),
-		.adc_ram_bank2_readdata						(32'b0),
-		
-		.tx_instruction_register_chipselect			(1'b1),
-		.tx_instruction_register_clken				(1'b1),
-		.tx_instruction_register_write				(1'b0),
-		.tx_instruction_register_writedata			(64'b0),
-		.tx_instruction_register_byteenable			(8'b11111111),
-
-		.tx_phase_delay_register_chipselect				(1'b1),
-		.tx_phase_delay_register_clken					(1'b1),
-		.tx_phase_delay_register_write					(1'b0),
-		.tx_phase_delay_register_writedata				(128'b0),
-		.tx_phase_delay_register_byteenable				(16'b1111111111111111),
-
-		.tx_fire_at_phase_delay_register_chipselect				(1'b1),
-		.tx_fire_at_phase_delay_register_clken					(1'b1),
-		.tx_fire_at_phase_delay_register_write					(1'b0),
-		.tx_fire_at_phase_delay_register_writedata				(128'b0),
-		.tx_fire_at_phase_delay_register_byteenable				(16'b1111111111111111),	
-
 		
 		//Clock&Reset
 		.clk_clk(FPGA_CLK1_50),													//                          clk.clk (hps_fpga_reset_n),

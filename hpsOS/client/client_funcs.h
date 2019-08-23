@@ -1,115 +1,131 @@
 
-int epfd;
-struct epoll_event ev;
-struct epoll_event events[MAX_SOCKETS];
 
-struct ENETsock{
+struct ENETsock_;
+struct FPGAvars_;
+struct ADCvars_;
+struct SOCKgeneric_;
+
+typedef struct ENETsock_ ENETsock_t;
+typedef struct FPGAvars_ FPGAvars_t;
+typedef struct ADCvars_ ADCvars_t;
+typedef struct SOCKgeneric_ SOCKgeneric_t;
+
+#include "adc_register_defs.h"
+
+typedef struct ENETsock_{
 	int sockfd;
-	int is_interrupt;
+
 	int is_commsock;
 	int portNum;
-	char *dataAddr;
-	int bytesInPacket;
-    int is_active;
-	struct ENETsock *next;
-	struct ENETsock *prev;
-    struct ENETsock *commsock;
-};
+
+} ENETsock_t;
 
 
-struct FPGAvars{ // structure to hold variables that are mapped to the FPGA hardware registers
+typedef struct FPGAvars_{ // structure to hold variables that are mapped to the FPGA hardware registers
 	void *virtual_base;
 	void *axi_virtual_base;
 	int fd_pio;
 	int fd_ram;	
-};
+	
+} FPGAvars_t;
 
 
-struct ADCvars{
+typedef struct ADCvars_{
 	// memory mapped variables in FPGA
 	uint32_t volatile *stateReset;
 	uint32_t volatile *controlComms;
 	uint32_t volatile *recLen;
-	uint32_t volatile *trigDelay;
+	uint32_t volatile *varGain;
 	uint32_t volatile *serialCommand;
-	uint32_t volatile *interrupt0;
+	uint32_t volatile *dataReadyFlag;
+	uint32_t volatile *leds;
 	
-	int32_t volatile *ramBank0;
-	int32_t volatile *ramBank1;
-	int32_t volatile *ramBank2;
+	REG0_t reg0;
+	REG1_t reg1;
+	REG2_t reg2;
+	REG3_t reg3;
+	REG4_t reg4;
+	REG5_t reg5;
+	REG7_t reg7;
+	REG13_t reg13;
+	REG15_t reg15;
+	REG17_t reg17;
+	REG19_t reg19;
+	REG21_t reg21;
+	REG25_t reg25;
+	REG27_t reg27;
+	REG29_t reg29;
+	REG31_t reg31;
+	REG33_t reg33;
+	REG70_t reg70;
 	
-	// local variables on arm proc only
-	uint32_t recLen_ref;
-	uint32_t trigDelay_ref;
-	char *data;
+	TGCREG_0x01_0x94_t tgcreg0x01[148];
 	
-	// functions that act on ADC vars
-	void (*resetADC_vars)(struct ADCvars *);
-};
+	TGCREG_0x95_t tgcreg0x95;
+	TGCREG_0x96_t tgcreg0x96;
+	TGCREG_0x97_t tgcreg0x97;
+	TGCREG_0x98_t tgcreg0x98;
+	TGCREG_0x99_t tgcreg0x99;
+	TGCREG_0x9A_t tgcreg0x9A;
+	TGCREG_0x9B_t tgcreg0x9B;
+	
+	ADCREG_t *adcreg[18];
+	
+	uint32_t volatile *ramBank0;
+	uint32_t volatile *ramBank1;
+	
+	int interrupt_fd;
+	int epfd;
+	struct epoll_event ev;
+	struct epoll_event events[5];
+	
+	
+} ADCvars_t;
 
 
-struct TXvars{
-	uint32_t volatile *controlComms;
-	uint32_t volatile *channelMask;
-	uint32_t volatile *setInstructionReadAddr;
-	uint32_t volatile *errorReply;
-	uint32_t volatile *errorMsgFromInterrupt;
-	uint32_t volatile *errorMsgFromTransducer;
-	uint32_t volatile *setTrigRestLevel;
-	uint32_t volatile *setTrig;
-	uint32_t volatile *setLed;
-	uint32_t volatile *interrupt0;
-	uint32_t volatile *interrupt1;
-	
-	uint32_t volatile **fireCmdPhaseCharge;
-	uint32_t volatile *fireCmdPhaseCharge0;
-	uint32_t volatile *fireCmdPhaseCharge1;
-	uint32_t volatile *fireCmdPhaseCharge2;
-	uint32_t volatile *fireCmdPhaseCharge3;
-	uint32_t volatile *fireCmdPhaseCharge4;
-	uint32_t volatile *fireCmdPhaseCharge5;
-	uint32_t volatile *fireCmdPhaseCharge6;
-	uint32_t volatile *fireCmdPhaseCharge7;
-	
-	uint32_t volatile **fireAtCmdPhaseCharge;
-	uint32_t volatile *fireAtCmdPhaseCharge0;
-	uint32_t volatile *fireAtCmdPhaseCharge1;
-	uint32_t volatile *fireAtCmdPhaseCharge2;
-	uint32_t volatile *fireAtCmdPhaseCharge3;
-	uint32_t volatile *fireAtCmdPhaseCharge4;
-	uint32_t volatile *fireAtCmdPhaseCharge5;
-	uint32_t volatile *fireAtCmdPhaseCharge6;
-	uint32_t volatile *fireAtCmdPhaseCharge7;
-	
-	uint16_t volatile **instructionTypeReg;
-	uint32_t volatile **instructionReg;
-	uint32_t volatile **timingReg;
-	uint32_t volatile **loopAddressReg;
-	uint32_t volatile **loopCounterReg;
-	
-	uint16_t *instructionTypeReg_local;
-	uint32_t *instructionReg_local;
-	uint32_t *timingReg_local;
-	uint32_t *loopAddressReg_local;
-	uint32_t *loopCounterReg_local;
-	
-	void (*resetTX_vars)(struct TXvars *);
-};
+typedef union LED_{
+	struct{
+		uint32_t hiRest : 3;
+		uint32_t loRest : 2;
+		uint32_t zero : 27;
+	};
+	uint32_t vals;
+} LED_t;
+
+typedef union BANK0_{
+	struct {
+		uint64_t ch0 : 12;
+		uint64_t ch1 : 12;
+		uint64_t ch2 : 12;
+		uint64_t ch3 : 12;
+		uint64_t ch4 : 12;
+		uint64_t ch5lo : 4;
+	}u;
+	struct{
+		int64_t ch0 : 12;
+		int64_t ch1 : 12;
+		int64_t ch2 : 12;
+		int64_t ch3 : 12;
+		int64_t ch4 : 12;
+		int64_t ch5lo : 4;
+	}s;
+} BANK0_t;
+
+typedef union BANK1_{
+	struct{
+		uint32_t ch5hi : 8;
+		uint32_t ch6 : 12;
+		uint32_t ch7 : 12;
+	}u;
+	struct{
+		int32_t ch5hi : 8;
+		int32_t ch6 : 12;
+		int32_t ch7 : 12;
+	}s;
+} BANK1_t;
 
 
-struct UserProgram{
-	int instructionsCount;
-	int fireCmdPhaseChargesCount;
-	int fireAtCmdPhaseChargesCount;
-	uint32_t *instructionList;
-	uint16_t *instructionTypeList;
-	uint32_t *instructionTiming;
-	uint32_t *fireCmdPhaseCharge;
-	uint32_t *fireAtCmdPhaseCharge;
-};
-
-
-void FPGAclose(struct FPGAvars *FPGA){ // closes the memory mapped file with the FPGA hardware registers
+void FPGAclose(FPGAvars_t *FPGA){ // closes the memory mapped file with the FPGA hardware registers
 	
 	if( munmap( FPGA->virtual_base, HW_REGS_SPAN ) != 0 ) {
 		printf( "ERROR: munmap() failed...\n" );
@@ -125,7 +141,7 @@ void FPGAclose(struct FPGAvars *FPGA){ // closes the memory mapped file with the
 }
 
 
-int FPGA_init(struct FPGAvars *FPGA){ // maps the FPGA hardware registers to the variables in the FPGAvars struct
+int FPGA_init(FPGAvars_t *FPGA){ // maps the FPGA hardware registers to the variables in the FPGAvars struct
 	
 	if( ( FPGA->fd_pio = open( "/dev/mem", ( O_RDWR | O_SYNC ) ) ) == -1 ) {
 		printf( "ERROR: could not open \"/dev/mem\"...\n" );
@@ -154,199 +170,16 @@ int FPGA_init(struct FPGAvars *FPGA){ // maps the FPGA hardware registers to the
 		return( 0 );
 	}
 
-	return(1);
-}
-
-
-int ADC_init(struct FPGAvars *FPGA, struct ADCvars *ADC){
-	
-
-	ADC->stateReset = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_FPGA_STATE_RESET_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
-	ADC->controlComms = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_CONTROL_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
-	ADC->recLen = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_SET_ADC_RECORD_LENGTH_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
-	ADC->trigDelay = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_SET_ADC_TRIG_DELAY_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
-	ADC->serialCommand = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_SERIAL_COMMAND_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
-	ADC->interrupt0 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_INTERRUPT_GENERATOR_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
-	ADC->ramBank0 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK0_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-
-	ADC->ramBank1 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK1_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-
-	ADC->ramBank2 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK2_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-	
-	// ADC->data = (char *)malloc( ADC_RAMBANK0_SPAN + ADC_RAMBANK1_SPAN + ADC_RAMBANK2_SPAN );
-	// memset(ADC->data, 0, ADC_RAMBANK0_SPAN + ADC_RAMBANK1_SPAN + ADC_RAMBANK2_SPAN );
-	
-	DREF32(ADC->trigDelay) = 0;
-	DREF32(ADC->recLen) = 2048;
-	
-	ADC->trigDelay_ref = 0;
-	ADC->recLen_ref = 2048;
-	
-	DREF32(ADC->stateReset)=1; 
-	usleep(10);
-	DREF32(ADC->stateReset)=0;
-	usleep(10);
-	
-	// turn on ADC
-	//~ DREF32(ADC->controlComms) = ADC_POWER_ON;
-	//~ sleep(0.25);
-	
-	//~ // software reset, just to be safe
-	//~ DREF32(ADC->serialCommand) = ( ( ADC_SOFTWARE_RESET_ADDR << 16 ) | ADC_SOFTWARE_RESET_CMD );
-	//~ usleep(100);
-	//~ DREF32(ADC->controlComms) = ADC_BUFFER_SERIAL_COMMAND;
-	//~ usleep(500);
-	//~ DREF32(ADC->controlComms) = ADC_ISSUE_SERIAL_COMMAND;
-	//~ usleep(500);
-	//~ DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-	//~ sleep(0.2);
-	
-	//~ // set tgc, allows setting of gain
-	//~ DREF32(ADC->serialCommand) = ( ( ADC_SET_TGC_ADDR << 16 ) | ADC_SET_TGC_CMD );
-	//~ usleep(100);
-	//~ DREF32(ADC->controlComms) = ADC_BUFFER_SERIAL_COMMAND;
-	//~ usleep(500);
-	//~ DREF32(ADC->controlComms) = ADC_ISSUE_SERIAL_COMMAND;
-	//~ usleep(500);
-	//~ DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-	//~ sleep(0.2);
-
-	//~ // declare the gain to be constant with time
-	//~ DREF32(ADC->serialCommand) = ( ( ADC_SET_FIXED_GAIN_ADDR << 16 ) |  ADC_SET_FIXED_GAIN_CMD );
-	//~ usleep(100);
-	//~ DREF32(ADC->controlComms) = ADC_BUFFER_SERIAL_COMMAND;
-	//~ usleep(500);
-	//~ DREF32(ADC->controlComms) = ADC_ISSUE_SERIAL_COMMAND;
-	//~ usleep(500);
-	//~ DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-	//~ sleep(0.2);
 	
 	return(1);
 }
 
 
-int TX_init(struct FPGAvars *FPGA, struct TXvars *TX){
-	
-	TX->interrupt0 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_TX_INTERRUPT_GENERATOR_0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->interrupt1 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_TX_INTERRUPT_GENERATOR_1_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	
-	TX->controlComms = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_TXCONTROLCOMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	
-	TX->channelMask = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_SET_TXCHANNELMASK_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	
-	TX->setLed = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_LED_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->setTrig = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_TRIG_VAL_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->setTrigRestLevel = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_TRIG_REST_LEVELS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
-	TX->fireCmdPhaseCharge = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge0 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge1 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH1_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge2 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH2_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge3 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH3_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge4 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH4_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge5 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH5_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge6 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH6_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireCmdPhaseCharge7 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIRE_PHASECHARGE_CH7_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
-	TX->fireAtCmdPhaseCharge = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge0 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge1 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH1_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge2 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH2_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge3 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH3_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge4 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH4_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge5 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH5_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge6 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH6_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->fireAtCmdPhaseCharge7 = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + FIREAT_PHASECHARGE_CH7_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
-	TX->errorMsgFromTransducer = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_OUTPUT_ERROR_MSG_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->errorMsgFromInterrupt = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_INTERRUPT_ERROR_MSG_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->errorReply = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_ERROR_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
-	TX->setInstructionReadAddr = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_SET_INSTRUCTION_READ_ADDR_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	TX->instructionTypeReg = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_INSTRUCTIONTYPEREGISTER_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-	TX->instructionReg = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_INSTRUCTIONREGISTER_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-	TX->timingReg = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_TIMINGREGISTER_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-	TX->loopAddressReg = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_LOOPADDRESSREGISTER_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-	TX->loopCounterReg = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_LOOPCOUNTERREGISTER_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-	
-	TX->instructionReg_local 		= (uint32_t *)malloc( TX_INSTRUCTIONREGISTER_SPAN );
-	TX->instructionTypeReg_local 	= (uint16_t *)malloc( TX_INSTRUCTIONTYPEREGISTER_SPAN );
-	TX->timingReg_local 			= (uint32_t *)malloc( TX_TIMINGREGISTER_SPAN );
-	TX->loopAddressReg_local		= (uint32_t *)malloc( TX_LOOPADDRESSREGISTER_SPAN );
-	TX->loopCounterReg_local		= (uint32_t *)malloc( TX_LOOPCOUNTERREGISTER_SPAN );
-	
-	memset(TX->instructionReg_local,0,TX_INSTRUCTIONREGISTER_SPAN);
-	memset(TX->instructionTypeReg_local,0,TX_INSTRUCTIONTYPEREGISTER_SPAN);
-	memset(TX->timingReg_local,0,TX_TIMINGREGISTER_SPAN);
-	memset(TX->loopAddressReg_local,0,TX_LOOPADDRESSREGISTER_SPAN);
-	memset(TX->loopCounterReg_local,0,TX_LOOPCOUNTERREGISTER_SPAN);
-	
-	DREF32(TX->channelMask) = 0xff;
-	DREF32(TX->controlComms) = 0;
-	return(1);
-}
-
-
-void resetGlobalVars(){
-	g_recLen = 2048; g_packetsize = 2048;
-    g_queryTimeout = 1000;
-    g_moduloBoardNum = 1;
-	g_moduloTimer = 0;
-	g_packetWait = 0;
-	g_numPorts = (g_recLen-1)/g_packetsize+1;
-}
-
-
-void getBoardData(){ // load the boards specific data from files stored on SoC		
-	char const* const fileName = "boardData";
-    FILE* file = fopen(fileName, "r");
-    char line[256];
-	int n=0;
-	
-    while( fgets(line, sizeof(line), file) && n<4 ){
-        g_boardData[n] = atoi(line);
-        n++;    
-    }  
-    fclose(file);
-    g_boardNum = g_boardData[0];
-}
-
-
-void setnonblocking(int sock){
-    int opts;
-    if((opts=fcntl(sock,F_GETFL))<0) perror("GETFL nonblocking failed");
-    
-    opts = opts | O_NONBLOCK;
-    if(fcntl(sock,F_SETFL,opts)<0) perror("SETFL nonblocking failed");
-}
-
-
-void connectPollInterrupter(struct ENETsock **INTR, char *gpio_lab, int portnum){
-	
-	struct ENETsock* enet;	
-	enet = (struct ENETsock *)malloc(sizeof(struct ENETsock));
-    enet->next = *INTR;
-	enet->prev = NULL;
-    enet->sockfd = 0;
-	enet->portNum = portnum;
-	enet->is_interrupt = 1;
-    enet->is_active = 1;
-	enet->is_commsock = 0;
-	
-	if(*INTR != NULL){
-		(*INTR)->prev = enet;
-    }
-    
+void connectPollInterrupter(ADCvars_t *ADC, char *gpio_lab){
+	 
 	// CHANGE THIS TO DESIRED LABEL
-	const char *gpio_label = gpio_lab;//"gpio@0x100000080";
+	const char *gpio_label = gpio_lab;
 	const char *edge_type = "rising";
-	//~ int poll_interval = 1000;
 
 	// Other vars
 	DIR *gpio_dir;
@@ -503,9 +336,9 @@ void connectPollInterrupter(struct ENETsock **INTR, char *gpio_lab, int portnum)
 	if (path_length >= PATH_MAX)
 		error(1, 0, "path length overflow");
 
-	printf("path: ");
-	printf("%s",path);
-	printf("\n");
+	//~ printf("path: ");
+	//~ printf("%s",path);
+	//~ printf("\n");
 
 	// path = /sys/class/gpio/gpio331/edge
 
@@ -525,652 +358,400 @@ void connectPollInterrupter(struct ENETsock **INTR, char *gpio_lab, int portnum)
 	if (result == PATH_MAX)
 		error(1, errno, "buffer overflow reading '%s'", path);
 
-	enet->sockfd = file_fd;
-
-	*INTR = enet;
-		
-    ev.data.ptr = enet;
-    ev.events = EPOLLIN | EPOLLET;
-    epoll_ctl(epfd, EPOLL_CTL_ADD, enet->sockfd, &ev);
-    
-}
-
-
-void disconnectPollInterrupter(struct ENETsock **INTR){
+	ADC->interrupt_fd = file_fd;
 	
-	struct ENETsock **enet, *prev, *next;
-    enet = INTR;
-    while((*enet) != NULL){
-        next = (*enet)->next;
-        prev = (*enet)->prev;
-        epoll_ctl(epfd, EPOLL_CTL_DEL, (*enet)->sockfd, &ev);
-        close((*enet)->sockfd);
-        
-        
-		free(*enet);
-		if ( prev == NULL && next == NULL ){
-			break;
-		} else if(next != NULL){
-			next->prev = prev;
-			(*enet)=next; 
-		} else if (prev != NULL){
-			prev->next = next;
-			(*enet)=next; 
-		} 
-    }
-}
-
-
-void addPollSock(struct ENETsock **ENET, int portNum){
-    struct ENETsock* enet;	
-	enet = (struct ENETsock *)malloc(sizeof(struct ENETsock));
-    enet->next = *ENET;
-	enet->prev = NULL;
-    enet->sockfd = 0;
-	enet->portNum = portNum;
-	enet->is_interrupt = 0;
-    enet->is_active = 0;
-	if(portNum == 0){
-		enet->is_commsock = 1;
-        enet->commsock = enet;
-	} else {
-		enet->is_commsock = 0;
-	}
-	if(*ENET != NULL){
-		(*ENET)->prev = enet;
-        enet->commsock = (*ENET)->commsock;
-    }
-	*ENET = enet;
-}
-
-
-void connectPollSock(struct ENETsock **ENET, int portNum){ /* function to accept incoming ethernet connections from the socs */
-    struct sockaddr_in server_sockaddr;	
-	struct timeval t0,t1;
-	int diff;
-	struct ENETsock *enet, *enet0;
-
-	enet = (*ENET)->commsock;
-    while(enet->portNum != portNum){
-		enet = enet->prev;
-	}		
-    enet->sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    server_sockaddr.sin_port = htons(enet->portNum+INIT_PORT);
-    server_sockaddr.sin_family = AF_INET;
-    server_sockaddr.sin_addr.s_addr = inet_addr(g_serverIP);
-    
-    gettimeofday(&t0,NULL); 
-    if(connect(enet->sockfd, (struct sockaddr *)&server_sockaddr, sizeof(server_sockaddr))  == -1){		
-        while(connect(enet->sockfd, (struct sockaddr *)&server_sockaddr, sizeof(server_sockaddr))  == -1){
-            gettimeofday(&t1,NULL);
-            diff = (t1.tv_sec-t0.tv_sec);
-            if(diff>(600)){
-                printf("NO CONNECT!!!!\n");
-                break;
-            }	
-        }
-    }  
-    setsockopt(enet->sockfd,IPPROTO_TCP,TCP_NODELAY,&ONE,sizeof(int));
-    setsockopt(enet->sockfd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-	setnonblocking(enet->sockfd);
-
-    enet->is_active = 1;	
-    
-    ev.data.ptr = enet;
-    ev.events = EPOLLIN;
-    epoll_ctl(epfd, EPOLL_CTL_ADD, enet->sockfd, &ev);
-    
-	while(enet != NULL){
-        if(enet->is_active){
-            enet0 = enet;
-        }
-		enet = enet->prev;
-	}
-	*ENET = enet0;
-	printf("board %d, port %d is active\n", (*ENET)->sockfd, (*ENET)->portNum);
+	result = read(ADC->interrupt_fd, buffer, PATH_MAX);
 	
+    ADC->ev.data.fd = ADC->interrupt_fd;
+    ADC->ev.events = EPOLLIN | EPOLLET;
+    epoll_ctl(ADC->epfd, EPOLL_CTL_ADD, ADC->interrupt_fd, &(ADC->ev));
     
+    // need to have epoll_wait once before interrupt can really be used
+    epoll_wait(ADC->epfd, ADC->events, 5, 10); // 10 ms
 }
 
 
-void disconnectPollSock(struct ENETsock **ENET, int portNum){ 
-    struct ENETsock *enet, *prev, *next;
-    int sockfd = -1;
-    enet = (*ENET);
-    while(enet != NULL){
-        next = enet->next;
-        prev = enet->prev;
-        if(enet->portNum == portNum){
-			sockfd = enet->sockfd;
-            if(next != NULL){
-                next->prev = prev;
-            }
-            if(prev != NULL){
-                prev->next = next;
-            }
-            if(prev == NULL){
-                (*ENET) = next;
-            }
-            free(enet);
-            break;
-        }
-        enet = enet->next;
-    }
-    epoll_ctl(epfd, EPOLL_CTL_DEL, sockfd, &ev);
-    if(sockfd>(-1))
-		close(sockfd);
+void disconnectPollInterrupter(ADCvars_t *ADC){
+	epoll_ctl(ADC->epfd, EPOLL_CTL_DEL, ADC->interrupt_fd, &(ADC->ev));
+	close(ADC->interrupt_fd);
 }
 
 
 
-void setDataAddrPointers(struct ENETsock **ENET, char *adcData){
-    struct ENETsock *enet;
-    int bytesRemaining = g_recLen*ADC_BYTES_PER_TIMEPOINT;
-    int requestedBytesPerPacket = g_packetsize*ADC_BYTES_PER_TIMEPOINT;
-    int actualBytesInPacket;
-    
-    int sendbuff;
-    enet = (*ENET)->commsock;
+int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
+	
+	ADC->stateReset = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_FPGA_STATE_RESET_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 
-    /* check if sockets exist on the desired ports, if not add them */
-    while( enet->portNum < g_numPorts ){
-        if( enet->prev == NULL ){
-            addPollSock(ENET,enet->portNum+1);
-        }
-        enet = enet->prev;
-    }
+	ADC->controlComms = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_CONTROL_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 
-    /* if more sockets exist than the number of active ports, disable them */
-    while( enet != NULL ){
-        if( enet->portNum > g_numPorts ){
-            disconnectPollSock(ENET,enet->portNum);
-        }
-        enet = enet->prev;
-    }
-    
-    enet = (*ENET)->commsock->prev;
-    /*  go through the list of active sockets, connect them if they aren't already.
-        set pointers to appropriate addresses in data array where each socket should sent data from.
-        set the size of the data the socket is responsible for sending to cServer. */
-    while( bytesRemaining > 0 ){
-        if( !(enet->is_active) )
-            connectPollSock(ENET,enet->portNum);
-            
-        actualBytesInPacket = ( requestedBytesPerPacket < bytesRemaining ) ? requestedBytesPerPacket : bytesRemaining;
-        
-        enet->dataAddr = adcData + (enet->portNum-1)*requestedBytesPerPacket;
-        enet->bytesInPacket = actualBytesInPacket;
-        sendbuff = enet->bytesInPacket;
-		setsockopt(enet->sockfd, SOL_SOCKET, SO_SNDBUF, &sendbuff, sizeof(sendbuff)); 
-        bytesRemaining -= requestedBytesPerPacket;
-        enet = enet->prev;
-    }
-    
-    while(enet != NULL){
-		disconnectPollSock(ENET,enet->portNum);
-        enet = enet->prev;
+	ADC->recLen = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_SET_ADC_RECORD_LENGTH_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+
+	ADC->varGain = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_VAR_GAIN_SETTING_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+
+	ADC->serialCommand = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_SERIAL_COMMAND_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+
+	ADC->dataReadyFlag = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + DATA_READY_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+
+	ADC->leds = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_LED_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+	
+	ADC->ramBank0 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK0_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+
+	ADC->ramBank1 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK1_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+
+	ADC->reg0.adccmd=0; 		ADC->reg0.addr=0;	
+	ADC->reg1.adccmd=0;			ADC->reg1.addr=1;
+	ADC->reg2.adccmd=0;			ADC->reg2.addr=2;
+	ADC->reg3.adccmd=0;			ADC->reg3.addr=3;
+	ADC->reg4.adccmd=0;			ADC->reg4.addr=4;
+	ADC->reg5.adccmd=0;			ADC->reg5.addr=5;
+	ADC->reg7.adccmd=0;			ADC->reg7.addr=7;
+	ADC->reg13.adccmd=0;		ADC->reg13.addr=13;
+	ADC->reg15.adccmd=0;		ADC->reg15.addr=15;
+	ADC->reg17.adccmd=0;		ADC->reg17.addr=17;
+	ADC->reg19.adccmd=0;		ADC->reg19.addr=19;
+	ADC->reg21.adccmd=0;		ADC->reg21.addr=21;
+	ADC->reg25.adccmd=0;		ADC->reg25.addr=25;
+	ADC->reg27.adccmd=0;		ADC->reg27.addr=27;
+	ADC->reg29.adccmd=0;		ADC->reg29.addr=29;
+	ADC->reg31.adccmd=0;		ADC->reg31.addr=31;
+	ADC->reg33.adccmd=0;		ADC->reg33.addr=33;
+	ADC->reg70.adccmd=0;		ADC->reg70.addr=70;
+	
+	ADC->adcreg[0] = (ADCREG_t *)(&(ADC->reg0));
+	ADC->adcreg[1] = (ADCREG_t *)(&(ADC->reg1));
+	ADC->adcreg[2] = (ADCREG_t *)(&(ADC->reg2));
+	ADC->adcreg[3] = (ADCREG_t *)(&(ADC->reg3));
+	ADC->adcreg[4] = (ADCREG_t *)(&(ADC->reg4));
+	ADC->adcreg[5] = (ADCREG_t *)(&(ADC->reg5));
+	ADC->adcreg[6] = (ADCREG_t *)(&(ADC->reg7));
+	ADC->adcreg[7] = (ADCREG_t *)(&(ADC->reg13));
+	ADC->adcreg[8] = (ADCREG_t *)(&(ADC->reg15));
+	ADC->adcreg[9] = (ADCREG_t *)(&(ADC->reg17));
+	ADC->adcreg[10] = (ADCREG_t *)(&(ADC->reg19));
+	ADC->adcreg[11] = (ADCREG_t *)(&(ADC->reg31));
+	ADC->adcreg[12] = (ADCREG_t *)(&(ADC->reg29));
+	ADC->adcreg[13] = (ADCREG_t *)(&(ADC->reg27));
+	ADC->adcreg[14] = (ADCREG_t *)(&(ADC->reg25));
+	ADC->adcreg[15] = (ADCREG_t *)(&(ADC->reg21));
+	ADC->adcreg[16] = (ADCREG_t *)(&(ADC->reg33));
+	ADC->adcreg[17] = (ADCREG_t *)(&(ADC->reg70));
+	
+	for(uint32_t i=0; i<148; i++){
+		ADC->tgcreg0x01[i].adccmd = 0;
+		ADC->tgcreg0x01[i].addr = i+1;
 	}
+	
+	ADC->tgcreg0x95.adccmd=0; ADC->tgcreg0x95.addr=0x95;
+	ADC->tgcreg0x96.adccmd=0; ADC->tgcreg0x96.addr=0x96;
+	ADC->tgcreg0x97.adccmd=0; ADC->tgcreg0x97.addr=0x97;
+	ADC->tgcreg0x98.adccmd=0; ADC->tgcreg0x98.addr=0x98;
+	ADC->tgcreg0x99.adccmd=0; ADC->tgcreg0x99.addr=0x99;
+	ADC->tgcreg0x9A.adccmd=0; ADC->tgcreg0x9A.addr=0x9A;
+	ADC->tgcreg0x9B.adccmd=0; ADC->tgcreg0x9B.addr=0x9B;
+	
+	DREF32(ADC->varGain) = 0;
+	DREF32(ADC->recLen) = 2048;
+	
+	DREF32(ADC->stateReset)=1; 
+	usleep(10);
+	
+	DREF32(ADC->controlComms) = ADC_HARDWARE_RESET;
+	usleep(100000);
+	
+	DREF32(ADC->controlComms) = ADC_IDLE_STATE;
+	usleep(10);
+	
+	ADC->epfd = epoll_create(5);
+	
+	
+	return(1);
 }
 
 
-void adcmemcpy(char *dest, int32_t volatile *sourceData, size_t nbytes){
-	char *src = (char *)sourceData;
-	for(int i=0;i<nbytes;i++)
+void adcmemcpy( char *dest, char *src, size_t nbytes){
+
+	for(int i=0;i<nbytes;i++){
 		dest[i] = src[i];
-}
-
-
-void sendAcqdData(struct ENETsock **ENET, struct ADCvars *ADC, char *adcData, int portNum){
-	struct ENETsock *enet0, *commsock;
-	commsock = (*ENET)->commsock;
-	static int tmp = 0;
-    int nsent;
-    printf("sendAcqdData, tmp=%d\n",tmp);
-    if ( DREF32(ADC->interrupt0) || tmp>0 ){
-		printf("sendAcqdData, tmp=%d\n",tmp);
-		if( g_queryMode == 0 || tmp == 0 ){
-			adcmemcpy(&adcData[0],DREFP32S(ADC->ramBank0),g_recLen*sizeof(int32_t));
-			adcmemcpy(&adcData[g_recLen*sizeof(int32_t)],DREFP32S(ADC->ramBank1),g_recLen*sizeof(int32_t));
-			adcmemcpy(&adcData[2*g_recLen*sizeof(int32_t)],DREFP32S(ADC->ramBank2),g_recLen*sizeof(int32_t));
-		}
-		printf("sendAcqdData, tmp=%d\n",tmp);
-		printf("g_queryMode=%d\n",g_queryMode);
-		if(g_queryMode == 0){
-			enet0 = commsock->prev;
-			while( enet0 != NULL && enet0->is_active ){
-				setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_CORK,&ONE,sizeof(int));
-				nsent = send(enet0->sockfd, enet0->dataAddr, enet0->bytesInPacket,0);	
-				setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_CORK,&ZERO,sizeof(int));
-				if( nsent < 0 )
-					perror("error sending data:");
-				//~ printf("oh my, data sent. enetmsg1 = 0\n");
-				setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-				enet0 = enet0->prev;
-				usleep(g_packetWait);
-			}
-		} else {
-			tmp += 1;
-			if(portNum==0){
-				portNum=commsock->prev->portNum;
-			}
-			if(portNum <= g_numPorts){
-				enet0 = commsock->prev;
-				while( enet0->portNum != portNum )
-					enet0 = enet0->prev;
-				
-				printf("%d\n",enet0->dataAddr);
-				setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_CORK,&ONE,sizeof(int));
-				nsent = send(enet0->sockfd, enet0->dataAddr, enet0->bytesInPacket,0);	
-				setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_CORK,&ZERO,sizeof(int));
-				if( nsent < 0 )
-					perror("error sending data:");
-				//~ printf("oh my, data sent. enetmsg1 != 0\n");
-				setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-			}
-			printf("tmp %d, portNum %d, g_numPorts %d\n",tmp,portNum, g_numPorts);
-			if(portNum == g_numPorts){
-				tmp = 0;
-				usleep(10);
-			}
-		}
 	}
 }
 
 
-void ADC_Controller(struct FPGAvars *FPGA, struct ADCvars *ADC, struct TXvars *TX, struct ENETsock **ENET, char *adcData,  uint32_t *phaseDelays, uint32_t *chargeTimes){ // process that talks to the FPGA and transmits data to the SoCs	,fd_set *masterfds,
-	struct ENETsock *enet0, *commsock;
-	commsock = (*ENET)->commsock;
+void setRecLen(ADCvars_t *ADC, uint32_t recLen){
+	DREF32(ADC->recLen) = recLen-1;
+	usleep(5);
+}
+
+
+void adcSync(ADCvars_t *ADC){
+	DREF32(ADC->controlComms) = ADC_SYNC_COMMAND;
+	usleep(5);
+}
+
+
+void adcIssueSerialCmd(ADCvars_t *ADC, uint32_t cmd){
+	DREF32(ADC->serialCommand) = cmd;
+	usleep(5);
+	DREF32(ADC->controlComms) = ADC_BUFFER_SERIAL_COMMAND;
+	usleep(5);
+	DREF32(ADC->controlComms) = ADC_ISSUE_SERIAL_COMMAND;
+	usleep(100);
+	DREF32(ADC->controlComms) = ADC_IDLE_STATE;
+	usleep(5);
+}
+
 	
+void cycleLEDS(ADCvars_t *ADC, int ncycles){
 	
-	switch(enetmsg[0]){
-		
-		case(CASE_ADC_RECORD_LENGTH):{ // change record length
-            DREF32(ADC->transReady) = 0;
-			if( enetmsg[1]>=MIN_PACKETSIZE && enetmsg[1]<=MAX_RECLEN ){
-				DREF32(ADC->recLen) = enetmsg[1];
-				g_recLen = enetmsg[1];
-				if( enetmsg[2]>=MIN_PACKETSIZE && enetmsg[2]<=enetmsg[1] ){
-					g_packetsize = enetmsg[2];
-				} else {
-					g_packetsize = g_recLen;
-				}
-				printf("[ recLen, packetsize ] set to [ %zu, %zu ]\n",DREF32(ADC->recLen), g_packetsize);
-			} else {
-				DREF32(ADC->recLen) = 2048;
-				g_recLen = DREF32(ADC->recLen);
-                g_packetsize = 2048;
-				printf("invalid recLen, defaulting to 2048, packetsize to 512\n");
-			}
-            g_numPorts = (g_recLen-1)/g_packetsize + 1;
-            setDataAddrPointers(ENET, adcData);
-			break;
-		}
-		
-		case(CASE_ADC_TRIGGER_DELAY):{ // change adc trig delay
-			DREF32(ADC->trigDelay) = ADC_CLK*enetmsg[1];
-			printf("ADC: Trig Delay -- %.2f\n",(float)DREF32(ADC->trigDelay)/((float)ADC_CLK));
-			break;
-		}
-
-		case(CASE_ADC_TOGGLE_DATA_ACQ):{ // if dataGo is zero it won't transmit data to server, basically a wait state
-            g_dataAcqGo = ( enetmsg[1] == 1 || enetmsg[1] == 0 ) ? enetmsg[1] : 0;
-            if( g_dataAcqGo )
-                setDataAddrPointers(ENET, adcData);
-			DREF32(ADC->stateReset) = 1; 
-			DREF32(ADC->stateReset) = 0;
-			break;
-		}
-
-		case(CASE_QUERY_ADC_FOR_DATA):{
-			//~ printf("query (%0.2f ms)\n",(0.001)*g_queryTimeout);
-			if( enetmsg[1] == 0 || enetmsg[2] == 0 ){
-				usleep((g_boardNum%g_moduloBoardNum)*g_moduloTimer);
-				tmp = 0;
-			}
-			while( !DREF32(ADC->transReady) && (++tmp)<g_queryTimeout ){
-				usleep(10);	
-			}
-			if( DREF32(ADC->transReady) ){
-				//~ printf("tmp = %d\n",tmp);
-				//~ printf("transReady\n");
-				adcmemcpy(&adcData[0],DREFP32S(ADC->ramBank0),g_recLen*sizeof(int32_t));
-				adcmemcpy(&adcData[g_recLen*sizeof(int32_t)],DREFP32S(ADC->ramBank1),g_recLen*sizeof(int32_t));
-				adcmemcpy(&adcData[2*g_recLen*sizeof(int32_t)],DREFP32S(ADC->ramBank2),g_recLen*sizeof(int32_t));
-				//~ printf("memcpy'd\n");
-				//~ for(int j=0;j<100;j++){
-					//~ printf("adcData[%d]=%lu\n",j*67,(long unsigned int)((DREFP32S(ADC->ramBank0))[j*67])&0xfff);
-				//~ }
-				
-				if(enetmsg[1] == 0){
-					enet0 = commsock->prev;
-					while( enet0 != NULL && enet0->is_active ){
-						setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_CORK,&ONE,sizeof(int));
-						nsent = send(enet0->sockfd, enet0->dataAddr, enet0->bytesInPacket,0);	
-						setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_CORK,&ZERO,sizeof(int));
-						if( nsent < 0 )
-							perror("error sending data:");
-						//~ printf("oh my, data sent. enetmsg1 = 0\n");
-						setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-						enet0 = enet0->prev;
-						usleep(g_packetWait);
-					}
-					portNum = 0;
-				} else {
-					portNum = enetmsg[2]+1;
-					if(portNum <= g_numPorts){
-						enet0 = commsock->prev;
-						while( enet0->portNum != portNum )
-							enet0 = enet0->prev;
-						
-						setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_CORK,&ONE,sizeof(int));
-						nsent = send(enet0->sockfd, enet0->dataAddr, enet0->bytesInPacket,0);	
-						setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_CORK,&ZERO,sizeof(int));
-						if( nsent < 0 )
-							perror("error sending data:");
-						//~ printf("oh my, data sent. enetmsg1 != 0\n");
-						setsockopt(enet0->sockfd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-					}
-					if(portNum == g_numPorts){
-						portNum = 0;
-						usleep(10);	
-						//~ printf("portNum %d\n",g_numPorts);
-					}
-				}
-				
-			} else {
-                emsg[0] = CASE_QUERY_ADC_FOR_DATA; emsg[1] = g_boardNum; 
-                //send(commsock->sockfd,emsg,enetMsgSize,0);
-                printf("query data timed out (10ms)\n");
-            }
-            //~ printf("trans ready = %lu\n",(unsigned long) DREF32(ADC->transReady));
-			if(portNum == 0){
-				DREF32(ADC->stateReset) = 1; 
-				usleep(10);
-				DREF32(ADC->stateReset) = 0;
-				tmp = 0;
-			}
-			//~ printf("trans ready = %lu\n",(unsigned long) DREF32(ADC->transReady));
-			break;	
-		}
-		
-		case(CASE_SET_QUERY_DATA_TIMEOUT):{
-			if(enetmsg[1] > 999){
-				g_queryTimeout = enetmsg[1]/10;
-			} else {
-				g_queryTimeout = 10000/10;
-			}
-			break;
-		}
-		
-		case(CASE_QUERY_BOARD_INFO):{// loads board-specific data from onboard file		
-			send(commsock->sockfd,g_boardData,enetMsgSize,0);
-            setsockopt(commsock->sockfd,IPPROTO_TCP,TCP_QUICKACK,&ONE,sizeof(int));
-            break;
-		}
-		
-		
-        case(CASE_ENET_INTERLEAVE_DEPTH_AND_TIMER):{
-			if( enetmsg[1] > 0 ){
-                g_moduloBoardNum = enetmsg[1];
-				if( enetmsg[2] < 5000 ){
-					g_moduloTimer = enetmsg[2];
-				} else {
-					g_moduloTimer = 0;
-				}
-				if( enetmsg[3] < 5000 ){
-					g_packetWait = enetmsg[3];
-				} else {
-					g_packetWait = 0;
-				}
-			} else {
-                g_moduloBoardNum = 1;
-                g_moduloTimer = 0;
-                g_packetWait = 0;
-            }
-            break;
-        }
-        
-        case(CASE_ENET_SET_PACKETSIZE):{
-			DREF32(ADC->transReady) = 0;
-			if( enetmsg[1]>=MIN_PACKETSIZE && enetmsg[1]<=MAX_RECLEN ){
-				DREF32(ADC->recLen) = enetmsg[1];
-				g_recLen = enetmsg[1];
-				if( enetmsg[2]>=MIN_PACKETSIZE && enetmsg[2]<=enetmsg[1] ){
-					g_packetsize = enetmsg[2];
-				} else {
-					g_packetsize = g_recLen;
-				}
-				//~ printf("[ recLen, packetsize ] set to [ %zu, %zu ]\n",DREF32(ADC->recLen), g_packetsize);
-			} else {
-				DREF32(ADC->recLen) = 2048;
-				g_recLen = DREF32(ADC->recLen);
-                g_packetsize = 2048;
-				printf("invalid recLen, defaulting to 2048, packetsize to 512\n");
-			}
-            g_numPorts = (g_recLen-1)/g_packetsize + 1;
-            setDataAddrPointers(ENET, adcData);
-			break;
-        }
-		
-		
-		case(CASE_TX_RECV_OUTPUT_CONTROL_REG_SINGLE):{// loads board-specific data from onboard file
-			DREFP32(TX->instructionReg)[enetmsg[1]] = enetmsg[2];
-			//~ printf("trigvals[%d], %lu, %lu\n0b",enetmsg[1],enetmsg[2],DREFP32(TX->instructionReg)[enetmsg[1]]);
-			//~ for (int j = 31; j>0; j--){
-				//~ if((DREFP32(TX->instructionReg)[enetmsg[1]] & (1<<j)))
-				//~ printf("1");
-				//~ else
-				//~ printf("0");
-			//~ }
-			//~ printf("\n");
-			break;
-		}
-		
-		case(CASE_TX_RECV_TIMING_REG_SINGLE):{// loads board-specific data from onboard file
-			DREFP32(TX->timingReg)[enetmsg[1]] = (enetmsg[2] > 0) ? ( enetmsg[2]-1 ) : 0;
-			//~ printf("trigwaits[%d], %d, %lu\n",enetmsg[1],enetmsg[2],DREFP32(TX->timingReg)[enetmsg[1]]);
-			break;
-		}
-		
-		case(CASE_TX_RECV_LOOP_CONTROL_REG_SINGLE):{// loads board-specific data from onboard file
-			DREFP32(TX->loopAddressReg)[enetmsg[1]] = ( ( enetmsg[2] & 0xffff ) | ( ( enetmsg[3] << 16 ) & 0xffff0000 ) );
-			DREFP32(TX->loopCounterReg)[enetmsg[1]] = ( ( enetmsg[4] & 0xffff ) | ( ( enetmsg[5] << 16 ) & 0xffff0000 ) );
-			DREFP32(TX->instructionReg)[enetmsg[3]] |= TX_IS_LOOP_ENDPOINT_BIT ;
-			//~ printf("loopControl[%d], %lu\n",enetmsg[1],(long unsigned int)enetmsg[2]);
-			//~ printf("loopControl[%d], %lu\n",enetmsg[1],(long unsigned int)(DREFP32(TX->loopControlReg)[enetmsg[1]]));
-			break;
-		}
-		
-		
-		case(CASE_RESET_TX_REGISTERS_ALL):{
-			//~ printf("reseting regs\n");
-			memset(DREFP32(TX->instructionReg),0,TX_OUTPUTCONTROLREGISTER_SPAN);
-			memset(DREFP32(TX->timingReg),0,TX_TIMINGREGISTER_SPAN);
-			memset(DREFP32(TX->loopAddressReg),0,TX_LOOPADDRESSREGISTER_SPAN);
-			memset(DREFP32(TX->loopCounterReg),0,TX_LOOPCOUNTERREGISTER_SPAN);
-			memset(DREFP32(TX->dmaOutputControlReg),0,TX_DMAOUTPUTCONTROLREGISTER_SPAN);
-			memset(DREFP32(TX->dmaTimingReg),0,TX_DMATIMINGREGISTER_SPAN);
-			//~ printf("regs reseted\n");
-			break;
-		}
-		
-		case(CASE_ADC_POWER):{
-			DREF32(ADC->controlComms) = (enetmsg[1]<<7);
-			printf("lvds power = %lu\n",enetmsg[1]);	
-			sleep(0.2);
-			break;
-		}
-		
-		case(CASE_ADC_SYNC):{
-			sleep(0.25);
-			break;
-		}
-		
-		case(CASE_ADC_INITIALIZE):{
-			
-			DREF32(ADC->serialCommandAddr) = ADC_SOFTWARE_RESET_ADDR;
-			usleep(50);
-			DREF32(ADC->serialCommand) = ADC_SOFTWARE_RESET_CMD;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_BUFFER_SERIAL_COMMAND;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_ISSUE_SERIAL_COMMAND;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-			sleep(0.1);
-				
-			DREF32(ADC->serialCommandAddr) = ADC_SET_TGC_ADDR;
-			usleep(50);
-			DREF32(ADC->serialCommand) = ADC_SET_TGC_CMD;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_BUFFER_SERIAL_COMMAND;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_ISSUE_SERIAL_COMMAND;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-			sleep(0.1);
-
-			DREF32(ADC->serialCommandAddr) = ADC_SET_FIXED_GAIN_ADDR;
-			usleep(50);
-			DREF32(ADC->serialCommand) = ADC_SET_FIXED_GAIN_CMD;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_BUFFER_SERIAL_COMMAND;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_ISSUE_SERIAL_COMMAND;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-			sleep(0.1);
-			
-			break;
-		}
-		
-		case(CASE_ADC_SAMPLING_FREQ):{
-			
-			sleep(0.25);
-			break;
-		}
-		
-		case(CASE_ADC_GAIN):{
-			DREF32(ADC->serialCommandAddr) = ADC_SET_COARSE_GAIN_ADDR;
-			usleep(50);
-			DREF32(ADC->serialCommand) = ADC_SET_COARSE_GAIN_CMD( enetmsg[1] );
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_BUFFER_SERIAL_COMMAND;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_ISSUE_SERIAL_COMMAND;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-			sleep(0.1);
-			
-			
-			DREF32(ADC->serialCommandAddr) = ADC_SET_FINE_GAIN_ADDR;
-			usleep(50);
-			DREF32(ADC->serialCommand) = ADC_SET_FINE_GAIN_CMD( enetmsg[2] );
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_BUFFER_SERIAL_COMMAND;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_ISSUE_SERIAL_COMMAND;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-			sleep(0.1);
-			
-			printf("gain -- enetmsg[1]: %d, enetmsg[2]: %d\n",enetmsg[1], enetmsg[2]);
-			
-			break;
-		}
-			
-		case(CASE_ADC_DIRECT_INSTRUCTION):{
-			DREF32(ADC->serialCommandAddr) = (enetmsg[1] & 0xff);
-			printf("%d,%d\n", enetmsg[1], enetmsg[2]);
-			usleep(50);
-			DREF32(ADC->serialCommand) = (enetmsg[2] & 0xffff);
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_BUFFER_SERIAL_COMMAND;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_ISSUE_SERIAL_COMMAND;
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-			sleep(0.1);
-			break;
-		}
-		
-		case(CASE_INTERRUPT_THYSELF):{	
-			DREF32(ADC->controlComms) = (1<<7) | (1<<3);
-			clock_gettime(CLOCK_MONOTONIC, &gstart);
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-			sleep(0.1);
-			break;
-		}
-		
-		
-		case(CASE_UNINTERRUPT_THYSELF):{	
-			DREF32(ADC->controlComms) = (1<<7) | (1<<4);
-			usleep(50);
-			DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-			sleep(0.1);
-			break;
-		}
-		
-		case(CASE_ADC_CONTROL_COMMS):{
-			DREF32(ADC->serialCommandAddr) = enetmsg[1];
-			printf("adccomms[%d], %lu\n",enetmsg[1],(long unsigned int)enetmsg[2]);			
-			break;
-		}					
-		
-		case(CASE_TX_CONTROL_COMMS):{// loads board-specific data from onboard file
-			DREF32(TX->controlComms) = enetmsg[1];
-			printf("txcomms[%d], %lu\n",enetmsg[1],(long unsigned int)enetmsg[2]);
-			break;
-		}
-		
-		case(CASE_TX_RECV_PHASE_DELAYS_SINGLE):{
-			memcpy(&phaseDelays[enetmsg[1]*TX_NCHAN],&enetmsg[2],TX_NCHAN*sizeof(uint32_t));
-			printf("phaseDelays[%lu] set\n",enetmsg[1]);
-			break;
-		}
-		
-		case(CASE_TX_RECV_CHARGE_TIMES_SINGLE):{
-			memcpy(&chargeTimes[enetmsg[1]*TX_NCHAN],&enetmsg[2],TX_NCHAN*sizeof(uint32_t));
-			printf("chargeTimes[%lu] set\n",enetmsg[1]);
-			break;		
-		}
-		
-		case(CASE_TX_USER_MASK):{
-			DREF32(TX->channelMask) = enetmsg[1];
-			printf("channelMask [%lu] set\n",enetmsg[1]);
-			break;		
-		}
-		
-		case(CASE_TX_DISABLE_TRANSDUCER_SAFETY_TIMEOUT):{
-			DREF32(TX->disableTransducerSafety) = enetmsg[1];
-			printf("safetyDisabled set to [%lu] \n",enetmsg[1]);
-			break;		
-		}
-		
-		default:{
-			printf("default case, doing nothing\n");
-            break;
-		}
-		
+	uint32_t tmp = 0;
+	LED_t led;
+	led.vals=0;
+	
+	while( tmp<ncycles ){
+		led.vals = ( tmp & 0x1F );
+		led.hiRest = ~led.hiRest;
+		DREF32(ADC->leds) = led.vals;
+		usleep(100000);
+		tmp++;
 	}
 }
 
 
+void setLEDS(ADCvars_t *ADC, uint32_t val){
+	
+	DREF32(ADC->leds) = val & 0x1F;
+		
+}
 
 
+void setVarGain(ADCvars_t *ADC, uint32_t val){
+	
+	DREF32(ADC->varGain) = val & 0x03;
+		
+}
 
 
+void queryData(ADCvars_t *ADC){
+	
+	static int nqueries = 0;
+	
+	// doesn't need to be connected unless trying to collect data. 
+	connectPollInterrupter(ADC,"gpio@0x100000000");
+	
+	clock_t start_timer,end_timer;
+	
+	int nfds,timeout_ms;
+	uint32_t tmp, recLen;
+	
+	recLen = DREF32(ADC->recLen)+1;
+	printf("reclen %u\n",recLen);
+	
+	char adcData0[MAX_RECLEN*sizeof(int64_t)];
+	char adcData1[MAX_RECLEN*sizeof(int32_t)];
+	
+	BANK0_t *b0 = (BANK0_t *)adcData0;
+	BANK1_t *b1 = (BANK1_t *)adcData1;
+	
+	DREF32(ADC->stateReset)=1;
+	usleep(5);
+	DREF32(ADC->stateReset)=0;
+	usleep(5);
+	
+	tmp = 0;
+	nfds = 0;
+	timeout_ms = 10;
+	while( !nfds ){
+		tmp++;
+		if(!(tmp%100)){
+			printf("query data waiting... (%d s)\n",tmp/100);
+			DREF32(ADC->leds) = ( ( tmp/100 ) & 0x1F );
+		}
+		nfds = epoll_wait(ADC->epfd, ADC->events, 5, timeout_ms);
+		if( nfds < 0 ){
+			perror("error sending data:");
+		}
+		if(DREF32(ADC->dataReadyFlag)){
+			printf("nfds %d, dataReadyFlag %u\n",nfds,DREF32(ADC->dataReadyFlag));
+			break;
+		}
+	}
+	disconnectPollInterrupter(ADC);
+	
+	start_timer = clock();
+	adcmemcpy(adcData0,DREFPCHAR(ADC->ramBank0),recLen*sizeof(int64_t));
+	adcmemcpy(adcData1,DREFPCHAR(ADC->ramBank1),recLen*sizeof(int32_t));
+	end_timer = clock();
+
+	printf("adcmemcpy clock: %g us, %ld clks_per_sec\n",((double)(end_timer-start_timer))/CLOCKS_PER_SEC*1e6,CLOCKS_PER_SEC);
+		
+	FILE *datafile;
+	datafile = fopen("data_file.dat","w");
+	
+	if(ADC->reg4.DFS){	
+		uint16_t ch5;
+		for(int j=0;j<recLen;j++){
+			ch5 = ( ( b1[j].u.ch5hi << 8 ) | b0[j].u.ch5lo );
+			fprintf(datafile,"%u,%u,%u,%u,%u,%u,%u,%u\n",b0[j].u.ch0,b0[j].u.ch1,b0[j].u.ch2,b0[j].u.ch3,b0[j].u.ch4,ch5,b1[j].u.ch6,b1[j].u.ch7);
+		}
+	} else {
+		int16_t ch5;
+		for(int j=0;j<recLen;j++){
+			ch5 = ( ( b1[j].s.ch5hi << 8 ) | b0[j].s.ch5lo );
+			fprintf(datafile,"%d,%d,%d,%d,%d,%d,%d,%d\n",b0[j].s.ch0,b0[j].s.ch1,b0[j].s.ch2,b0[j].s.ch3,b0[j].s.ch4,ch5,b1[j].s.ch6,b1[j].s.ch7);
+		}
+	}
+	
+	fclose(datafile);
+}
 
 
+void adcInitializeSettings(ADCvars_t *ADC){
+	
+	DREF32(ADC->controlComms) = ADC_HARDWARE_RESET;
+	usleep(100000);
+	DREF32(ADC->controlComms) = ADC_IDLE_STATE;
+	usleep(1000);
+	
+	ADC->reg0.SOFTWARE_RESET = 1;
+	adcIssueSerialCmd(ADC,ADC->reg0.adccmd);
+	
+	ADC->reg0.SOFTWARE_RESET = 0;
+	ADC->reg0.TGC_REGISTER_WREN = 1;
+	adcIssueSerialCmd(ADC,ADC->reg0.adccmd);
+
+	// WITHOUT INTERP_ENABLE=1, THIS ONLY ALLOWS COARSE_GAIN TO BE SET
+	ADC->tgcreg0x99.STATIC_PGA = 1;
+	adcIssueSerialCmd(ADC,ADC->tgcreg0x99.adccmd);
+	
+	// NOT IN MANUAL!!!, NEEDED FOR FINE GAIN CONTROL
+	ADC->tgcreg0x97.INTERP_ENABLE = 1;
+	adcIssueSerialCmd(ADC,ADC->tgcreg0x97.adccmd);
+}
 
 
+void adcSetGain(ADCvars_t *ADC, double gainVal){
+	
+	uint32_t coarseGain, fineGain;
+	
+	if(gainVal > 0){
+		coarseGain = (uint32_t )(gainVal+5.0);
+		fineGain = (uint32_t )((((gainVal+5.0)-(double )coarseGain))*8);
+	} else {
+		coarseGain = (uint32_t )(gainVal+5);
+		fineGain = (uint32_t )((1.0-((int)gainVal-gainVal))*8);
+	}
+	//printf("gainVal: %g, coarseGain: %u, fineGain: %u \n",gainVal,coarseGain,fineGain);
+
+	// set TGC_REG_WREN = 1 to access gain controls
+	if( !(ADC->reg0.TGC_REGISTER_WREN) ){
+		ADC->reg0.TGC_REGISTER_WREN = 1;
+		adcIssueSerialCmd(ADC,ADC->reg0.adccmd);
+	}
+
+	ADC->tgcreg0x99.FINE_GAIN = fineGain;
+	adcIssueSerialCmd(ADC,ADC->tgcreg0x99.adccmd);
+	
+	ADC->tgcreg0x9A.COARSE_GAIN = coarseGain;
+	adcIssueSerialCmd(ADC,ADC->tgcreg0x9A.adccmd);
+	
+	
+}
+
+void adcSetDTypeUnsignedInt(ADCvars_t *ADC, uint32_t val){
+	// set TGC_REG_WREN = 0 to return to gen purpose register map
+	if( ADC->reg0.TGC_REGISTER_WREN ){
+		ADC->reg0.TGC_REGISTER_WREN = 0;
+		adcIssueSerialCmd(ADC,ADC->reg0.adccmd);
+	}
+	
+	// set dtype as signed (val=0), unsigned (val=1) int
+	if(val){
+		ADC->reg4.DFS = 1;
+	} else {
+		ADC->reg4.DFS = 0;
+	}	
+	//~ printf("dtype: %u\n",ADC->reg4.adccmd);
+	adcIssueSerialCmd(ADC,ADC->reg4.adccmd);
+}
+
+void adcSetLowNoiseMode(ADCvars_t *ADC, uint32_t val){
+	
+	if( ADC->reg0.TGC_REGISTER_WREN ){
+		ADC->reg0.TGC_REGISTER_WREN = 0;
+		adcIssueSerialCmd(ADC,ADC->reg0.adccmd);
+	}
+	
+	if(val){
+		ADC->reg7.VCA_LOW_NOISE_MODE = 1;
+	} else {
+		ADC->reg7.VCA_LOW_NOISE_MODE = 0;
+	}
+	
+	adcIssueSerialCmd(ADC,ADC->reg7.adccmd);
+}
+
+void adcToggleChannelPwr(ADCvars_t *ADC, uint8_t pwrdOn){
+	
+	if( ADC->reg0.TGC_REGISTER_WREN ){
+		ADC->reg0.TGC_REGISTER_WREN = 0;
+		adcIssueSerialCmd(ADC,ADC->reg0.adccmd);
+	}
+	
+	ADC->reg1.PDN_CHANNEL = pwrdOn;	
+	adcIssueSerialCmd(ADC,ADC->reg1.adccmd);
+}
+
+void adcSetFilterBW(ADCvars_t *ADC, uint8_t filter){	
+	if( ADC->reg0.TGC_REGISTER_WREN ){
+		ADC->reg0.TGC_REGISTER_WREN = 0;
+		adcIssueSerialCmd(ADC,ADC->reg0.adccmd);
+	}
+	
+	ADC->reg7.FILTER_BW = 0x02;
+	adcIssueSerialCmd(ADC,ADC->reg7.adccmd);
+}
+
+void adcSetInternalAcCoupling(ADCvars_t *ADC, uint8_t accoupling){	
+	if( ADC->reg0.TGC_REGISTER_WREN ){
+		ADC->reg0.TGC_REGISTER_WREN = 0;
+		adcIssueSerialCmd(ADC,ADC->reg0.adccmd);
+	}
+	
+	ADC->reg7.INTERNAL_AC_COUPLING = accoupling;
+	adcIssueSerialCmd(ADC,ADC->reg7.adccmd);
+}
+
+void adcSetReg1(ADCvars_t *ADC){
+	// set TGC_REG_WREN = 0 to return to gen purpose register map
+	if( ADC->reg0.TGC_REGISTER_WREN ){
+		ADC->reg0.TGC_REGISTER_WREN = 0;
+		adcIssueSerialCmd(ADC,ADC->reg0.adccmd);
+	}
+	
+	ADC->reg1.GLOBAL_PDN = 0;
+	ADC->reg1.OUTPUT_DISABLE = 0;
+	ADC->reg1.PDN_CHANNEL = 0x00;
+	ADC->reg1.STDBY = 0;
+	ADC->reg1.LOW_FREQUENCY_NOISE_SUPRESSION = 0;
+	ADC->reg1.EXTERNAL_REFERENCE = 0;
+	ADC->reg1.OUTPUT_RATE_2X = 0;
+
+	adcIssueSerialCmd(ADC,ADC->reg1.adccmd);
+}
+
+void adcSetReg7(ADCvars_t *ADC){
+
+	// set TGC_REG_WREN = 0 to return to gen purpose register map
+	if( ADC->reg0.TGC_REGISTER_WREN ){
+		ADC->reg0.TGC_REGISTER_WREN = 0;
+		adcIssueSerialCmd(ADC,ADC->reg0.adccmd);
+	}
+	
+	ADC->reg7.VCA_LOW_NOISE_MODE = 0;
+	ADC->reg7.FILTER_BW = 0x00;
+	ADC->reg7.INTERNAL_AC_COUPLING = 1;
+	
+	adcIssueSerialCmd(ADC,ADC->reg7.adccmd);
+}
 
 
 
