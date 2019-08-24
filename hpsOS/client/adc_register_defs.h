@@ -71,7 +71,7 @@ enum ADC_ADDRS{
 };
 
 
-typedef union REG0_{
+typedef union GPREG0_{
 	struct{
 		union{
 			struct {
@@ -88,9 +88,9 @@ typedef union REG0_{
 	};
 	
 	uint32_t adccmd;
-} REG0_t;
+} GPREG0_t;
 
-typedef union REG1_{
+typedef union GPREG1_{
 	struct{
 		union{
 			struct {
@@ -124,9 +124,9 @@ typedef union REG1_{
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG1_t;
+} GPREG1_t;
 
-typedef union REG2_{
+typedef union GPREG2_{
 	struct{
 		union{
 			struct {
@@ -143,9 +143,9 @@ typedef union REG2_{
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG2_t;
+} GPREG2_t;
 
-typedef union REG3_{
+typedef union GPREG3_{
 	struct{
 		union{
 			struct {
@@ -163,9 +163,9 @@ typedef union REG3_{
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG3_t;
+} GPREG3_t;
 
-typedef union REG4_{
+typedef union GPREG4_{
 	struct{
 		union{
 			struct {
@@ -180,9 +180,9 @@ typedef union REG4_{
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG4_t;
+} GPREG4_t;
 
-typedef union REG5_{
+typedef union GPREG5_{
 	struct{
 		union{
 			struct {
@@ -196,9 +196,9 @@ typedef union REG5_{
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG5_t;
+} GPREG5_t;
 
-typedef union REG7_{
+typedef union GPREG7_{
 	struct{
 		union{
 			struct {
@@ -218,9 +218,9 @@ typedef union REG7_{
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG7_t;
+} GPREG7_t;
 
-typedef union REG13_{ // CH1
+typedef union GPREG13_{ // CH1
 	struct{
 		union{
 			struct {
@@ -236,9 +236,9 @@ typedef union REG13_{ // CH1
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG13_t;
+} GPREG13_t;
 
-typedef union REG15_{ // CH2
+typedef union GPREG15_{ // CH2
 	struct{
 		union{
 			struct {
@@ -255,9 +255,9 @@ typedef union REG15_{ // CH2
 	};
 	
 	uint32_t adccmd;
-} REG15_t;
+} GPREG15_t;
 
-typedef union REG17_{ // CH3
+typedef union GPREG17_{ // CH3
 	struct{
 		union{
 			struct {
@@ -273,9 +273,9 @@ typedef union REG17_{ // CH3
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG17_t;
+} GPREG17_t;
 
-typedef union REG19_{ // CH4
+typedef union GPREG19_{ // CH4
 	struct{
 		union{
 			struct {
@@ -291,9 +291,9 @@ typedef union REG19_{ // CH4
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG19_t;
+} GPREG19_t;
 
-typedef union REG31_{ // CH5
+typedef union GPREG31_{ // CH5
 	struct{
 		union{
 			struct {
@@ -309,9 +309,9 @@ typedef union REG31_{ // CH5
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG31_t;
+} GPREG31_t;
 
-typedef union REG29_{ // CH6
+typedef union GPREG29_{ // CH6
 	struct{
 		union{
 			struct {
@@ -327,9 +327,9 @@ typedef union REG29_{ // CH6
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG29_t;
+} GPREG29_t;
 
-typedef union REG27_{ // CH7
+typedef union GPREG27_{ // CH7
 	struct{
 		union{
 			struct {
@@ -345,9 +345,9 @@ typedef union REG27_{ // CH7
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG27_t;
+} GPREG27_t;
 
-typedef union REG25_{ // CH8
+typedef union GPREG25_{ // CH8
 	struct{
 		union{
 			struct {
@@ -363,9 +363,9 @@ typedef union REG25_{ // CH8
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG25_t;
+} GPREG25_t;
 
-typedef union REG21_{
+typedef union GPREG21_{
 	struct{
 		union{
 			struct {
@@ -380,9 +380,9 @@ typedef union REG21_{
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG21_t;
+} GPREG21_t;
 
-typedef union REG33_{
+typedef union GPREG33_{
 	struct{
 		union{
 			struct {
@@ -397,9 +397,9 @@ typedef union REG33_{
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG33_t;
+} GPREG33_t;
 
-typedef union REG70_{
+typedef union GPREG70_{
 	struct{
 		union{
 			struct {
@@ -414,9 +414,9 @@ typedef union REG70_{
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} REG70_t;
+} GPREG70_t;
 
-typedef union TGCREG_0x01_0x94_{
+typedef union TGCREG_0x01_{
 	struct{
 		union{
 			struct {
@@ -430,7 +430,7 @@ typedef union TGCREG_0x01_0x94_{
 		uint8_t blnk;
 	};
 	uint32_t adccmd;
-} TGCREG_0x01_0x94_t;
+} TGCREG_0x01_t;
 
 typedef union TGCREG_0x95_{
 	struct{

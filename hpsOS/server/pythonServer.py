@@ -5,61 +5,118 @@ import struct
 import time
 import select
 import numpy as np
-from dataServerParamConfig import *
-import sysv_ipc
+import matplotlib.pyplot as plt
+#~ from dataServerParamConfig import *
+#~ import sysv_ipc
 import os
 
 
-class dataServer():
+class receiver():
 	
+	def setRecLen(self,recLen):
+		self.recLen = recLen
+		self.cmsg4 = '{}{}{}{}'.format(recLen,'q',recLen,'I')
+		msg = struct.pack(self.cmsg,self.CASE_SET_RECLEN,recLen,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		
+	def setPioVarGain(self,varGain):
+		msg = struct.pack(self.cmsg,self.CASE_SET_PIO_VAR_GAIN,varGain,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+
+	def setLeds(self,ledVal):
+		msg = struct.pack(self.cmsg,self.CASE_SET_LEDS,ledVal,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+
+	def queryData(self):
+		msg = struct.pack(self.cmsg,self.CASE_QUERY_DATA,0,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(self.recLen*12,socket.MSG_WAITALL)
+		print len(bb)
+		c1mask = 0xfff
+		cc = np.array(struct.unpack(self.cmsg4,bb)).astype(np.uint64)
+		cc &= c1mask
+		
+		plt.plot(cc[0:self.recLen].astype(np.int64)-2048)
+		plt.show()
+		
+		
+	def setAdcGain(self,adcGain):
+		msg = struct.pack(self.cmsg3,self.CASE_ADC_SET_GAIN,0,adcGain,0,0,0,0,0,0)
+		self.sock.send(msg)
+		
+	def setAdcUnsigned(self,uns):
+		msg = struct.pack(self.cmsg,self.CASE_ADC_SET_UNSIGNED,uns,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		
+	def setAdcLowNoiseMode(self,lnm):
+		msg = struct.pack(self.cmsg,self.CASE_ADC_SET_LOW_NOISE_MODE,lnm,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		
+	def toggleAdcChannelPower(self,chpwr):
+		msg = struct.pack(self.cmsg,self.CASE_ADC_TOGGLE_CHANNEL_POWER,chpwr,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
 	
-	def makeServer(self):
-		for n in range(0,2):
-			self.server.append(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
-			self.server[n].setblocking(0)
-			self.server[n].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-			self.server[n].bind(('192.168.1.100',3400+n))
-			self.server[n].listen(1)
-							
-	def __init__(self):	
-		self.server = []
-		self.connections = []
-		self.addresses = []
-		self.CASE_ADC_RECORD_LENGTH 		= 1		
-		self.CASE_ADC_TRIGGER_DELAY			= 2
-		self.CASE_QUERY_ADC_FOR_DATA		= 3
-		self.CASE_ADC_POWER					= 4
-		self.CASE_ADC_SYNC					= 5
-		self.CASE_ADC_INITIALIZE			= 6
-		self.CASE_ADC_GAIN					= 7
-		self.CASE_ADC_DIRECT_INSTRUCTION	= 8
-		self.CASE_ADC_CONTROL_COMMS			= 9	
-		self.CASE_KILLPROGRAM				= 100		
-
+	def setAdcFilterBw(self,filterbw):
+		msg = struct.pack(self.cmsg,self.CASE_ADC_SET_FILTER_BW,filterbw,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+	
+	def setAdcInternalAcCoupling(self,accoupling):
+		msg = struct.pack(self.cmsg,self.CASE_ADC_SET_INTERNAL_AC_COUPLING,accoupling,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
 		
-		outputs = []
-		while True:
-			print 'into server'
-			readable, writable, exceptional = select.select(self.server, outputs, outputs)
-			for sock in readable:
-				if sock in self.server:
-					connection, client_addresssock = sock.accept()
-					self.connections.append((connection, client_addresssock))
-				elif sock is self.lserver:
-					print 'umpires'
-					connection, client_addresssock = sock.accept()
-					self.connections.append((connection, client_addresssock))
-			
-
+	def issueDirectAdcCmd(self,gp_tgc,addr,cmd):
+		msg = struct.pack(self.cmsg,self.CASE_ADC_ISSUE_DIRECT_CMD,gp_tgc,addr,cmd,0,0,0,0,0,0)
+		self.sock.send(msg)
+	
+	def connectInterrupt(self,cnct):
+		msg = struct.pack(self.cmsg,self.CASE_CONNECT_INTERRUPT,cnct,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
 		
-d = dataServer()	
+	def connectEnetFpga(self):
+		self.sock.connect(('192.168.1.101',3400))
+	
+	def disconnectEnetFpga(self):
+		self.sock.close()
+		
+	def __init__(self):
+		self.CASE_SET_RECLEN = 0
+		self.CASE_SET_PIO_VAR_GAIN = 1
+		self.CASE_SET_LEDS = 2
+		self.CASE_QUERY_DATA = 3
+		self.CASE_ADC_SET_GAIN = 4
+		self.CASE_ADC_SET_UNSIGNED = 5
+		self.CASE_ADC_SET_LOW_NOISE_MODE = 6
+		self.CASE_ADC_TOGGLE_CHANNEL_POWER = 7
+		self.CASE_ADC_SET_FILTER_BW = 8
+		self.CASE_ADC_SET_INTERNAL_AC_COUPLING = 9
+		self.CASE_ADC_ISSUE_DIRECT_CMD = 10
+		self.CASE_CONNECT_INTERRUPT = 11
+		self.recLen = 2048
+		self.sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+		self.cmsg = '10I'
+		self.cmsg2 = '1I1f8I'
+		self.cmsg3 = '2I1d6I'
+		self.cmsg4 = '2048q2048I'
+		
 
-		#~ # Bind the socket to the port
-		#~ server_address = ('localhost', 10000)
-		#~ server.bind(server_address)
+r = receiver()
 
-		#~ # Listen for incoming connections
-		#~ server.listen(5)
+r.connectEnetFpga()
+r.setRecLen(500)
+r.setAdcInternalAcCoupling(1)
+r.connectInterrupt(1)
+r.setAdcGain(1.375)
+r.setAdcUnsigned(1)
+r.queryData()
+r.connectInterrupt(0)
+r.disconnectEnetFpga()
+#~ s.connect(('192.168.1.101',3400))
+
+#~ msg = struct.pack(cmsg3,4,0,12.765,1,2,3,4,5,6)
+#~ s.send(msg)
+
+#~ s.close()
+
 		
 
 	
