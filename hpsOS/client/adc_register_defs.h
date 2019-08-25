@@ -1,3 +1,4 @@
+#define ADC_REGISTER_DEFS
 
 enum ADC_ADDRS{
 	software_reset_addr=0,

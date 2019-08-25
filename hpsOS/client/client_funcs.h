@@ -1,138 +1,27 @@
 
 
-struct ENETsock_;
-struct FPGAvars_;
-struct ADCvars_;
-struct SOCKgeneric_;
-
-typedef struct ENETsock_ ENETsock_t;
-typedef struct FPGAvars_ FPGAvars_t;
-typedef struct ADCvars_ ADCvars_t;
-typedef struct SOCKgeneric_ SOCKgeneric_t;
-
 #include "adc_register_defs.h"
+#include "structure_defs.h"
 
-typedef struct POLLSERVER_{
-	int epfd;
-	struct epoll_event ev;
-	struct epoll_event events[MAX_POLL_EVENTS];
-} POLLSERVER_t;
-
-typedef struct SOCK_{
-	int fd;
-    union{
-        struct {
-            uint8_t listener : 1;
-            uint8_t commsock : 1;
-            uint8_t interrupt : 1;
-            uint8_t blnk : 5;
-        };
-        uint8_t flags;
-    } is;
-	int portNum;
-
-    POLLSERVER_t *ps;
-} SOCK_t;
-
-
-typedef struct FPGAvars_{ // structure to hold variables that are mapped to the FPGA hardware registers
-	void *virtual_base;
-	void *axi_virtual_base;
-	int fd_pio;
-	int fd_ram;	
-	
-} FPGAvars_t;
-
-
-typedef struct ADCvars_{
-	// memory mapped variables in FPGA
-	uint32_t volatile *stateReset;
-	uint32_t volatile *controlComms;
-	uint32_t volatile *recLen;
-	uint32_t volatile *pioVarGain;
-	uint32_t volatile *serialCommand;
-	uint32_t volatile *dataReadyFlag;
-	uint32_t volatile *leds;
-	
-	GPREG0_t gpreg0;
-	GPREG1_t gpreg1;
-	GPREG2_t gpreg2;
-	GPREG3_t gpreg3;
-	GPREG4_t gpreg4;
-	GPREG5_t gpreg5;
-	GPREG7_t gpreg7;
-	GPREG13_t gpreg13;
-	GPREG15_t gpreg15;
-	GPREG17_t gpreg17;
-	GPREG19_t gpreg19;
-	GPREG21_t gpreg21;
-	GPREG25_t gpreg25;
-	GPREG27_t gpreg27;
-	GPREG29_t gpreg29;
-	GPREG31_t gpreg31;
-	GPREG33_t gpreg33;
-	GPREG70_t gpreg70; // 18
-	
-	TGCREG_0x01_t tgcreg0x01[148]; //166
-	
-	TGCREG_0x95_t tgcreg0x95; // 167
-	TGCREG_0x96_t tgcreg0x96; // 168
-	TGCREG_0x97_t tgcreg0x97; // 169
-	TGCREG_0x98_t tgcreg0x98; // 170
-	TGCREG_0x99_t tgcreg0x99; // 171
-	TGCREG_0x9A_t tgcreg0x9A; // 172
-	TGCREG_0x9B_t tgcreg0x9B; // 173
-	
-	ADCREG_t **reg;
-	
-	char volatile *ramBank0;
-	char volatile *ramBank1;
-	
-	SOCK_t interrupt;
-	
-} ADCvars_t;
-
-
-typedef union LED_{
-	struct{
-		uint32_t hiRest : 3;
-		uint32_t loRest : 2;
-		uint32_t zero : 27;
-	};
-	uint32_t vals;
-} LED_t;
-
-typedef union RAMBANK0_{
-	struct {
-		uint64_t ch0 : 12;
-		uint64_t ch1 : 12;
-		uint64_t ch2 : 12;
-		uint64_t ch3 : 12;
-		uint64_t ch4 : 12;
-		uint64_t ch5lo : 4;
-	}u;
-	struct{
-		int64_t ch0 : 12;
-		int64_t ch1 : 12;
-		int64_t ch2 : 12;
-		int64_t ch3 : 12;
-		int64_t ch4 : 12;
-		int64_t ch5lo : 4;
-	}s;
-} RAMBANK0_t;
-
-typedef union RAMBANK1_{
-	struct{
-		uint32_t ch5hi : 8;
-		uint32_t ch6 : 12;
-		uint32_t ch7 : 12;
-	}u;
-	struct{
-		int32_t ch5hi : 8;
-		int32_t ch6 : 12;
-		int32_t ch7 : 12;
-	}s;
-} RAMBANK1_t;
+struct timespec diff(struct timespec start, struct timespec end){
+	struct timespec temp;
+	if ((end.tv_nsec-start.tv_nsec)<0) {
+		temp.tv_sec = end.tv_sec-start.tv_sec-1;
+		temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
+	} else {
+		temp.tv_sec = end.tv_sec-start.tv_sec;
+		temp.tv_nsec = end.tv_nsec-start.tv_nsec;
+	}
+	return temp;
+    
+    /* timespec usage example
+        clock_gettime(CLOCK_MONOTONIC, &gstart);
+        something();
+        clock_gettime(CLOCK_MONOTONIC, &gend);
+        difftime = diff(gstart,gend);
+        printf("adcmemcpy: %ld us\n",difftime.tv_nsec/1000);
+    */
+};
 
 void setnonblocking(int sockfd){
     int opts;
@@ -142,15 +31,14 @@ void setnonblocking(int sockfd){
     if(fcntl(sockfd,F_SETFL,opts)<0) perror("SETFL nonblocking failed");
 }
 
-void addEnetServerSock(POLLSERVER_t *ps, SOCK_t *sock){
+void addEnetServerSock(POLLserver_t *ps, SOCK_t *sock, int portNum){
     
     struct sockaddr_in server;
-	
-    //ps->epfd = epoll_create(MAX_POLL_EVENTS);
 
     sock->is.flags = 0;
     sock->is.listener = 1;
-    sock->portNum = INIT_PORT;
+    sock->portNum = portNum;
+    sock->ps = ps;
 
     sock->fd = socket(AF_INET, SOCK_STREAM, 0);
     setnonblocking(sock->fd);
@@ -161,7 +49,7 @@ void addEnetServerSock(POLLSERVER_t *ps, SOCK_t *sock){
     memset(&server,0,sizeof(struct sockaddr_in));
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
-    server.sin_port = htons(INIT_PORT);
+    server.sin_port = htons(portNum);
 
     setsockopt(sock->fd,SOL_SOCKET,SO_REUSEADDR, &ONE, sizeof(int));
 
@@ -169,16 +57,22 @@ void addEnetServerSock(POLLSERVER_t *ps, SOCK_t *sock){
         perror("ERROR binding socket");
         exit(1);
     }
-    if( listen(sock->fd, MAX_SERVER_CONNECTIONS) ){
+    if( listen(sock->fd, MAX_SERVER_QUEUE_LENGTH) ){
         perror("ERROR listening sock->fd");
         exit(1);
     }
 
 }
 
-void acceptEnetClientSock(POLLSERVER_t *ps, SOCK_t *servsock, SOCK_t *clisock){
+void acceptEnetClientSock(SOCK_t *servsock){
     struct sockaddr_in client, peername;
     socklen_t clilen, peerlen;
+    
+    POLLserver_t *ps;
+    ps = servsock->ps;
+    
+    SOCK_t *clisock;
+    clisock = servsock->partner;
 
     memset(&client,0,sizeof(struct sockaddr_in));
     clilen = sizeof(client);
@@ -192,8 +86,13 @@ void acceptEnetClientSock(POLLSERVER_t *ps, SOCK_t *servsock, SOCK_t *clisock){
     }
 
     clisock->is.flags = 0;
-    clisock->is.commsock = 1;
     clisock->portNum = servsock->portNum;
+    if(clisock->portNum == INIT_PORT){
+        clisock->is.commsock = 1;
+    } else if (clisock->portNum == ADC_CONTROL_PORT){
+        clisock->is.adc_control = 1;
+    }
+
     setnonblocking(clisock->fd);
     setsockopt(clisock->fd,IPPROTO_TCP,TCP_NODELAY,&ONE,sizeof(int));
 
@@ -205,6 +104,7 @@ void acceptEnetClientSock(POLLSERVER_t *ps, SOCK_t *servsock, SOCK_t *clisock){
 }
 
 void disconnectPollSock(SOCK_t *tmp){
+
 	epoll_ctl(tmp->ps->epfd, EPOLL_CTL_DEL, tmp->fd, &(tmp->ps->ev));
 	close(tmp->fd);
     tmp->is.flags = 0;
@@ -213,7 +113,7 @@ void disconnectPollSock(SOCK_t *tmp){
     tmp->fd = 0;
 }
 
-void connectPollInterrupter(POLLSERVER_t *ps, ADCvars_t *ADC, char *gpio_lab){
+void connectPollInterrupter(POLLserver_t *ps, ADCvars_t *ADC, char *gpio_lab){
 	 
 	// CHANGE THIS TO DESIRED LABEL
 	const char *gpio_label = gpio_lab;
@@ -399,7 +299,7 @@ void connectPollInterrupter(POLLSERVER_t *ps, ADCvars_t *ADC, char *gpio_lab){
 	ADC->interrupt.fd = file_fd;
     ADC->interrupt.ps = ps;
     ADC->interrupt.is.flags = 0;
-    ADC->interrupt.is.interrupt = 1;
+    ADC->interrupt.is.rcv_interrupt = 1;
     ADC->interrupt.portNum = 0;
 	
 	result = read(ADC->interrupt.fd, buffer, PATH_MAX);
@@ -411,16 +311,6 @@ void connectPollInterrupter(POLLSERVER_t *ps, ADCvars_t *ADC, char *gpio_lab){
     // need to have epoll_wait once before interrupt can really be used
     epoll_wait(ps->epfd, ps->events, MAX_POLL_EVENTS, 10); // 10 ms
 }
-
-
-void disconnectPollInterrupter(ADCvars_t *ADC){
-	epoll_ctl(ADC->interrupt.ps->epfd, EPOLL_CTL_DEL, ADC->interrupt.fd, &(ADC->interrupt.ps->ev));
-	close(ADC->interrupt.fd);
-}
-
-
-
-
 
 void FPGAclose(FPGAvars_t *FPGA){ // closes the memory mapped file with the FPGA hardware registers
 	
@@ -436,7 +326,6 @@ void FPGAclose(FPGAvars_t *FPGA){ // closes the memory mapped file with the FPGA
 	close( FPGA->fd_pio );
 	close( FPGA->fd_ram );
 }
-
 
 int FPGA_init(FPGAvars_t *FPGA){ // maps the FPGA hardware registers to the variables in the FPGAvars struct
 	
@@ -470,7 +359,6 @@ int FPGA_init(FPGAvars_t *FPGA){ // maps the FPGA hardware registers to the vari
 	
 	return(1);
 }
-
 
 int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
 	
@@ -512,7 +400,15 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
 	ADC->gpreg70.adccmd=0;		ADC->gpreg70.addr=70;
 
     ADC->reg = (ADCREG_t **)calloc(173,sizeof(ADCREG_t *));
-	
+	ADC->reg_dict = (uint32_t **)calloc(2,sizeof(uint32_t *));
+    ADC->reg_dict[0] = (uint32_t *)calloc(173,sizeof(uint32_t));
+    ADC->reg_dict[1] = (uint32_t *)calloc(173,sizeof(uint32_t));
+
+    for(uint32_t n=0;n<173;n++){
+        ADC->reg_dict[0][n] = 0xff;
+        ADC->reg_dict[1][n] = 0xff;
+    }
+    
     ADC->reg[0] = (ADCREG_t *)(&(ADC->gpreg0));
 	ADC->reg[1] = (ADCREG_t *)(&(ADC->gpreg1));
 	ADC->reg[2] = (ADCREG_t *)(&(ADC->gpreg2));
@@ -554,6 +450,36 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
 	ADC->reg[171] = (ADCREG_t *)(&(ADC->tgcreg0x9A));
 	ADC->reg[172] = (ADCREG_t *)(&(ADC->tgcreg0x9B));
 	
+    ADC->reg_dict[0][0] = 0;
+    ADC->reg_dict[0][1] = 1;
+    ADC->reg_dict[0][2] = 2;
+    ADC->reg_dict[0][3] = 3;
+    ADC->reg_dict[0][4] = 4;
+    ADC->reg_dict[0][5] = 5;
+    ADC->reg_dict[0][7] = 6;
+    ADC->reg_dict[0][13] = 7;
+    ADC->reg_dict[0][15] = 8;
+    ADC->reg_dict[0][17] = 9;
+    ADC->reg_dict[0][19] = 10;
+    ADC->reg_dict[0][31] = 11;
+    ADC->reg_dict[0][29] = 12;
+    ADC->reg_dict[0][27] = 13;
+    ADC->reg_dict[0][25] = 14;
+    ADC->reg_dict[0][21] = 15;
+    ADC->reg_dict[0][33] = 16;
+    ADC->reg_dict[0][70] = 17;
+    
+	for(uint32_t i=1; i<0x95; i++){
+        ADC->reg_dict[1][i] = i+17;
+	}
+    ADC->reg_dict[1][0x95] = 0x95+17;
+    ADC->reg_dict[1][0x96] = 0x96+17;
+    ADC->reg_dict[1][0x97] = 0x97+17;
+    ADC->reg_dict[1][0x98] = 0x98+17;
+    ADC->reg_dict[1][0x99] = 0x99+17;
+    ADC->reg_dict[1][0x9A] = 0x9A+17;
+    ADC->reg_dict[1][0x9B] = 0x9B+17;
+    
     DREF32(ADC->pioVarGain) = 0;
 	DREF32(ADC->recLen) = 2047;
 	
@@ -566,19 +492,14 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
 	DREF32(ADC->controlComms) = ADC_IDLE_STATE;
 	usleep(10);
 	
-    ADC->interrupt.ps = NULL;	
-	
+    ADC->interrupt.ps = NULL;
+    
+    ADC->recLen_ref = 2048;
+    ADC->npulses = 0;
+    ADC->data = (char **)calloc(1,sizeof(char *));
+    *(ADC->data) = NULL;
 	return(1);
 }
-
-
-
-
-
-
-
-
-
 
 
 void adcmemcpy( char *dest, char *src, size_t nbytes){
@@ -591,7 +512,36 @@ void adcmemcpy( char *dest, char *src, size_t nbytes){
 
 void setRecLen(ADCvars_t *ADC, uint32_t recLen){
 	DREF32(ADC->recLen) = recLen-1;
+    ADC->recLen_ref = recLen;
 	usleep(5);
+}
+
+
+void setPioVarGain(ADCvars_t *ADC, uint32_t val){
+	DREF32(ADC->pioVarGain) = val & 0x03;
+    usleep(5);
+}
+
+
+void setLEDS(ADCvars_t *ADC, uint32_t val){
+	DREF32(ADC->leds) = val & 0x1F;
+    usleep(5);
+}
+
+
+void cycleLEDS(ADCvars_t *ADC, int ncycles){
+	
+	uint32_t tmp = 0;
+	LED_t led;
+	led.vals=0;
+	
+	while( tmp<ncycles ){
+		led.vals = ( tmp & 0x1F );
+		led.hiRest = ~led.hiRest;
+		DREF32(ADC->leds) = led.vals;
+		usleep(100000);
+		tmp++;
+	}
 }
 
 
@@ -612,147 +562,82 @@ void adcIssueSerialCmd(ADCvars_t *ADC, uint32_t cmd){
 	usleep(5);
 }
 
-	
-void cycleLEDS(ADCvars_t *ADC, int ncycles){
-	
-	uint32_t tmp = 0;
-	LED_t led;
-	led.vals=0;
-	
-	while( tmp<ncycles ){
-		led.vals = ( tmp & 0x1F );
-		led.hiRest = ~led.hiRest;
-		DREF32(ADC->leds) = led.vals;
-		usleep(100000);
-		tmp++;
-	}
-}
 
-
-void setLEDS(ADCvars_t *ADC, uint32_t val){
+void queryDataLocal(ADCvars_t *ADC, SOCK_t *enet){
+    static int pulsen = 0;
+    
+    DREF32(ADC->stateReset)=1;
+    usleep(5);
 	
-	DREF32(ADC->leds) = val & 0x1F;
-		
-}
-
-
-void setPioVarGain(ADCvars_t *ADC, uint32_t val){
+    clock_t start_timer,end_timer;
 	
-	DREF32(ADC->pioVarGain) = val & 0x03;
-		
-}
-
-/*
-void queryData(ADCvars_t *ADC){
+    int nsent0=0;
+    double send_time;
 	
-	static int nqueries = 0;
-	
-	// doesn't need to be connected unless trying to collect data. 
-	connectPollInterrupter(ADC,"gpio@0x100000000");
-	
-	clock_t start_timer,end_timer;
-	
-	int nfds,timeout_ms;
-	uint32_t tmp, recLen;
-	
-	recLen = DREF32(ADC->recLen)+1;
-	printf("reclen %u\n",recLen);
-	
-	char adcData0[MAX_RECLEN*sizeof(int64_t)];
-	char adcData1[MAX_RECLEN*sizeof(int32_t)];
-	
-	RAMBANK0_t *b0 = (RAMBANK0_t *)adcData0;
-	RAMBANK1_t *b1 = (RAMBANK1_t *)adcData1;
-	
-	DREF32(ADC->stateReset)=1;
-	usleep(5);
-	DREF32(ADC->stateReset)=0;
-	usleep(5);
-	
-	tmp = 0;
-	nfds = 0;
-	timeout_ms = 10;
-	while( !nfds ){
-		tmp++;
-		if(!(tmp%100)){
-			printf("query data waiting... (%d s)\n",tmp/100);
-			DREF32(ADC->leds) = ( ( tmp/100 ) & 0x1F );
-		}
-		nfds = epoll_wait(ADC->epfd, ADC->events, 5, timeout_ms);
-		if( nfds < 0 ){
-			perror("error sending data:");
-		}
-		if(DREF32(ADC->dataReadyFlag)){
-			printf("nfds %d, dataReadyFlag %u\n\n",nfds,DREF32(ADC->dataReadyFlag));
-			break;
-		}
-	}
-	disconnectPollInterrupter(ADC);
-	
-	start_timer = clock();
-	adcmemcpy(adcData0,DREFPCHAR(ADC->ramBank0),recLen*sizeof(int64_t));
-	adcmemcpy(adcData1,DREFPCHAR(ADC->ramBank1),recLen*sizeof(int32_t));
-	end_timer = clock();
-
-	printf("adcmemcpy clock: %g us, %ld clks_per_sec\n\n",((double)(end_timer-start_timer))/CLOCKS_PER_SEC*1e6,CLOCKS_PER_SEC);
-		
-	FILE *datafile;
-	datafile = fopen("data_file.dat","w");
-	
-	if(ADC->gpreg4.DFS){	
-		uint16_t ch5;
-		for(int j=0;j<recLen;j++){
-			ch5 = ( ( b1[j].u.ch5hi << 8 ) | b0[j].u.ch5lo );
-			fprintf(datafile,"%u,%u,%u,%u,%u,%u,%u,%u\n",b0[j].u.ch0,b0[j].u.ch1,b0[j].u.ch2,b0[j].u.ch3,b0[j].u.ch4,ch5,b1[j].u.ch6,b1[j].u.ch7);
-		}
-	} else {
-		int16_t ch5;
-		for(int j=0;j<recLen;j++){
-			ch5 = ( ( b1[j].s.ch5hi << 8 ) | b0[j].s.ch5lo );
-			fprintf(datafile,"%d,%d,%d,%d,%d,%d,%d,%d\n",b0[j].s.ch0,b0[j].s.ch1,b0[j].s.ch2,b0[j].s.ch3,b0[j].s.ch4,ch5,b1[j].s.ch6,b1[j].s.ch7);
-		}
-	}
-	
-	fclose(datafile);
-}
-*/
-
-void queryDataOuter(ADCvars_t *ADC, SOCK_t *enet){
-	
-	static int nqueries = 0;
-	
-	clock_t start_timer,end_timer;
-	
-	uint32_t tmp, recLen;
-	
-	recLen = DREF32(ADC->recLen)+1;
-	printf("reclen %u\n",recLen);
-	
-	char adcData0[MAX_RECLEN*sizeof(int64_t)];
-	char adcData1[MAX_RECLEN*sizeof(int32_t)];
-    char adcData[3*MAX_RECLEN*sizeof(int32_t)];
-	
-	RAMBANK0_t *b0 = (RAMBANK0_t *)adcData0;
-	RAMBANK1_t *b1 = (RAMBANK1_t *)adcData1;
-	
-	DREF32(ADC->stateReset)=1;
-	usleep(5);
-//	DREF32(ADC->stateReset)=0;
-//	usleep(5);
-	
-//	disconnectPollSock(&(ADC->interrupt));
-	
-	adcmemcpy(adcData,DREFPCHAR(ADC->ramBank0),recLen*sizeof(int64_t));
-	adcmemcpy(&adcData[2*recLen*sizeof(int32_t)],DREFPCHAR(ADC->ramBank1),recLen*sizeof(int32_t));
-//    send(enet->fd,adcData,3*recLen*sizeof(int32_t),0);
-    printf("data sent %d\n", send(enet->fd,adcData,3*recLen*sizeof(int32_t),0));
-
+    uint32_t recLen;
+	recLen = ADC->recLen_ref;
     start_timer = clock();
-	adcmemcpy(adcData0,DREFPCHAR(ADC->ramBank0),recLen*sizeof(int64_t));
-	adcmemcpy(adcData1,DREFPCHAR(ADC->ramBank1),recLen*sizeof(int32_t));
-	end_timer = clock();
+    adcmemcpy( &(ADC->data[0][pulsen*3*recLen*sizeof(uint32_t)]), DREFPCHAR(ADC->ramBank0), 2*recLen*sizeof(uint32_t));
+    adcmemcpy( &(ADC->data[0][(pulsen*3*recLen+2*recLen)*sizeof(uint32_t)]), DREFPCHAR(ADC->ramBank1), recLen*sizeof(uint32_t));
+    end_timer = clock();
+    send_time = ((double)(end_timer-start_timer))/CLOCKS_PER_SEC*1e6;
+    printf("pulsen = %d, copy time: %g\n",pulsen, send_time);
+    pulsen++;
+    if(pulsen==ADC->npulses){
+        start_timer = clock();
+        for(int i=0;i<pulsen;i++){
+            nsent0 += send(enet->fd,&(ADC->data[0][3*i*recLen*sizeof(uint32_t)]),3*recLen*sizeof(int32_t),0);
+            usleep(100);
+        }
+        end_timer = clock();
 
-	printf("adcmemcpy clock: %g us, %ld clks_per_sec\n\n",((double)(end_timer-start_timer))/CLOCKS_PER_SEC*1e6,CLOCKS_PER_SEC);
+        send_time = ((double)(end_timer-start_timer))/CLOCKS_PER_SEC*1e6;
+        printf("send time: %g [%d bytes sent/%d]\n", send_time, (nsent0),3*pulsen*recLen*sizeof(uint32_t));
+    } else {
+        DREF32(ADC->stateReset)=0;
+        usleep(5);
+    }
+}
+
+
+void queryDataSend(ADCvars_t *ADC, SOCK_t *enet){
+	
+    DREF32(ADC->stateReset)=1;
+    usleep(5);
+	
+    clock_t start_timer,end_timer;
+	
+    int nsent0,nsent1;
+    double send_time;
+	
+    uint32_t recLen;
+	recLen = ADC->recLen_ref;
+	printf("reclen %u\n",recLen);
+	
+    start_timer = clock();
+    nsent0 = send(enet->fd,DREFPCHAR(ADC->ramBank0),2*recLen*sizeof(int32_t),0);
+    nsent1 = send(enet->fd,DREFPCHAR(ADC->ramBank1),recLen*sizeof(int32_t),0);
+	end_timer = clock();
+    send_time = ((double)(end_timer-start_timer))/CLOCKS_PER_SEC*1e6;
+
+    printf("send time: %g [%d bytes sent]\n", send_time, (nsent0+nsent1));
+
+}
+
+void queryDataSaveFile(ADCvars_t *ADC){
+    
+    DREF32(ADC->stateReset)=1;
+    usleep(5);
+	
+	remove("data_file.dat");
+    
+	uint32_t recLen;
+	
+	recLen = ADC->recLen_ref;
+	printf("reclen %u\n",recLen);
+	
+	RAMBANK0_t *b0 = (RAMBANK0_t *)DREFPCHAR(ADC->ramBank0);//adcData0;
+	RAMBANK1_t *b1 = (RAMBANK1_t *)DREFPCHAR(ADC->ramBank0);//adcData1;
 		
 	FILE *datafile;
 	datafile = fopen("data_file.dat","w");
@@ -773,7 +658,6 @@ void queryDataOuter(ADCvars_t *ADC, SOCK_t *enet){
 	
 	fclose(datafile);
 }
-
 
 void adcInitializeSettings(ADCvars_t *ADC){
 	
@@ -797,7 +681,6 @@ void adcInitializeSettings(ADCvars_t *ADC){
 	ADC->tgcreg0x97.INTERP_ENABLE = 1;
 	adcIssueSerialCmd(ADC,ADC->tgcreg0x97.adccmd);
 }
-
 
 void adcSetGain(ADCvars_t *ADC, double gainVal){
 	
@@ -937,6 +820,134 @@ void adcSetReg7(ADCvars_t *ADC){
 	adcIssueSerialCmd(ADC,ADC->gpreg7.adccmd);
 }
 
+void adcIssueDirectCmd(ADCvars_t *ADC, FMSG_t *msg){
+    uint32_t regaddr;
+    if( msg->u[1] ){
+        ADC->gpreg0.TGC_REGISTER_WREN = 1;
+        adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
 
+        regaddr = ADC->reg_dict[1][msg->u[2]];
+        ADC->reg[regaddr]->cmd = msg->u[3];
+        adcIssueSerialCmd(ADC,ADC->reg[regaddr]->adccmd);
+    } else {
+        ADC->gpreg0.TGC_REGISTER_WREN = 0;
+        adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
+    
+        regaddr = ADC->reg_dict[0][msg->u[2]];
+        ADC->reg[regaddr]->cmd = msg->u[3];
+        adcIssueSerialCmd(ADC,ADC->reg[regaddr]->adccmd);
+    }
+}
 
+void recvSysMsgHandler(POLLserver_t *PS, ADCvars_t *ADC, FMSG_t *msg, int *runner){
 
+    switch(msg->u[0]){
+        case(CASE_SET_RECLEN):{
+            setRecLen(ADC,msg->u[1]);
+            break;
+        }
+        case(CASE_SET_PIO_VAR_GAIN):{
+            setPioVarGain(ADC,msg->u[1]);
+            break;
+        }
+        case(CASE_SET_LEDS):{
+            setLEDS(ADC,msg->u[1]);
+            break;
+        }
+        case(CASE_QUERY_DATA):{
+            DREF32(ADC->stateReset)=1;
+            usleep(5);
+            DREF32(ADC->stateReset)=0;
+            usleep(5);
+            break;
+        }
+        case(CASE_ADC_SET_GAIN):{
+            adcSetGain(ADC,msg->d[1]);
+            break;
+        }
+        case(CASE_ADC_SET_UNSIGNED):{
+            adcSetDTypeUnsignedInt(ADC, msg->u[1]);
+            break;
+        }
+        case(CASE_ADC_SET_LOW_NOISE_MODE):{
+            adcSetLowNoiseMode(ADC, msg->u[1]);
+            break;
+        }
+        case(CASE_ADC_TOGGLE_CHANNEL_POWER):{
+            adcToggleChannelPwr(ADC,msg->u[1]);
+            break;
+        }
+        case(CASE_ADC_SET_FILTER_BW):{
+            adcSetFilterBW(ADC,msg->u[1]);
+            break;
+        }
+        case(CASE_ADC_SET_INTERNAL_AC_COUPLING):{
+            adcSetInternalAcCoupling(ADC,msg->u[1]);
+            break;
+        }
+        case(CASE_ADC_ISSUE_DIRECT_CMD):{
+            adcIssueDirectCmd(ADC, msg);
+            break;
+        }
+        case(CASE_CONNECT_INTERRUPT):{
+            if(msg->u[1] && ( ADC->interrupt.ps == NULL ) ){
+                connectPollInterrupter(PS,ADC,"gpio@0x100000000");
+            } else if ( !msg->u[1] && ( ADC->interrupt.ps != NULL ) ){
+                disconnectPollSock(&(ADC->interrupt));
+            }
+            break;
+        }
+        case(CASE_SETUP_LOCAL_STORAGE):{
+
+            ADC->npulses = msg->u[1];
+            if( msg->u[1] ){
+                if( *(ADC->data) != NULL ){
+                    free(*(ADC->data));
+                    *(ADC->data) = NULL;
+                }
+                *(ADC->data) = (char *)malloc(3*ADC->recLen_ref*msg->u[1]*sizeof(uint32_t));
+            } else if ( *(ADC->data) != NULL ){
+                free(*(ADC->data));
+                *(ADC->data) = NULL;
+            }
+            break;
+        }
+        case(CASE_EXIT_PROGRAM):{
+            *runner=0;
+            break;
+        }
+        default:{
+            *runner=0;
+            break;
+        }
+    }
+}
+
+void controlMsgHandler(POLLserver_t *PS, FMSG_t *msg, int *runner){
+
+    switch(msg->u[0]){
+        case(CASE_ADD_DATA_SOCKET):{
+            break;
+        }
+        default:{
+            break;
+        }
+    }
+}
+
+void cmdFileReader(ADCvars_t *ADC){
+	ADCREG_t cmdreg;
+	FILE *cmdfile = fopen("command_file.txt","r");
+	char line[256];
+	
+    while( fgets(line, sizeof(line), cmdfile) ){
+        cmdreg.adccmd = (uint32_t )atoi(line);
+        printf("fileread: %u\n",cmdreg.adccmd);
+        if(cmdreg.adccmd){
+			adcIssueSerialCmd(ADC,(cmdreg.adccmd & 0x00ffffff) );
+		}
+        usleep(1000);
+    }  
+    fclose(cmdfile);
+	
+}
