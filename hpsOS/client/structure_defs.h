@@ -93,6 +93,19 @@ typedef struct ADCvars_{
     
     uint32_t recLen_ref;
     uint32_t npulses;
+
+    union{
+        struct{
+            uint8_t saveSingle : 1;
+            uint8_t sendRealTime : 1;
+            uint8_t storeLocal_Send : 1;
+            uint8_t storeLocal_Save : 1;
+            uint8_t is16bit : 1;
+            uint8_t blnk : 3;
+        };
+        uint8_t all;
+    } queryMode;
+
     char **data;
 
 	SOCK_t interrupt;
@@ -141,6 +154,28 @@ typedef union RAMBANK1_{
 	}s;
 } RAMBANK1_t;
 
+typedef union RAMBANK16_{
+    struct{
+        uint16_t ch0;
+        uint16_t ch1;
+        uint16_t ch2;
+        uint16_t ch3;
+        uint16_t ch4;
+        uint16_t ch5;
+        uint16_t ch6;
+        uint16_t ch7;
+    }u;
+    struct{
+        int16_t ch0;
+        int16_t ch1;
+        int16_t ch2;
+        int16_t ch3;
+        int16_t ch4;
+        int16_t ch5;
+        int16_t ch6;
+        int16_t ch7;
+    }s;
+} RAMBANK16_t;
 
 typedef struct FMSG_{
     union{

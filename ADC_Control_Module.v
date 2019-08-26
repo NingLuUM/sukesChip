@@ -18,7 +18,7 @@ module ADC_Control_Module(
 	
 	input					iSystemTrig,
 	
-	input [14:0]			iRecLength,
+	input [15:0]			iRecLength,
 	input					iStateReset,
 	output reg [7:0]	oDataReady,
 	
@@ -59,7 +59,9 @@ reg [4:0] senCnt;
 reg [1:0] trig_received_flag;
 reg write_complete_flag;
 
-reg [14:0] 	waddr_cntr;
+reg [15:0] 	waddr_cntr;
+wire waddr_overrun;
+assign waddr_overrun = waddr_cntr[15];
 
 initial
 begin
@@ -75,7 +77,7 @@ begin
 	
 	trig_received_flag = 2'b0;
 	write_complete_flag = 1'b0;
-	waddr_cntr = 15'b0;
+	waddr_cntr = 16'b0;
 	senCnt = 5'b0;
 	cmd_buff = 24'b0;
 	
@@ -115,7 +117,7 @@ begin
 		if ( !trig_received_flag && iSystemTrig )
 		begin
 			trig_received_flag <= 2'b11;
-			waddr_cntr <= 15'b0;
+			waddr_cntr <= 16'b0;
 			write_complete_flag <= 1'b0;
 			oDataReady <= 8'b0;
 		end
@@ -133,22 +135,24 @@ begin
 					oBYTEEN0 <= 8'b11111111;
 					oBYTEEN1 <= 4'b1111;
 				end
-				oWAddr <= waddr_cntr;
+				if ( ( waddr_cntr < iRecLength ) && ( !waddr_overrun ) )
+				begin
+					oWAddr <= waddr_cntr;
+					
+					oADCData0[11:0] <= data_out[0]; 
+					oADCData0[23:12] <= data_out[1];
+					oADCData0[35:24] <= data_out[2];
+					oADCData0[47:36] <= data_out[3];
+					oADCData0[59:48] <= data_out[4];
+					oADCData0[63:60] <= data_out[5][3:0];
+					
+					oADCData1[7:0] <= data_out[5][11:4]; 
+					oADCData1[19:8] <= data_out[6];
+					oADCData1[31:20] <= data_out[7];
 				
-				oADCData0[11:0] <= data_out[0]; 
-				oADCData0[23:12] <= data_out[1];
-				oADCData0[35:24] <= data_out[2];
-				oADCData0[47:36] <= data_out[3];
-				oADCData0[59:48] <= data_out[4];
-				oADCData0[63:60] <= data_out[5][3:0];
-				
-				oADCData1[7:0] <= data_out[5][11:4]; 
-				oADCData1[19:8] <= data_out[6];
-				oADCData1[31:20] <= data_out[7];
-				
-				waddr_cntr <= waddr_cntr + 1'b1;
-				
-				if ( waddr_cntr == iRecLength ) // iRecLength
+					waddr_cntr <= waddr_cntr + 1'b1;
+				end
+				else //if ( waddr_cntr == iRecLength ) // iRecLength
 				begin
 					oWREN <= 2'b00;
 					oCLKEN <= 2'b00;
@@ -171,7 +175,7 @@ begin
 		oBYTEEN1 <= 4'b0000;
 		trig_received_flag <= 2'b00;
 		write_complete_flag <= 1'b0;
-		waddr_cntr <= 15'b0;
+		waddr_cntr <= 16'b0;
 		oDataReady <= 8'b0;
 	end
 end

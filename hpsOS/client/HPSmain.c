@@ -97,15 +97,18 @@
 #define CASE_ADC_ISSUE_DIRECT_CMD 10
 #define CASE_CONNECT_INTERRUPT 11
 #define CASE_SETUP_LOCAL_STORAGE 12
-
+#define CASE_ADC_SET_DEFAULT_SETTINGS 13
+#define CASE_SET_QUERY_MODE 14
+#define CASE_UPDATE_AUTO_SHUTDOWN_SETTING 15
 #define CASE_EXIT_PROGRAM 100
 
 const int ONE = 1;
 const int ZERO = 0;
-struct timespec gstart, gend;
+int g_auto_shutdown_enabled = 1;
+struct timespec gstart, gend, gdifftime;
 
 #include "client_funcs.h"
-
+#include "adc_funcs.h"
 
 int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
 	
@@ -119,7 +122,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
 	
     ADCvars_t ADC;
 	ADC_init(&FPGA,&ADC);
-    adcInitializeSettings(&ADC);
+    connectPollInterrupter(&PS,&ADC,"gpio@0x100000000");
     setLEDS(&ADC,0x1f);
 
     SOCK_t ENETserver[MAX_SERVER_PORTS];
@@ -135,7 +138,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
 
     SOCK_t *sock;
     FMSG_t msg;
-    int timeout_ms = 10;
+    int timeout_ms = 100;
     int nfds;
     int nrecv;
     int tmp = 0;
@@ -145,9 +148,9 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
         
         nfds = epoll_wait(PS.epfd,PS.events,MAX_POLL_EVENTS,timeout_ms);
 		
-        if(DREF32(ADC.dataReadyFlag)){
-			printf("nfds %d, dataReadyFlag %u\n\n",nfds,DREF32(ADC.dataReadyFlag));
-		}
+        //if(DREF32(ADC.dataReadyFlag)){
+		//	printf("nfds %d, dataReadyFlag %u\n\n",nfds,DREF32(ADC.dataReadyFlag));
+		//}
 
         if( nfds > 0 ){
             for(n=0;n<nfds;n++){
@@ -160,9 +163,19 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                     acceptEnetClientSock(sock);
                 
                 } else if ( sock->is.rcv_interrupt ) {
-                    //queryDataSaveFile(&ADC); 
-                    //queryDataSend(&ADC,&ENETclient[0]);
-                    queryDataLocal(&ADC,&ENETclient[0]);
+                    if(ADC.queryMode.saveSingle){
+                        queryDataSaveFile(&ADC,&ENETclient[0]); 
+
+                    } else if (ADC.queryMode.sendRealTime){
+                        queryDataRealTime_Send(&ADC,&ENETclient[0]);
+
+                    } else if (ADC.queryMode.storeLocal_Send){
+                        queryDataStoreLocal_Send(&ADC,&ENETclient[0]);
+
+                    } else if (ADC.queryMode.storeLocal_Save){
+                        queryDataStoreLocal_Save(&ADC,&ENETclient[0]);
+
+                    }
                 } else if ( PS.events[n].events & EPOLLIN ){
                     
                     nrecv = recv(sock->fd,&msg,10*sizeof(uint32_t),0);
@@ -188,17 +201,17 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
             DREF32(ADC.stateReset)=1;
             usleep(5);
         }
-	
-        // FOR TESTING 
-        if(!(tmp%100)){
-			printf("query data waiting... (%d s)\n",tmp/100);
-			DREF32(ADC.leds) = ( ( tmp/100 ) & 0x1F );
-		}
-        if(tmp>3000){
+
+        if(!(tmp%10)){
+            printf("query data waiting... (%d s)\n",tmp/10);
+            DREF32(ADC.leds) = ( ( tmp/10 ) & 0x1F );
+        }
+        tmp++;
+
+        if( g_auto_shutdown_enabled && ( tmp>300 ) ){
             runner = 0;
             break;
         }
-        tmp++;
     }
 
     for(n=0;n<MAX_SERVER_PORTS;n++){

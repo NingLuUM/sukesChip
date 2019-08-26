@@ -157,7 +157,7 @@ wire	[14:0]			adc_write_addr;
 wire					adc_state_reset;
 
 wire	[1:0]			adc_state;
-wire	[14:0]			adc_record_length;
+wire	[15:0]			adc_record_length;
 
 
 wire  	[1:0]       	adc_wren_bank;
