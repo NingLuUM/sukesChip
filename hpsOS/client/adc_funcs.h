@@ -23,7 +23,10 @@ void setPioVarGain(ADCvars_t *ADC, uint32_t val){
 
 
 void setLEDS(ADCvars_t *ADC, uint32_t val){
-	DREF32(ADC->leds) = val & 0x1F;
+    LED_t led;
+    led.vals = ( val & 0x1f );
+    led.hiRest = ~led.hiRest;
+    DREF32(ADC->leds) = led.vals;
     usleep(5);
 }
 
@@ -49,6 +52,28 @@ void adcSync(ADCvars_t *ADC){
 	usleep(5);
 }
 
+void sendData(SOCK_t *enet, char *data, size_t dsize){
+
+    int nsent0=0;
+    uint32_t nrecvd=0;
+    uint32_t recvcount=0;
+
+    //setblocking(enet->fd);
+    while(nsent0<dsize){
+        if( ( dsize-nsent0 ) > MAX_PACKETSIZE ){
+            nsent0 += send(enet->fd,&data[nsent0],MAX_PACKETSIZE,MSG_CONFIRM);
+        } else if ( ( dsize - nsent0 ) > 0 ){
+            nsent0 += send(enet->fd,&data[nsent0],( dsize - nsent0 ),MSG_CONFIRM);
+        }
+        usleep(10);
+        printf("nrecvd: ");
+        recv(enet->fd,&nrecvd,sizeof(uint32_t),MSG_WAITALL);
+        recvcount+=nrecvd;
+        printf("%u\n",recvcount);
+    }
+    printf("nsent: %d (%d)\n",nsent0,dsize);
+    //setnonblocking(enet->fd);
+}
 
 void queryDataSaveFile(ADCvars_t *ADC, SOCK_t *enet){
     
@@ -94,7 +119,7 @@ void queryDataRealTime_Send(ADCvars_t *ADC, SOCK_t *enet){
 	
     //struct timespec st,et,dt;
 	
-    int nsent0=0;
+    //int nsent0=0;
 	
     uint32_t recLen;
 	recLen = ADC->recLen_ref;
@@ -114,7 +139,7 @@ void queryDataRealTime_Send(ADCvars_t *ADC, SOCK_t *enet){
                 b16[n].u.ch2 = b0[n].u.ch2;
                 b16[n].u.ch3 = b0[n].u.ch3;
                 b16[n].u.ch4 = b0[n].u.ch4;
-                b16[n].u.ch5 = ( ( b1[n].u.ch5hi << 8 ) | b0[n].u.ch5lo );
+                b16[n].u.ch5 = ( ( b1[n].u.ch5hi << 4 ) | b0[n].u.ch5lo );
                 b16[n].u.ch6 = b1[n].u.ch6;
                 b16[n].u.ch7 = b1[n].u.ch7;
             }
@@ -125,20 +150,29 @@ void queryDataRealTime_Send(ADCvars_t *ADC, SOCK_t *enet){
                 b16[n].s.ch2 = b0[n].s.ch2;
                 b16[n].s.ch3 = b0[n].s.ch3;
                 b16[n].s.ch4 = b0[n].s.ch4;
-                b16[n].s.ch5 = ( ( b1[n].s.ch5hi << 8 ) | b0[n].s.ch5lo );
+                b16[n].s.ch5 = ( ( b1[n].s.ch5hi << 4 ) | b0[n].s.ch5lo );
                 b16[n].s.ch6 = b1[n].s.ch6;
                 b16[n].s.ch7 = b1[n].s.ch7;
             }
         }
         b16c = (char *)b16;
-        while(nsent0<(recLen*sizeof(RAMBANK16_t))){
-            nsent0 += send(enet->fd,&b16c[nsent0],recLen*sizeof(RAMBANK16_t),0);
+        sendData(enet,b16c,recLen*sizeof(RAMBANK16_t));
+        /*while(nsent0<(recLen*sizeof(RAMBANK16_t))){
+            if((recLen*sizeof(RAMBANK16_t)-nsent0)>MAX_PACKETSIZE){
+                nsent0 += send(enet->fd,&b16c[nsent0],MAX_PACKETSIZE,0);
+            } else if ( (recLen*sizeof(RAMBANK16_t)-nsent0) > 0 ){
+                nsent0 += send(enet->fd,&b16c[nsent0],((recLen*sizeof(RAMBANK16_t))-nsent0 ),0);
+            }
         }
+        printf("nsent: %d (%d)\n",nsent0,3*recLen*sizeof(uint32_t));
+        */
     } else {
 	
         //clock_gettime(CLOCK_MONOTONIC,&st);
-        nsent0 += send(enet->fd,DREFPCHAR(ADC->ramBank0),2*recLen*sizeof(int32_t),0);
-        nsent0 += send(enet->fd,DREFPCHAR(ADC->ramBank1),recLen*sizeof(int32_t),0);
+        sendData(enet,DREFPCHAR(ADC->ramBank0),2*recLen*sizeof(int32_t));
+        sendData(enet,DREFPCHAR(ADC->ramBank1),recLen*sizeof(int32_t));
+        //nsent0 += send(enet->fd,DREFPCHAR(ADC->ramBank0),2*recLen*sizeof(int32_t),0);
+        //nsent0 += send(enet->fd,DREFPCHAR(ADC->ramBank1),recLen*sizeof(int32_t),0);
         //clock_gettime(CLOCK_MONOTONIC,&et);
         //dt = diff(st,et);
         //printf("time to send: %ld us [%d/%d bytes]\n",dt.tv_nsec/1000,nsent0,pulsen*3*recLen*sizeof(uint32_t));
@@ -153,8 +187,8 @@ void queryDataStoreLocal_Send(ADCvars_t *ADC, SOCK_t *enet){
     DREF32(ADC->stateReset)=1;
     usleep(5);
 	
-    int nsent0=0;
-	
+    //int nsent0=0;
+    //int bytesToSend=0;
     uint32_t recLen;
 	recLen = ADC->recLen_ref;
     
@@ -169,13 +203,23 @@ void queryDataStoreLocal_Send(ADCvars_t *ADC, SOCK_t *enet){
     if(pulsen==ADC->npulses){
         struct timespec st1,et1,dt1;
         clock_gettime(CLOCK_MONOTONIC,&st1);
-        for(int i=0;i<pulsen;i++){
-            nsent0 += send(enet->fd,&(ADC->data[0][3*i*recLen*sizeof(uint32_t)]),3*recLen*sizeof(int32_t),0);
+        //nsent0=0;
+        //bytesToSend = (3*recLen*pulsen*sizeof(uint32_t));
+     /*   while(nsent0<bytesToSend){
+            if((bytesToSend-nsent0 )>MAX_PACKETSIZE){
+                nsent0 += send(enet->fd,&(ADC->data[0][nsent0]),MAX_PACKETSIZE,0);
+            } else if ((bytesToSend-nsent0 )>0){
+                nsent0 += send(enet->fd,&(ADC->data[0][nsent0]),(bytesToSend-nsent0 ),0);
+            }
             usleep(100);
         }
+        */
+
+        sendData(enet,*(ADC->data),3*recLen*pulsen*sizeof(uint32_t));
         clock_gettime(CLOCK_MONOTONIC,&et1);
         dt1 = diff(st1,et1);
-        printf("time to send: %ld us [%d/%d bytes]\n",dt1.tv_nsec/1000,nsent0,pulsen*3*recLen*sizeof(uint32_t));
+        printf("time to send: %ld\n",dt1.tv_nsec/1000);
+
 
         pulsen = 0;
     } else {
@@ -233,6 +277,7 @@ void adcSetDefaultSettings(ADCvars_t *ADC){
 	
 	ADC->gpreg0.SOFTWARE_RESET = 1;
 	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
+	usleep(100000);
 	
 	ADC->gpreg0.SOFTWARE_RESET = 0;
 	ADC->gpreg0.TGC_REGISTER_WREN = 1;
@@ -257,6 +302,10 @@ void adcSetDefaultSettings(ADCvars_t *ADC){
     // SET DATA TYPE TO UNSIGNED
     ADC->gpreg4.DFS = 1;
     adcIssueSerialCmd(ADC,ADC->gpreg4.adccmd);
+    
+    // DISABLE THE CLAMP
+    ADC->gpreg70.CLAMP_DISABLE = 1;
+    adcIssueSerialCmd(ADC,ADC->gpreg70.adccmd);
 }
 
 void adcSetGain(ADCvars_t *ADC, double gainVal){

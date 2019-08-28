@@ -31,6 +31,14 @@ void setnonblocking(int sockfd){
     if(fcntl(sockfd,F_SETFL,opts)<0) perror("SETFL nonblocking failed");
 }
 
+void setblocking(int sockfd){
+    int opts;
+    if((opts=fcntl(sockfd,F_GETFL))<0) perror("GETFL nonblocking failed");
+
+    opts &= ~O_NONBLOCK;
+    if(fcntl(sockfd,F_SETFL,opts)<0) perror("SETFL nonblocking failed");
+}
+
 void addEnetServerSock(POLLserver_t *ps, SOCK_t *sock, int portNum){
     
     struct sockaddr_in server;
@@ -93,7 +101,9 @@ void acceptEnetClientSock(SOCK_t *servsock){
         clisock->is.adc_control = 1;
     }
 
-    setnonblocking(clisock->fd);
+    if(clisock->portNum != ADC_CONTROL_PORT){
+        setnonblocking(clisock->fd);
+    }
     setsockopt(clisock->fd,IPPROTO_TCP,TCP_NODELAY,&ONE,sizeof(int));
 
     clisock->ps = ps;
@@ -505,7 +515,8 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
 	
 	ADC->gpreg0.SOFTWARE_RESET = 1;
 	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
-	
+    usleep(100000);
+
 	ADC->gpreg0.SOFTWARE_RESET = 0;
 	ADC->gpreg0.TGC_REGISTER_WREN = 1;
 	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
@@ -529,6 +540,10 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
     // SET DATA TYPE TO UNSIGNED
     ADC->gpreg4.DFS = 1;
     adcIssueSerialCmd(ADC,ADC->gpreg4.adccmd);
+
+    // DISABLE THE CLAMP
+    ADC->gpreg70.CLAMP_DISABLE = 1;
+    adcIssueSerialCmd(ADC,ADC->gpreg70.adccmd);
     
     ADC->interrupt.ps = NULL;
     

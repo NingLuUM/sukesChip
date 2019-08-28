@@ -418,27 +418,27 @@ set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to SW[0]
 set_instance_assignment -name IO_STANDARD "2.5 V" -to SW
 set_instance_assignment -name IO_STANDARD "2.5 V" -to KEY
 set_instance_assignment -name IO_STANDARD "2.5 V" -to LED
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to LED[1]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to LED[7]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to LED[5]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to LED[4]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to LED[6]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to LED[1]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to LED[7]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to LED[5]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to LED[4]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to LED[6]
 set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to SW[1]
 set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to SW[2]
 set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to SW[3]
 set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to SW
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to LED[0]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to LED[2]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to LED[3]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to LED
-set_instance_assignment -name SLEW_RATE 1 -to LED[6]
-set_instance_assignment -name SLEW_RATE 1 -to LED[0]
-set_instance_assignment -name SLEW_RATE 1 -to LED[2]
-set_instance_assignment -name SLEW_RATE 1 -to LED[3]
-set_instance_assignment -name SLEW_RATE 1 -to LED[4]
-set_instance_assignment -name SLEW_RATE 1 -to LED[5]
-set_instance_assignment -name SLEW_RATE 1 -to LED[1]
-set_instance_assignment -name SLEW_RATE 1 -to LED[7]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to LED[0]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to LED[2]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to LED[3]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to LED
+set_instance_assignment -name SLEW_RATE 0 -to LED[6]
+set_instance_assignment -name SLEW_RATE 0 -to LED[0]
+set_instance_assignment -name SLEW_RATE 0 -to LED[2]
+set_instance_assignment -name SLEW_RATE 0 -to LED[3]
+set_instance_assignment -name SLEW_RATE 0 -to LED[4]
+set_instance_assignment -name SLEW_RATE 0 -to LED[5]
+set_instance_assignment -name SLEW_RATE 0 -to LED[1]
+set_instance_assignment -name SLEW_RATE 0 -to LED[7]
 set_location_assignment PIN_AE20 -to EXTERNAL_TRIGGER_INPUT
 set_instance_assignment -name IO_STANDARD "2.5 V" -to EXTERNAL_TRIGGER_INPUT
 set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to EXTERNAL_TRIGGER_INPUT
@@ -446,7 +446,7 @@ set_location_assignment PIN_AH17 -to KEY[0]
 set_location_assignment PIN_AH16 -to KEY[1]
 set_location_assignment PIN_AD5 -to ADC_CLKINP
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_CLKINP
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to ADC_CLKINP
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to ADC_CLKINP
 set_instance_assignment -name SLEW_RATE 1 -to ADC_CLKINP
 set_location_assignment PIN_AF22 -to ADC_DATA_LINES[0]
 set_instance_assignment -name IO_STANDARD LVDS -to ADC_DATA_LINES[0]
@@ -485,17 +485,17 @@ set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_SDATA
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_SDOUT
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_SEN
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_SYNC
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to ADC_RESET
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to ADC_SCLK
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to ADC_SDATA
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_RESET
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_SCLK
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_SDATA
 set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to ADC_SDOUT
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to ADC_SEN
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to ADC_SYNC
-set_instance_assignment -name SLEW_RATE 1 -to ADC_RESET
-set_instance_assignment -name SLEW_RATE 1 -to ADC_SCLK
-set_instance_assignment -name SLEW_RATE 1 -to ADC_SDATA
-set_instance_assignment -name SLEW_RATE 1 -to ADC_SEN
-set_instance_assignment -name SLEW_RATE 1 -to ADC_SYNC
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_SEN
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_SYNC
+set_instance_assignment -name SLEW_RATE 0 -to ADC_RESET
+set_instance_assignment -name SLEW_RATE 0 -to ADC_SCLK
+set_instance_assignment -name SLEW_RATE 0 -to ADC_SDATA
+set_instance_assignment -name SLEW_RATE 0 -to ADC_SEN
+set_instance_assignment -name SLEW_RATE 0 -to ADC_SYNC
 set_location_assignment PIN_Y19 -to LOSS_OF_SIGNAL[0]
 set_location_assignment PIN_U11 -to LOSS_OF_SIGNAL[1]
 set_instance_assignment -name IO_STANDARD "2.5 V" -to LOSS_OF_SIGNAL[0]
@@ -520,4 +520,29 @@ set_location_assignment PIN_AD20 -to COMLED[3]
 set_location_assignment PIN_AD17 -to COMLED[4]
 set_location_assignment PIN_D11 -to VARGAIN[1]
 set_location_assignment PIN_E8 -to VARGAIN[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to COMLED[4]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to COMLED[3]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to COMLED[2]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to COMLED[1]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to COMLED[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to COMLED
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to COMLED[4]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to COMLED[3]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to COMLED[2]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to COMLED[1]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to COMLED[0]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to COMLED
+set_instance_assignment -name SLEW_RATE 0 -to COMLED[4]
+set_instance_assignment -name SLEW_RATE 0 -to COMLED[3]
+set_instance_assignment -name SLEW_RATE 0 -to COMLED[2]
+set_instance_assignment -name SLEW_RATE 0 -to COMLED[1]
+set_instance_assignment -name SLEW_RATE 0 -to COMLED[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to VARGAIN[1]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to VARGAIN[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to VARGAIN
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to VARGAIN[1]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to VARGAIN[0]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to VARGAIN
+set_instance_assignment -name SLEW_RATE 0 -to VARGAIN[1]
+set_instance_assignment -name SLEW_RATE 0 -to VARGAIN[0]
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

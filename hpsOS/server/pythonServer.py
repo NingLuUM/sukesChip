@@ -39,7 +39,7 @@ class receiver():
 		
 		cmsg5 = '{}{}'.format(8*self.recLen,'H')
 		cc = np.array(struct.unpack(cmsg5,bb)).astype(np.uint16)
-		dd = cc[1::8].astype(np.int16)
+		dd = cc[0::8].astype(np.uint16)
 		print 'min:',np.min(dd),'\nmax:',np.max(dd),'\nmean:',np.mean(dd),'\np-to-p:',np.max(dd)-np.min(dd)
 		plt.plot(dd)
 		plt.show()
@@ -47,26 +47,53 @@ class receiver():
 	def queryDataLocal(self):
 		msg = struct.pack(self.cmsg,self.CASE_QUERY_DATA,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
-		bb = self.sock.recv(self.npulses*self.recLen*12,socket.MSG_WAITALL)
+		aa = 0
+		bb=''
+		while len(bb)<(self.npulses*self.recLen*12):
+			bb += self.dsock.recv(self.npulses*self.recLen*12,0)
+			if len(bb)-aa:
+				self.dsock.send(struct.pack('I',len(bb)-aa))
+			aa = len(bb)
 		
 		#~ self.disconnectFromFpga()
 		print len(bb)
-		c1mask = 0xfff
-		c2mask = 0xfff000
-		self.cmsg4 = '{}{}{}{}'.format(self.recLen,'q',self.recLen,'I')
+		c0mask = 0xfff
+		c1mask = 0xfff000
+		c2mask = 0xfff000000
+		c3mask = 0xfff000000000
+		c4mask = 0xfff000000000000
+		c5mask1 = 0xf000000000000000
+		c5mask2 = 0xff
+		c6mask = 0xfff00
+		c7mask = 0xfff00000
+		self.cmsg4 = '{}{}{}{}'.format(self.recLen,'q',self.recLen,'i')
 		cmsg5 = ''
 		for n in range(0,self.npulses):
 			cmsg5 = '{}{}'.format(cmsg5,self.cmsg4)
 		
 		cc = np.array(struct.unpack(cmsg5,bb)).astype(np.uint64)
-		#~ cc &= c1mask
-		cc = (cc & c2mask)>>12
-
-		dd = np.zeros(self.npulses*self.recLen)
+		c0 = cc & c0mask
+		c1 = (cc & c1mask)>>12
+		c2 = (cc & c2mask)>>24
+		c3 = (cc & c3mask)>>36
+		c4 = (cc & c4mask)>>48
+		c5 = ((cc[0:self.recLen] & c5mask1)>>60) | ((cc[self.recLen:2*self.recLen]&c5mask2)<<4)
+		c6 = (cc & c6mask)>>8
+		c7 = (cc & c7mask)>>20
+		
+		dd = np.zeros((self.npulses*self.recLen,8))
 		for n in range(0,self.npulses):
-			dd[n*self.recLen:(n+1)*self.recLen] = cc[n*2*self.recLen:(n*2*self.recLen+self.recLen)]
-		print 'min:',np.min(dd),'\nmax:',np.max(dd),'\nmean:',np.mean(dd),'\np-to-p:',np.max(dd)-np.min(dd)
-		plt.plot(dd.astype(np.int64)-2048)
+			dd[n*self.recLen:(n+1)*self.recLen,0] = c0[n*2*self.recLen:(n*2*self.recLen+self.recLen)]
+			dd[n*self.recLen:(n+1)*self.recLen,1] = c1[n*2*self.recLen:(n*2*self.recLen+self.recLen)]
+			dd[n*self.recLen:(n+1)*self.recLen,2] = c2[n*2*self.recLen:(n*2*self.recLen+self.recLen)]
+			dd[n*self.recLen:(n+1)*self.recLen,3] = c3[n*2*self.recLen:(n*2*self.recLen+self.recLen)]
+			dd[n*self.recLen:(n+1)*self.recLen,4] = c4[n*2*self.recLen:(n*2*self.recLen+self.recLen)]
+			dd[n*self.recLen:(n+1)*self.recLen,5] = c5
+			dd[n*self.recLen:(n+1)*self.recLen,6] = c6[self.recLen:2*self.recLen]
+			dd[n*self.recLen:(n+1)*self.recLen,7] = c7[self.recLen:2*self.recLen]
+		#~ print 'min:',np.min(dd),'\nmax:',np.max(dd),'\nmean:',np.mean(dd),'\np-to-p:',np.max(dd)-np.min(dd)
+		for n in range(0,8):
+			plt.plot(dd[:,n].astype(np.int64)-2048+4096*2*n)
 		plt.show()
 		
 	def queryData(self):
@@ -164,7 +191,7 @@ class receiver():
 		
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3400))
-	
+		self.dsock.connect(('192.168.1.101',3500))
 	def disconnectFromFpga(self):
 		self.sock.close()
 		
@@ -196,6 +223,7 @@ class receiver():
 		self.queryMode = REAL_TIME
 		self.is16bit = 0
 		self.sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+		self.dsock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 		
 		self.cmsg = '10I'
 		self.cmsg2 = '1I1f8I'
@@ -213,13 +241,16 @@ class receiver():
 
 r = receiver()
 r.connectToFpga()
+#~ r.setAdcUnsigned(0)
 r.setAutoShutdown(0)
+r.issueDirectAdcCmd(0,2,0x0000)
 r.setPioVarGain(0)
-r.setRecLen(500)
+r.setRecLen(10000)
 r.setAdcGain(0)
-r.setAdcInternalAcCoupling(1)
-r.setAdcLowNoiseMode(1)
-r.setQueryMode(REAL_TIME,0,1)
+#~ r.setAdcInternalAcCoupling(1)
+#~ r.setAdcLowNoiseMode(1)
+r.setQueryMode(REAL_TIME,0,0)
+#~ r.setQueryMode(queryMode=STORE_ON_ARM_TRANSFER_TO_ME,npulses=1,is16bit=1)
 #~ r.setQueryMode(STORE_ON_ARM_TRANSFER_TO_ME,npulses=10)
 #~ r.setQueryMode(STORE_ON_ARM_SAVE_ON_ARM,npulses=10)
 

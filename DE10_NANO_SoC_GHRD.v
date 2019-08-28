@@ -182,14 +182,15 @@ ADCclock u4 (
 	.outclk_1 			(CLK25),		// 25 MHz
 	.outclk_2			(CLK100),	// 100 MHz
 	.outclk_3			(CLK200),		// 200 MHz
-	.outclk_4			(BIT_CLK_SHIFT),
-	.outclk_5			(FRAME_CLK_SHIFT)
+	.outclk_4			(FRAME_CLK_SHIFT),
+	.outclk_5			(BIT_CLK_SHIFT)
+	
 );
 
 		
 ADC_Control_Module u2(
 
-	.ref_frame_clk			(CLK25),
+	.adc_clkinp			(CLK25),
 	
 	.frame_clk				(FRAME_CLK_SHIFT),
 	.bit_clk				(BIT_CLK_SHIFT),

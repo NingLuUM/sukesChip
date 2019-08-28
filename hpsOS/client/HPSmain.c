@@ -59,6 +59,7 @@
 
 #define INIT_PORT 3400
 #define ADC_CONTROL_PORT 3500
+#define MAX_PACKETSIZE 16384
 
 #define MAX_RECLEN 32768
 #define COMM_PORT 0
@@ -164,18 +165,24 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                 
                 } else if ( sock->is.rcv_interrupt ) {
                     if(ADC.queryMode.saveSingle){
-                        queryDataSaveFile(&ADC,&ENETclient[0]); 
+                        queryDataSaveFile(&ADC,&ENETclient[1]); 
 
                     } else if (ADC.queryMode.sendRealTime){
-                        queryDataRealTime_Send(&ADC,&ENETclient[0]);
+                        queryDataRealTime_Send(&ADC,&ENETclient[1]);
 
                     } else if (ADC.queryMode.storeLocal_Send){
-                        queryDataStoreLocal_Send(&ADC,&ENETclient[0]);
+                        queryDataStoreLocal_Send(&ADC,&ENETclient[1]);
 
                     } else if (ADC.queryMode.storeLocal_Save){
-                        queryDataStoreLocal_Save(&ADC,&ENETclient[0]);
+                        queryDataStoreLocal_Save(&ADC,&ENETclient[1]);
 
                     }
+                } else if ( sock->is.adc_control ){
+                    nrecv = recv(sock->fd,&msg,sizeof(uint32_t),0);
+                    printf("mackarel %d\n",nrecv);
+                    if (nrecv == 0)
+                        disconnectPollSock(sock);
+                
                 } else if ( PS.events[n].events & EPOLLIN ){
                     
                     nrecv = recv(sock->fd,&msg,10*sizeof(uint32_t),0);
@@ -204,7 +211,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
 
         if(!(tmp%10)){
             printf("query data waiting... (%d s)\n",tmp/10);
-            DREF32(ADC.leds) = ( ( tmp/10 ) & 0x1F );
+            setLEDS(&ADC,(tmp/10));
         }
         tmp++;
 
