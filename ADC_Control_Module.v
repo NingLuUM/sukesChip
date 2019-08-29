@@ -40,6 +40,7 @@ module ADC_Control_Module(
 reg [ 7: 0][11:0] data_sr;
 
 reg syncFlag;
+reg fclk_flag;
 
 reg [7:0] adc_state;
 reg [7:0] last_adc_control_comm;
@@ -61,6 +62,7 @@ wire [ 7: 0] data_out_l;
 
 initial
 begin
+	fclk_flag = 1'b0;
 	ADC_RESET = 1'b0;
 	ADC_SEN = 1'b1;				//***
 	ADC_SYNC = 1'b0;
@@ -252,14 +254,32 @@ ddio d0(
 // Serializes the double data outputs
 always @ (posedge bit_clk)
 begin
-	data_sr[0] <= {data_out_h[0], data_out_l[0], data_sr[0][11:2]};
-	data_sr[1] <= {data_out_h[1], data_out_l[1], data_sr[1][11:2]};
-	data_sr[2] <= {data_out_h[2], data_out_l[2], data_sr[2][11:2]};
-	data_sr[3] <= {data_out_h[3], data_out_l[3], data_sr[3][11:2]};
-	data_sr[4] <= {data_out_h[4], data_out_l[4], data_sr[4][11:2]};
-	data_sr[5] <= {data_out_h[5], data_out_l[5], data_sr[5][11:2]};
-	data_sr[6] <= {data_out_h[6], data_out_l[6], data_sr[6][11:2]};
-	data_sr[7] <= {data_out_h[7], data_out_l[7], data_sr[7][11:2]};
+	if( frame_clk & !fclk_flag )
+	begin
+		fclk_flag <= 1'b1;
+		data_sr[0][11:10] <= {data_out_h[0], data_out_l[0]};
+		data_sr[1][11:10] <= {data_out_h[1], data_out_l[1]};
+		data_sr[2][11:10] <= {data_out_h[2], data_out_l[2]};
+		data_sr[3][11:10] <= {data_out_h[3], data_out_l[3]};
+		data_sr[4][11:10] <= {data_out_h[4], data_out_l[4]};
+		data_sr[5][11:10] <= {data_out_h[5], data_out_l[5]};
+		data_sr[6][11:10] <= {data_out_h[6], data_out_l[6]};
+		data_sr[7][11:10] <= {data_out_h[7], data_out_l[7]};
+	
+	end
+	else 
+	begin
+		if ( !frame_clk ) fclk_flag <= 1'b0;
+		
+		data_sr[0] <= {data_out_h[0], data_out_l[0], data_sr[0][11:2]};
+		data_sr[1] <= {data_out_h[1], data_out_l[1], data_sr[1][11:2]};
+		data_sr[2] <= {data_out_h[2], data_out_l[2], data_sr[2][11:2]};
+		data_sr[3] <= {data_out_h[3], data_out_l[3], data_sr[3][11:2]};
+		data_sr[4] <= {data_out_h[4], data_out_l[4], data_sr[4][11:2]};
+		data_sr[5] <= {data_out_h[5], data_out_l[5], data_sr[5][11:2]};
+		data_sr[6] <= {data_out_h[6], data_out_l[6], data_sr[6][11:2]};
+		data_sr[7] <= {data_out_h[7], data_out_l[7], data_sr[7][11:2]};
+	end
 	
 end
 

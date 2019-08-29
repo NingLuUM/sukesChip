@@ -381,24 +381,56 @@ void adcIssueSerialCmd(ADCvars_t *ADC, uint32_t cmd){
 	usleep(5);
 }
 
+void adcSetDefaultSettings(ADCvars_t *ADC){
+	
+	DREF32(ADC->controlComms) = ADC_HARDWARE_RESET;
+	usleep(100000);
+	DREF32(ADC->controlComms) = ADC_IDLE_STATE;
+	usleep(10);
+	
+	ADC->gpreg0.SOFTWARE_RESET = 1;
+	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
+	usleep(100000);
+	
+	ADC->gpreg0.SOFTWARE_RESET = 0;
+	ADC->gpreg0.TGC_REGISTER_WREN = 1;
+	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
+
+	// WITHOUT INTERP_ENABLE=1, THIS ONLY ALLOWS COARSE_GAIN TO BE SET
+	ADC->tgcreg0x99.STATIC_PGA = 1;
+	adcIssueSerialCmd(ADC,ADC->tgcreg0x99.adccmd);
+	
+	// NOT IN MANUAL!!!, NEEDED FOR FINE GAIN CONTROL
+	ADC->tgcreg0x97.INTERP_ENABLE = 1;
+	adcIssueSerialCmd(ADC,ADC->tgcreg0x97.adccmd);
+    
+    // GO TO GENERAL PURPOSE REGISTERS
+	ADC->gpreg0.TGC_REGISTER_WREN = 0;
+	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
+
+    // SET TO DC COUPLING (VARIABE NAME IS MISLEADING/BACKWARDS)
+    ADC->gpreg7.INTERNAL_AC_COUPLING = 1;
+	adcIssueSerialCmd(ADC,ADC->gpreg7.adccmd);
+
+    // SET DATA TYPE TO UNSIGNED
+    ADC->gpreg4.DFS = 1;
+    adcIssueSerialCmd(ADC,ADC->gpreg4.adccmd);
+    
+    // DISABLE THE CLAMP
+    ADC->gpreg70.CLAMP_DISABLE = 1;
+    adcIssueSerialCmd(ADC,ADC->gpreg70.adccmd);
+}
+
 int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
 	
 	ADC->stateReset = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_FPGA_STATE_RESET_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
 	ADC->controlComms = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_CONTROL_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
 	ADC->recLen = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_SET_ADC_RECORD_LENGTH_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
 	ADC->pioVarGain = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_VAR_GAIN_SETTING_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
 	ADC->serialCommand = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_SERIAL_COMMAND_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
 	ADC->dataReadyFlag = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + DATA_READY_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-
 	ADC->leds = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_LED_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	
 	ADC->ramBank0 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK0_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-
 	ADC->ramBank1 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK1_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 
 	ADC->gpreg0.adccmd=0;       ADC->gpreg0.addr=0;	
@@ -471,28 +503,18 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
 	ADC->reg[171] = (ADCREG_t *)(&(ADC->tgcreg0x9A));
 	ADC->reg[172] = (ADCREG_t *)(&(ADC->tgcreg0x9B));
 	
-    ADC->reg_dict[0][0] = 0;
-    ADC->reg_dict[0][1] = 1;
-    ADC->reg_dict[0][2] = 2;
-    ADC->reg_dict[0][3] = 3;
-    ADC->reg_dict[0][4] = 4;
-    ADC->reg_dict[0][5] = 5;
-    ADC->reg_dict[0][7] = 6;
-    ADC->reg_dict[0][13] = 7;
-    ADC->reg_dict[0][15] = 8;
-    ADC->reg_dict[0][17] = 9;
-    ADC->reg_dict[0][19] = 10;
-    ADC->reg_dict[0][31] = 11;
-    ADC->reg_dict[0][29] = 12;
-    ADC->reg_dict[0][27] = 13;
-    ADC->reg_dict[0][25] = 14;
-    ADC->reg_dict[0][21] = 15;
-    ADC->reg_dict[0][33] = 16;
-    ADC->reg_dict[0][70] = 17;
+    ADC->reg_dict[0][0] = 0;    ADC->reg_dict[0][1] = 1;
+    ADC->reg_dict[0][2] = 2;    ADC->reg_dict[0][3] = 3;
+    ADC->reg_dict[0][4] = 4;    ADC->reg_dict[0][5] = 5;
+    ADC->reg_dict[0][7] = 6;    ADC->reg_dict[0][13] = 7;
+    ADC->reg_dict[0][15] = 8;   ADC->reg_dict[0][17] = 9;
+    ADC->reg_dict[0][19] = 10;  ADC->reg_dict[0][31] = 11;
+    ADC->reg_dict[0][29] = 12;  ADC->reg_dict[0][27] = 13;
+    ADC->reg_dict[0][25] = 14;  ADC->reg_dict[0][21] = 15;
+    ADC->reg_dict[0][33] = 16;  ADC->reg_dict[0][70] = 17;
     
-	for(uint32_t i=1; i<0x95; i++){
-        ADC->reg_dict[1][i] = i+17;
-	}
+	for(uint32_t i=1; i<0x95; i++){ ADC->reg_dict[1][i] = i+17; }
+
     ADC->reg_dict[1][0x95] = 0x95+17;
     ADC->reg_dict[1][0x96] = 0x96+17;
     ADC->reg_dict[1][0x97] = 0x97+17;
@@ -507,52 +529,17 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
 	DREF32(ADC->stateReset)=1; 
 	usleep(10);
 	
-	DREF32(ADC->controlComms) = ADC_HARDWARE_RESET;
-	usleep(100000);
-	
-	DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-	usleep(10);
-	
-	ADC->gpreg0.SOFTWARE_RESET = 1;
-	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
-    usleep(100000);
+    adcSetDefaultSettings(ADC);
 
-	ADC->gpreg0.SOFTWARE_RESET = 0;
-	ADC->gpreg0.TGC_REGISTER_WREN = 1;
-	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
-
-	// WITHOUT INTERP_ENABLE=1, THIS ONLY ALLOWS COARSE_GAIN TO BE SET
-	ADC->tgcreg0x99.STATIC_PGA = 1;
-	adcIssueSerialCmd(ADC,ADC->tgcreg0x99.adccmd);
-	
-	// NOT IN MANUAL!!!, NEEDED FOR FINE GAIN CONTROL
-	ADC->tgcreg0x97.INTERP_ENABLE = 1;
-	adcIssueSerialCmd(ADC,ADC->tgcreg0x97.adccmd);
-  
-    // GO TO GENERAL PURPOSE REGISTERS
-	ADC->gpreg0.TGC_REGISTER_WREN = 0;
-	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
-
-    // SET TO DC COUPLING (VARIABE NAME IS MISLEADING/BACKWARDS)
-    ADC->gpreg7.INTERNAL_AC_COUPLING = 1;
-	adcIssueSerialCmd(ADC,ADC->gpreg7.adccmd);
-
-    // SET DATA TYPE TO UNSIGNED
-    ADC->gpreg4.DFS = 1;
-    adcIssueSerialCmd(ADC,ADC->gpreg4.adccmd);
-
-    // DISABLE THE CLAMP
-    ADC->gpreg70.CLAMP_DISABLE = 1;
-    adcIssueSerialCmd(ADC,ADC->gpreg70.adccmd);
-    
     ADC->interrupt.ps = NULL;
     
     ADC->recLen_ref = 2048;
-    ADC->npulses = 0;
+    ADC->npulses = 1;
     ADC->queryMode.all = 0;
-    ADC->queryMode.sendRealTime = 1;
+    ADC->queryMode.realTime = 1;
     ADC->data = (char **)calloc(1,sizeof(char *));
-    *(ADC->data) = NULL;
+    ADC->data[0] = (char *)calloc(3*MAX_RECLEN,sizeof(uint32_t));
+    //*(ADC->data) = NULL;
 	return(1);
 }
 

@@ -52,29 +52,152 @@ void adcSync(ADCvars_t *ADC){
 	usleep(5);
 }
 
-void sendData(SOCK_t *enet, char *data, size_t dsize){
 
+char *convertTo16bit(ADCvars_t *ADC){
+    uint64_t drecLen;
+    uint32_t recLen = ADC->recLen_ref;
+    uint32_t npulses = ADC->npulses;
+    
+    RAMBANK16_t *b16;
+    b16 = (RAMBANK16_t *)malloc(npulses*recLen*sizeof(RAMBANK16_t));
+    
+    RAMBANK0_t *b0;
+    RAMBANK1_t *b1;
+    if(ADC->gpreg4.DFS){
+        for(int m=0;m<npulses;m++){
+            b0 = (RAMBANK0_t *)(&(ADC->data[0][m*3*recLen*sizeof(int32_t)]));        
+            b1 = (RAMBANK1_t *)(&(ADC->data[0][(m*3*recLen+2*recLen)*sizeof(uint32_t)]));
+            drecLen = m*recLen;
+            for(int n=0;n<recLen;n++){
+                b16[n+drecLen].u.ch0 = b0[n].u.ch0;
+                b16[n+drecLen].u.ch1 = b0[n].u.ch1;
+                b16[n+drecLen].u.ch2 = b0[n].u.ch2;
+                b16[n+drecLen].u.ch3 = b0[n].u.ch3;
+                b16[n+drecLen].u.ch4 = b0[n].u.ch4;
+                b16[n+drecLen].u.ch5 = ( ( b1[n].u.ch5hi << 4 ) | b0[n].u.ch5lo );
+                b16[n+drecLen].u.ch6 = b1[n].u.ch6;
+                b16[n+drecLen].u.ch7 = b1[n].u.ch7;
+            }
+        }
+    } else {
+        for(int m=0;m<npulses;m++){
+            b0 = (RAMBANK0_t *)(&(ADC->data[0][m*3*recLen*sizeof(int32_t)]));        
+            b1 = (RAMBANK1_t *)(&(ADC->data[0][(m*3*recLen+2*recLen)*sizeof(uint32_t)]));
+            drecLen = m*recLen;
+            for(int n=0;n<recLen;n++){
+                b16[n+drecLen].s.ch0 = b0[n].s.ch0;
+                b16[n+drecLen].s.ch1 = b0[n].s.ch1;
+                b16[n+drecLen].s.ch2 = b0[n].s.ch2;
+                b16[n+drecLen].s.ch3 = b0[n].s.ch3;
+                b16[n+drecLen].s.ch4 = b0[n].s.ch4;
+                b16[n+drecLen].s.ch5 = ( ( b1[n].s.ch5hi << 4 ) | b0[n].s.ch5lo );
+                b16[n+drecLen].s.ch6 = b1[n].s.ch6;
+                b16[n+drecLen].s.ch7 = b1[n].s.ch7;
+            }
+        }
+    }
+    
+    return( (char *)b16 );
+}
+
+
+int sendData(SOCK_t *enet, char *data, size_t dsize){
+
+    struct timespec st1,et1,dt1;
+    
     int nsent0=0;
+    int toSend=0;
     uint32_t nrecvd=0;
     uint32_t recvcount=0;
 
     //setblocking(enet->fd);
+    clock_gettime(CLOCK_MONOTONIC,&st1);
     while(nsent0<dsize){
-        if( ( dsize-nsent0 ) > MAX_PACKETSIZE ){
-            nsent0 += send(enet->fd,&data[nsent0],MAX_PACKETSIZE,MSG_CONFIRM);
-        } else if ( ( dsize - nsent0 ) > 0 ){
-            nsent0 += send(enet->fd,&data[nsent0],( dsize - nsent0 ),MSG_CONFIRM);
-        }
-        usleep(10);
-        printf("nrecvd: ");
+        toSend = ( ( dsize-nsent0 ) > MAX_PACKETSIZE ) ? MAX_PACKETSIZE : ( dsize-nsent0 );
+        nsent0 += send(enet->fd,&data[nsent0],toSend,MSG_CONFIRM);
+        //usleep(1);
         recv(enet->fd,&nrecvd,sizeof(uint32_t),MSG_WAITALL);
         recvcount+=nrecvd;
-        printf("%u\n",recvcount);
+        //printf("nrecvd: %u\n",recvcount);
     }
-    printf("nsent: %d (%d)\n",nsent0,dsize);
+    clock_gettime(CLOCK_MONOTONIC,&et1);
+    dt1 = diff(st1,et1);
+    printf("nsent: %d (%d) -- time: %ld us\n",nsent0,dsize,dt1.tv_nsec/1000);
     //setnonblocking(enet->fd);
+    return(1);
 }
 
+
+int saveData(ADCvars_t *ADC, SOCK_t *enet, char *data, size_t dsize){
+    uint32_t dsz = dsize;
+    FILE *datafile;
+    remove("big_datafile");
+    datafile = fopen("big_datafile","wb");
+    fwrite(ADC->data[0],sizeof(char),dsize,datafile);
+    fclose(datafile);
+    send(enet->fd,&dsz,sizeof(int32_t),0);
+    return(1);
+}
+
+
+void queryData(ADCvars_t *ADC, SOCK_t *enet){
+	
+    static int pulsen = 0;
+    
+    DREF32(ADC->stateReset)=1;
+    usleep(5);
+	
+    int dataStatus=0;
+    uint32_t recLen = ADC->recLen_ref;
+    uint32_t npulses = ADC->npulses;
+
+    printf("reclen %u\n",recLen);
+
+    if( !(ADC->queryMode.realTime) || ADC->queryMode.is16bit ){
+        adcmemcpy( &(ADC->data[0][pulsen*3*recLen*sizeof(uint32_t)]), DREFPCHAR(ADC->ramBank0), 2*recLen*sizeof(uint32_t));
+        adcmemcpy( &(ADC->data[0][(pulsen*3*recLen+2*recLen)*sizeof(uint32_t)]), DREFPCHAR(ADC->ramBank1), recLen*sizeof(uint32_t));
+    }
+    
+    pulsen++;
+
+    if( pulsen == npulses ){
+        pulsen = 0;
+        
+        if( ADC->queryMode.is16bit ){
+            char *b16c;
+            b16c = convertTo16bit(ADC);
+            
+            if ( ADC->queryMode.transferData ){
+                dataStatus = sendData(enet,b16c,npulses*recLen*sizeof(RAMBANK16_t));
+            } else if ( ADC->queryMode.saveDataFile ){
+                dataStatus = saveData(ADC,enet,b16c,npulses*recLen*sizeof(RAMBANK16_t));
+            }
+            
+            if(dataStatus){
+                free(b16c);
+            }
+
+        } else {
+            if ( ADC->queryMode.transferData ){
+                if( ADC->queryMode.realTime ){
+                    sendData(enet,DREFPCHAR(ADC->ramBank0),2*recLen*sizeof(int32_t));
+                    sendData(enet,DREFPCHAR(ADC->ramBank1),recLen*sizeof(int32_t));
+                } else {
+                    sendData(enet,*(ADC->data),3*recLen*pulsen*sizeof(uint32_t));
+                }
+            
+            } else if ( ADC->queryMode.saveDataFile ){
+                dataStatus = saveData(ADC,enet,*(ADC->data),3*recLen*pulsen*sizeof(uint32_t));
+            }
+        }
+    
+    } else {
+        DREF32(ADC->stateReset)=0;
+        usleep(5);
+    }
+}
+
+/*
 void queryDataSaveFile(ADCvars_t *ADC, SOCK_t *enet){
     
     DREF32(ADC->stateReset)=1;
@@ -117,109 +240,60 @@ void queryDataRealTime_Send(ADCvars_t *ADC, SOCK_t *enet){
     DREF32(ADC->stateReset)=1;
     usleep(5);
 	
-    //struct timespec st,et,dt;
-	
-    //int nsent0=0;
-	
     uint32_t recLen;
 	recLen = ADC->recLen_ref;
 	printf("reclen %u\n",recLen);
 
     if(ADC->queryMode.is16bit){
-        RAMBANK0_t *b0 = (RAMBANK0_t *)DREFPCHAR(ADC->ramBank0);//adcData0;
-        RAMBANK1_t *b1 = (RAMBANK1_t *)DREFPCHAR(ADC->ramBank1);//adcData1;
-        RAMBANK16_t *b16;
+        ADC->npulses = 1;
+        if( *(ADC->data) != NULL ){
+            free(*(ADC->data));
+            *(ADC->data) = NULL;
+        }
+        *(ADC->data) = (char *)malloc(3*recLen*sizeof(uint32_t));
         char *b16c;
-        b16 = (RAMBANK16_t *)malloc(recLen*sizeof(RAMBANK16_t));
-        if(ADC->gpreg4.DFS){	
-            for(int n=0;n<recLen;n++){
-                b16[n].u.ch0 = b0[n].u.ch0;
-                b16[n].u.ch1 = b0[n].u.ch1;
-                //printf("%u,%u\n",b16[n].u.ch1,b0[n].u.ch1);
-                b16[n].u.ch2 = b0[n].u.ch2;
-                b16[n].u.ch3 = b0[n].u.ch3;
-                b16[n].u.ch4 = b0[n].u.ch4;
-                b16[n].u.ch5 = ( ( b1[n].u.ch5hi << 4 ) | b0[n].u.ch5lo );
-                b16[n].u.ch6 = b1[n].u.ch6;
-                b16[n].u.ch7 = b1[n].u.ch7;
-            }
-        } else {
-            for(int n=0;n<recLen;n++){
-                b16[n].s.ch0 = b0[n].s.ch0;
-                b16[n].s.ch1 = b0[n].s.ch1;
-                b16[n].s.ch2 = b0[n].s.ch2;
-                b16[n].s.ch3 = b0[n].s.ch3;
-                b16[n].s.ch4 = b0[n].s.ch4;
-                b16[n].s.ch5 = ( ( b1[n].s.ch5hi << 4 ) | b0[n].s.ch5lo );
-                b16[n].s.ch6 = b1[n].s.ch6;
-                b16[n].s.ch7 = b1[n].s.ch7;
-            }
+        b16c = convertTo16bit(ADC);
+        if(sendData(enet,b16c,recLen*sizeof(RAMBANK16_t))){
+            free(b16c);
         }
-        b16c = (char *)b16;
-        sendData(enet,b16c,recLen*sizeof(RAMBANK16_t));
-        /*while(nsent0<(recLen*sizeof(RAMBANK16_t))){
-            if((recLen*sizeof(RAMBANK16_t)-nsent0)>MAX_PACKETSIZE){
-                nsent0 += send(enet->fd,&b16c[nsent0],MAX_PACKETSIZE,0);
-            } else if ( (recLen*sizeof(RAMBANK16_t)-nsent0) > 0 ){
-                nsent0 += send(enet->fd,&b16c[nsent0],((recLen*sizeof(RAMBANK16_t))-nsent0 ),0);
-            }
-        }
-        printf("nsent: %d (%d)\n",nsent0,3*recLen*sizeof(uint32_t));
-        */
     } else {
-	
-        //clock_gettime(CLOCK_MONOTONIC,&st);
         sendData(enet,DREFPCHAR(ADC->ramBank0),2*recLen*sizeof(int32_t));
         sendData(enet,DREFPCHAR(ADC->ramBank1),recLen*sizeof(int32_t));
-        //nsent0 += send(enet->fd,DREFPCHAR(ADC->ramBank0),2*recLen*sizeof(int32_t),0);
-        //nsent0 += send(enet->fd,DREFPCHAR(ADC->ramBank1),recLen*sizeof(int32_t),0);
-        //clock_gettime(CLOCK_MONOTONIC,&et);
-        //dt = diff(st,et);
-        //printf("time to send: %ld us [%d/%d bytes]\n",dt.tv_nsec/1000,nsent0,pulsen*3*recLen*sizeof(uint32_t));
     }
 }
 
 
 void queryDataStoreLocal_Send(ADCvars_t *ADC, SOCK_t *enet){
     static int pulsen = 0;
-    //struct timespec st,et,dt;
     
     DREF32(ADC->stateReset)=1;
     usleep(5);
-	
-    //int nsent0=0;
-    //int bytesToSend=0;
+
+    int sendStatus=0;
     uint32_t recLen;
+    uint32_t npulses;
+
 	recLen = ADC->recLen_ref;
-    
-    //clock_gettime(CLOCK_MONOTONIC,&st);
+    npulses = ADC->npulses;
+
     adcmemcpy( &(ADC->data[0][pulsen*3*recLen*sizeof(uint32_t)]), DREFPCHAR(ADC->ramBank0), 2*recLen*sizeof(uint32_t));
     adcmemcpy( &(ADC->data[0][(pulsen*3*recLen+2*recLen)*sizeof(uint32_t)]), DREFPCHAR(ADC->ramBank1), recLen*sizeof(uint32_t));
-    //clock_gettime(CLOCK_MONOTONIC,&et);
-    //dt = diff(st,et);
-    //printf("time to copy: %ld us\n",dt.tv_nsec/1000);
     
     pulsen++;
-    if(pulsen==ADC->npulses){
-        struct timespec st1,et1,dt1;
-        clock_gettime(CLOCK_MONOTONIC,&st1);
-        //nsent0=0;
-        //bytesToSend = (3*recLen*pulsen*sizeof(uint32_t));
-     /*   while(nsent0<bytesToSend){
-            if((bytesToSend-nsent0 )>MAX_PACKETSIZE){
-                nsent0 += send(enet->fd,&(ADC->data[0][nsent0]),MAX_PACKETSIZE,0);
-            } else if ((bytesToSend-nsent0 )>0){
-                nsent0 += send(enet->fd,&(ADC->data[0][nsent0]),(bytesToSend-nsent0 ),0);
+    if(pulsen==npulses){
+    
+        if(ADC->queryMode.is16bit){
+            char *b16c;
+            b16c = convertTo16bit(ADC);
+            printf("%p\n",b16c);
+            sendStatus = sendData(enet,b16c,npulses*recLen*sizeof(RAMBANK16_t));
+            printf("sendStatus: %d\n",sendStatus);
+            if(sendStatus){
+                free(b16c);
             }
-            usleep(100);
+        } else {
+            sendData(enet,*(ADC->data),3*recLen*pulsen*sizeof(uint32_t));
         }
-        */
-
-        sendData(enet,*(ADC->data),3*recLen*pulsen*sizeof(uint32_t));
-        clock_gettime(CLOCK_MONOTONIC,&et1);
-        dt1 = diff(st1,et1);
-        printf("time to send: %ld\n",dt1.tv_nsec/1000);
-
 
         pulsen = 0;
     } else {
@@ -231,7 +305,6 @@ void queryDataStoreLocal_Send(ADCvars_t *ADC, SOCK_t *enet){
 
 void queryDataStoreLocal_Save(ADCvars_t *ADC, SOCK_t *enet){
     static int pulsen = 0;
-    //struct timespec st,et,dt;
     
     DREF32(ADC->stateReset)=1;
     usleep(5);
@@ -239,12 +312,9 @@ void queryDataStoreLocal_Save(ADCvars_t *ADC, SOCK_t *enet){
     uint32_t recLen;
 	recLen = ADC->recLen_ref;
     
-    //clock_gettime(CLOCK_MONOTONIC,&st);
     adcmemcpy( &(ADC->data[0][pulsen*3*recLen*sizeof(uint32_t)]), DREFPCHAR(ADC->ramBank0), 2*recLen*sizeof(uint32_t));
     adcmemcpy( &(ADC->data[0][(pulsen*3*recLen+2*recLen)*sizeof(uint32_t)]), DREFPCHAR(ADC->ramBank1), recLen*sizeof(uint32_t));
-    //clock_gettime(CLOCK_MONOTONIC,&et);
-    //dt = diff(st,et);
-    //printf("time to copy: %ld us\n",dt.tv_nsec/1000);
+    
     pulsen++;
 
     if(pulsen==ADC->npulses){
@@ -266,47 +336,8 @@ void queryDataStoreLocal_Save(ADCvars_t *ADC, SOCK_t *enet){
         usleep(5);
     }
 }
+*/
 
-
-void adcSetDefaultSettings(ADCvars_t *ADC){
-	
-	DREF32(ADC->controlComms) = ADC_HARDWARE_RESET;
-	usleep(100000);
-	DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-	usleep(10);
-	
-	ADC->gpreg0.SOFTWARE_RESET = 1;
-	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
-	usleep(100000);
-	
-	ADC->gpreg0.SOFTWARE_RESET = 0;
-	ADC->gpreg0.TGC_REGISTER_WREN = 1;
-	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
-
-	// WITHOUT INTERP_ENABLE=1, THIS ONLY ALLOWS COARSE_GAIN TO BE SET
-	ADC->tgcreg0x99.STATIC_PGA = 1;
-	adcIssueSerialCmd(ADC,ADC->tgcreg0x99.adccmd);
-	
-	// NOT IN MANUAL!!!, NEEDED FOR FINE GAIN CONTROL
-	ADC->tgcreg0x97.INTERP_ENABLE = 1;
-	adcIssueSerialCmd(ADC,ADC->tgcreg0x97.adccmd);
-    
-    // GO TO GENERAL PURPOSE REGISTERS
-	ADC->gpreg0.TGC_REGISTER_WREN = 0;
-	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
-
-    // SET TO DC COUPLING (VARIABE NAME IS MISLEADING/BACKWARDS)
-    ADC->gpreg7.INTERNAL_AC_COUPLING = 1;
-	adcIssueSerialCmd(ADC,ADC->gpreg7.adccmd);
-
-    // SET DATA TYPE TO UNSIGNED
-    ADC->gpreg4.DFS = 1;
-    adcIssueSerialCmd(ADC,ADC->gpreg4.adccmd);
-    
-    // DISABLE THE CLAMP
-    ADC->gpreg70.CLAMP_DISABLE = 1;
-    adcIssueSerialCmd(ADC,ADC->gpreg70.adccmd);
-}
 
 void adcSetGain(ADCvars_t *ADC, double gainVal){
 	
@@ -525,33 +556,48 @@ void recvSysMsgHandler(POLLserver_t *PS, ADCvars_t *ADC, FMSG_t *msg, int *runne
         }
         case(CASE_SET_QUERY_MODE):{
             ADC->queryMode.all = 0;
-            if(msg->u[1] == 0){
-                ADC->queryMode.saveSingle = 1;
-            } else if(msg->u[1] == 1){
-                ADC->queryMode.sendRealTime = 1;
-            } else if(msg->u[1] == 2){
-                ADC->queryMode.storeLocal_Send = 1;
-            } else if(msg->u[1] == 3){
-                ADC->queryMode.storeLocal_Save = 1;
+            
+            if(msg->u[1]){
+                ADC->queryMode.realTime = 1;
             } else {
-                ADC->queryMode.sendRealTime = 1;
+                ADC->queryMode.realTime = 0;
             }
+            
             if(msg->u[2]){
-                ADC->queryMode.is16bit = 1;
+                ADC->queryMode.transferData = 1;
+            } else {
+                ADC->queryMode.transferData = 0;
             }
+
+            if(msg->u[3]){
+                ADC->queryMode.saveDataFile = 1;
+            } else {
+                ADC->queryMode.saveDataFile = 0;
+            }
+
+            if(msg->u[4]){
+                ADC->queryMode.is16bit = 1;
+            } else {
+                ADC->queryMode.is16bit = 0;
+            }
+            printf("queryMode: rt %d, td %d, sdf %d, -- 16bit: %d\n",ADC->queryMode.realTime,ADC->queryMode.transferData,ADC->queryMode.saveDataFile,ADC->queryMode.is16bit);
             break;
         }
         case(CASE_SETUP_LOCAL_STORAGE):{
-            ADC->npulses = msg->u[1];
             if( msg->u[1] ){
+                ADC->npulses = msg->u[1];
                 if( *(ADC->data) != NULL ){
                     free(*(ADC->data));
                     *(ADC->data) = NULL;
                 }
                 *(ADC->data) = (char *)malloc(3*ADC->recLen_ref*msg->u[1]*sizeof(uint32_t));
-            } else if ( *(ADC->data) != NULL ){
-                free(*(ADC->data));
-                *(ADC->data) = NULL;
+            } else {
+                ADC->npulses = 1;
+                if ( *(ADC->data) != NULL ){
+                    free(*(ADC->data));
+                    *(ADC->data) = NULL;
+                }
+                *(ADC->data) = (char *)malloc(3*MAX_RECLEN*sizeof(uint32_t));
             }
             break;
         }
@@ -590,19 +636,3 @@ void controlMsgHandler(POLLserver_t *PS, FMSG_t *msg, int *runner){
     }
 }
 
-void cmdFileReader(ADCvars_t *ADC){
-	ADCREG_t cmdreg;
-	FILE *cmdfile = fopen("command_file.txt","r");
-	char line[256];
-	
-    while( fgets(line, sizeof(line), cmdfile) ){
-        cmdreg.adccmd = (uint32_t )atoi(line);
-        printf("fileread: %u\n",cmdreg.adccmd);
-        if(cmdreg.adccmd){
-			adcIssueSerialCmd(ADC,(cmdreg.adccmd & 0x00ffffff) );
-		}
-        usleep(1000);
-    }  
-    fclose(cmdfile);
-	
-}

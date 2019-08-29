@@ -96,12 +96,11 @@ typedef struct ADCvars_{
 
     union{
         struct{
-            uint8_t saveSingle : 1;
-            uint8_t sendRealTime : 1;
-            uint8_t storeLocal_Send : 1;
-            uint8_t storeLocal_Save : 1;
+            uint8_t realTime : 1;
+            uint8_t transferData : 1;
+            uint8_t saveDataFile : 1;
             uint8_t is16bit : 1;
-            uint8_t blnk : 3;
+            uint8_t blnk : 4;
         };
         uint8_t all;
     } queryMode;

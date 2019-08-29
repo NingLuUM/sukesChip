@@ -34,14 +34,23 @@ class receiver():
 	def queryDataLocal16(self):
 		msg = struct.pack(self.cmsg,self.CASE_QUERY_DATA,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
-		bb = self.sock.recv(self.npulses*self.recLen*16,socket.MSG_WAITALL)
+		aa = 0
+		bb=''
+		while len(bb)<(self.npulses*self.recLen*16):
+			bb += self.dsock.recv(self.npulses*self.recLen*16,0)
+			if len(bb)-aa:
+				self.dsock.send(struct.pack('I',len(bb)-aa))
+			aa = len(bb)
 		print len(bb)
 		
-		cmsg5 = '{}{}'.format(8*self.recLen,'H')
+		cmsg5 = '{}{}'.format(8*self.recLen*self.npulses,'H')
 		cc = np.array(struct.unpack(cmsg5,bb)).astype(np.uint16)
-		dd = cc[0::8].astype(np.uint16)
+		dd = cc[7::8].astype(np.uint16)
 		print 'min:',np.min(dd),'\nmax:',np.max(dd),'\nmean:',np.mean(dd),'\np-to-p:',np.max(dd)-np.min(dd)
-		plt.plot(dd)
+		t = np.linspace(0,len(dd),len(dd))
+		for n in range(0,8):
+			plt.plot(t+n*t[-1],cc[n::8]+0*n*4096.0)
+		#~ plt.plot(dd)
 		plt.show()
 		
 	def queryDataLocal(self):
@@ -97,7 +106,7 @@ class receiver():
 		plt.show()
 		
 	def queryData(self):
-		if(self.queryMode == REAL_TIME or self.queryMode == STORE_ON_ARM_TRANSFER_TO_ME):
+		if(self.realTime or self.transferData):
 			if(self.is16bit):
 				self.queryDataLocal16()
 			else:
@@ -158,32 +167,20 @@ class receiver():
 		msg = struct.pack(self.cmsg,self.CASE_ADC_SET_DEFAULT_SETTINGS,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		
-	def setQueryMode(self,queryMode=REAL_TIME,npulses=0,is16bit=0):#_(self):
+	def setQueryMode(self,realTime=1, transferData=1, saveData=0, is16bit=1, npulses=1):#_(self):
 		
-		self.queryMode = queryMode
-		if(is16bit and (queryMode == REAL_TIME)):
-			self.is16bit = 1
+		self.realTime = realTime
+		if realTime:
+			self.transferData = 1
 		else:
-			self.is16bit = 0
-			
-		if queryMode == SAVE_SINGLE:
-			msg = struct.pack(self.cmsg,self.CASE_SET_QUERY_MODE,SAVE_SINGLE,self.is16bit,0,0,0,0,0,0,0)
-			self.sock.send(msg)
-		elif queryMode == REAL_TIME:
-			msg = struct.pack(self.cmsg,self.CASE_SET_QUERY_MODE,REAL_TIME,self.is16bit,0,0,0,0,0,0,0)
-			self.sock.send(msg)
-		elif queryMode == STORE_ON_ARM_TRANSFER_TO_ME:
-			msg = struct.pack(self.cmsg,self.CASE_SET_QUERY_MODE,STORE_ON_ARM_TRANSFER_TO_ME,self.is16bit,0,0,0,0,0,0,0)
-			self.sock.send(msg)
-			self.setupLocalStorage(npulses)
-		elif queryMode == STORE_ON_ARM_SAVE_ON_ARM:
-			msg = struct.pack(self.cmsg,self.CASE_SET_QUERY_MODE,STORE_ON_ARM_SAVE_ON_ARM,self.is16bit,0,0,0,0,0,0,0)
-			self.sock.send(msg)
-			self.setupLocalStorage(npulses)
-		else:
-			self.queryMode = REAL_TIME
-			msg = struct.pack(self.cmsg,self.CASE_SET_QUERY_MODE,REAL_TIME,self.is16bit,0,0,0,0,0,0,0)
-			self.sock.send(msg)
+			self.transferData = transferData
+		self.saveData = saveData
+		self.is16bit = is16bit
+
+		msg = struct.pack(self.cmsg,self.CASE_SET_QUERY_MODE,self.realTime,self.transferData,self.saveData,self.is16bit,0,0,0,0,0)
+		self.sock.send(msg)
+		self.setupLocalStorage(npulses)
+		
 	
 	def setAutoShutdown(self,asd=0):
 		msg = struct.pack(self.cmsg,self.CASE_UPDATE_AUTO_SHUTDOWN_SETTING,asd,0,0,0,0,0,0,0,0)
@@ -192,6 +189,7 @@ class receiver():
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3400))
 		self.dsock.connect(('192.168.1.101',3500))
+	
 	def disconnectFromFpga(self):
 		self.sock.close()
 		
@@ -220,7 +218,9 @@ class receiver():
 		self.CASE_EXIT_PROGRAM = 100
 		self.npulses = 1
 		self.recLen = 2048
-		self.queryMode = REAL_TIME
+		self.realTime = 1
+		self.transferData = 0
+		self.saveData = 0
 		self.is16bit = 0
 		self.sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 		self.dsock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -244,13 +244,13 @@ r.connectToFpga()
 #~ r.setAdcUnsigned(0)
 r.setAutoShutdown(0)
 r.issueDirectAdcCmd(0,2,0x0000)
-r.setPioVarGain(0)
-r.setRecLen(10000)
+r.setPioVarGain(2)
+r.setRecLen(500)
 r.setAdcGain(0)
 #~ r.setAdcInternalAcCoupling(1)
 #~ r.setAdcLowNoiseMode(1)
-r.setQueryMode(REAL_TIME,0,0)
-#~ r.setQueryMode(queryMode=STORE_ON_ARM_TRANSFER_TO_ME,npulses=1,is16bit=1)
+#~ r.setQueryMode(queryMode=REAL_TIME,npulses=1,is16bit=1)
+r.setQueryMode(realTime=0,transferData=1,saveData=0,is16bit=1,npulses=10)
 #~ r.setQueryMode(STORE_ON_ARM_TRANSFER_TO_ME,npulses=10)
 #~ r.setQueryMode(STORE_ON_ARM_SAVE_ON_ARM,npulses=10)
 

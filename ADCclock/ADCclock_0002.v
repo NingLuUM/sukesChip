@@ -50,7 +50,7 @@ module  ADCclock_0002(
 		.phase_shift4("0 ps"),
 		.duty_cycle4(50),
 		.output_clock_frequency5("150.000000 MHz"),
-		.phase_shift5("625 ps"),
+		.phase_shift5("1666 ps"),
 		.duty_cycle5(50),
 		.output_clock_frequency6("0 MHz"),
 		.phase_shift6("0 ps"),
