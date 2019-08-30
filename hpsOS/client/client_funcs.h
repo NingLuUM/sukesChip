@@ -370,57 +370,6 @@ int FPGA_init(FPGAvars_t *FPGA){ // maps the FPGA hardware registers to the vari
 	return(1);
 }
 
-void adcIssueSerialCmd(ADCvars_t *ADC, uint32_t cmd){
-	DREF32(ADC->serialCommand) = cmd;
-	usleep(5);
-	DREF32(ADC->controlComms) = ADC_BUFFER_SERIAL_COMMAND;
-	usleep(5);
-	DREF32(ADC->controlComms) = ADC_ISSUE_SERIAL_COMMAND;
-	usleep(100);
-	DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-	usleep(5);
-}
-
-void adcSetDefaultSettings(ADCvars_t *ADC){
-	
-	DREF32(ADC->controlComms) = ADC_HARDWARE_RESET;
-	usleep(100000);
-	DREF32(ADC->controlComms) = ADC_IDLE_STATE;
-	usleep(10);
-	
-	ADC->gpreg0.SOFTWARE_RESET = 1;
-	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
-	usleep(100000);
-	
-	ADC->gpreg0.SOFTWARE_RESET = 0;
-	ADC->gpreg0.TGC_REGISTER_WREN = 1;
-	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
-
-	// WITHOUT INTERP_ENABLE=1, THIS ONLY ALLOWS COARSE_GAIN TO BE SET
-	ADC->tgcreg0x99.STATIC_PGA = 1;
-	adcIssueSerialCmd(ADC,ADC->tgcreg0x99.adccmd);
-	
-	// NOT IN MANUAL!!!, NEEDED FOR FINE GAIN CONTROL
-	ADC->tgcreg0x97.INTERP_ENABLE = 1;
-	adcIssueSerialCmd(ADC,ADC->tgcreg0x97.adccmd);
-    
-    // GO TO GENERAL PURPOSE REGISTERS
-	ADC->gpreg0.TGC_REGISTER_WREN = 0;
-	adcIssueSerialCmd(ADC,ADC->gpreg0.adccmd);
-
-    // SET TO DC COUPLING (VARIABE NAME IS MISLEADING/BACKWARDS)
-    ADC->gpreg7.INTERNAL_AC_COUPLING = 1;
-	adcIssueSerialCmd(ADC,ADC->gpreg7.adccmd);
-
-    // SET DATA TYPE TO UNSIGNED
-    ADC->gpreg4.DFS = 1;
-    adcIssueSerialCmd(ADC,ADC->gpreg4.adccmd);
-    
-    // DISABLE THE CLAMP
-    ADC->gpreg70.CLAMP_DISABLE = 1;
-    adcIssueSerialCmd(ADC,ADC->gpreg70.adccmd);
-}
-
 int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
 	
 	ADC->stateReset = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_FPGA_STATE_RESET_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
@@ -523,13 +472,24 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
     ADC->reg_dict[1][0x9A] = 0x9A+17;
     ADC->reg_dict[1][0x9B] = 0x9B+17;
     
+    // setup function pointers
+    ADC->issueSerialCommand = &adcIssueSerialCmd;
+    ADC->setDefaultSettings = &adcSetDefaultSettings;
+    ADC->setGain = &adcSetGain;
+    ADC->setUnsignedInt = &adcSetUnsignedInt;
+    ADC->setLowNoiseMode = &adcSetLowNoiseMode;
+    ADC->toggleChannelPower = &adcToggleChannelPwr;
+    ADC->setFilterBW = &adcSetFilterBW;
+    ADC->setInternalAcCoupling = &adcSetInternalAcCoupling;
+    ADC->issueDirectCommand = &adcIssueDirectCmd;
+    
     DREF32(ADC->pioVarGain) = 0;
 	DREF32(ADC->recLen) = 2048;
 	
 	DREF32(ADC->stateReset)=1; 
 	usleep(10);
 	
-    adcSetDefaultSettings(ADC);
+    ADC->setDefaultSettings(ADC);
 
     ADC->interrupt.ps = NULL;
     
@@ -537,10 +497,12 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
     ADC->npulses = 1;
     ADC->queryMode.all = 0;
     ADC->queryMode.realTime = 1;
-    ADC->data = (char **)calloc(1,sizeof(char *));
+    ADC->data = (char **)calloc(2,sizeof(char *));
     ADC->data[0] = (char *)calloc(3*MAX_RECLEN,sizeof(uint32_t));
-    //*(ADC->data) = NULL;
-	return(1);
+    ADC->data[1] = (char *)calloc(3*MAX_RECLEN,sizeof(uint32_t));	
+   
+   
+    return(1);
 }
 
 

@@ -1,14 +1,26 @@
 
+// structure defs and typedefs
 struct FPGAvars_;
 struct SOCK_;
 struct POLLserver_;
 struct ADCvars_;
-
+struct FMSG_;
 typedef struct FPGAvars_ FPGAvars_t;
 typedef struct SOCK_ SOCK_t;
 typedef struct POLLserver_ POLLserver_t;
 typedef struct ADCvars_ ADCvars_t;
+typedef struct FMSG_ FMSG_t;
 
+// adc function prototypes
+void adcIssueSerialCmd(ADCvars_t *ADC, uint32_t cmd);
+void adcSetGain(ADCvars_t *ADC, double gainVal);
+void adcSetUnsignedInt(ADCvars_t *ADC, uint32_t val);
+void adcSetLowNoiseMode(ADCvars_t *ADC, uint32_t val);
+void adcToggleChannelPwr(ADCvars_t *ADC, uint32_t pwrOn);
+void adcSetFilterBW(ADCvars_t *ADC, uint32_t filter);
+void adcSetInternalAcCoupling(ADCvars_t *ADC, uint32_t accoupling);
+void adcIssueDirectCmd(ADCvars_t *ADC, FMSG_t *msg);
+void adcSetDefaultSettings(ADCvars_t *ADC);
 
 typedef struct POLLserver_{
 	int epfd;
@@ -108,6 +120,16 @@ typedef struct ADCvars_{
     char **data;
 
 	SOCK_t interrupt;
+    
+    void (*issueSerialCommand)(ADCvars_t *,uint32_t);
+    void (*setDefaultSettings)(ADCvars_t *);
+    void (*setGain)(ADCvars_t *,double);
+    void (*setUnsignedInt)(ADCvars_t *,uint32_t);
+    void (*setLowNoiseMode)(ADCvars_t *,uint32_t);
+    void (*toggleChannelPower)(ADCvars_t *,uint32_t);
+    void (*setFilterBW)(ADCvars_t *,uint32_t);
+    void (*setInternalAcCoupling)(ADCvars_t *,uint32_t);
+    void (*issueDirectCommand)(ADCvars_t *,FMSG_t *);
 	
 } ADCvars_t;
 

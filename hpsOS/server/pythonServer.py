@@ -170,15 +170,14 @@ class receiver():
 	def setQueryMode(self,realTime=1, transferData=1, saveData=0, is16bit=1, npulses=1):#_(self):
 		
 		self.realTime = realTime
-		if realTime:
-			self.transferData = 1
-		else:
-			self.transferData = transferData
+		self.transferData = transferData
 		self.saveData = saveData
 		self.is16bit = is16bit
 
 		msg = struct.pack(self.cmsg,self.CASE_SET_QUERY_MODE,self.realTime,self.transferData,self.saveData,self.is16bit,0,0,0,0,0)
 		self.sock.send(msg)
+		if self.realTime:
+			npulses = 1
 		self.setupLocalStorage(npulses)
 		
 	
@@ -241,16 +240,14 @@ class receiver():
 
 r = receiver()
 r.connectToFpga()
-#~ r.setAdcUnsigned(0)
 r.setAutoShutdown(0)
-r.issueDirectAdcCmd(0,2,0x0000)
-r.setPioVarGain(2)
+r.setPioVarGain(0)
 r.setRecLen(500)
-r.setAdcGain(0)
+r.setAdcGain(10)
 #~ r.setAdcInternalAcCoupling(1)
 #~ r.setAdcLowNoiseMode(1)
 #~ r.setQueryMode(queryMode=REAL_TIME,npulses=1,is16bit=1)
-r.setQueryMode(realTime=0,transferData=1,saveData=0,is16bit=1,npulses=10)
+r.setQueryMode(realTime=0,transferData=1,saveData=0,is16bit=1,npulses=1)
 #~ r.setQueryMode(STORE_ON_ARM_TRANSFER_TO_ME,npulses=10)
 #~ r.setQueryMode(STORE_ON_ARM_SAVE_ON_ARM,npulses=10)
 

@@ -149,10 +149,6 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
         
         nfds = epoll_wait(PS.epfd,PS.events,MAX_POLL_EVENTS,timeout_ms);
 		
-        //if(DREF32(ADC.dataReadyFlag)){
-		//	printf("nfds %d, dataReadyFlag %u\n\n",nfds,DREF32(ADC.dataReadyFlag));
-		//}
-
         if( nfds > 0 ){
             for(n=0;n<nfds;n++){
                 sock = (SOCK_t *)PS.events[n].data.ptr;
@@ -165,42 +161,20 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                 
                 } else if ( sock->is.rcv_interrupt ) {
                     queryData(&ADC,&ENETclient[1]); 
-                    /*if(ADC.queryMode.saveSingle){
-                        queryDataSaveFile(&ADC,&ENETclient[1]); 
-
-                    } else if (ADC.queryMode.realTime){
-                        queryDataRealTime_Send(&ADC,&ENETclient[1]);
-
-                    } else if (ADC.queryMode.storeLocal_Send){
-                        queryDataStoreLocal_Send(&ADC,&ENETclient[1]);
-
-                    } else if (ADC.queryMode.storeLocal_Save){
-                        queryDataStoreLocal_Save(&ADC,&ENETclient[1]);
-
-                    }*/
-                } else if ( sock->is.adc_control ){
-                    nrecv = recv(sock->fd,&msg,sizeof(uint32_t),0);
-                    if (nrecv == 0)
-                        disconnectPollSock(sock);
                 
                 } else if ( PS.events[n].events & EPOLLIN ){
-                    
                     nrecv = recv(sock->fd,&msg,10*sizeof(uint32_t),0);
                     
-                    if(nrecv < 0){
-                        printf("ERROR: recv<0\n");
+                    if( nrecv < 0 ){
+                        perror("RECV ERROR:");
                         runner = 0;
                         break;
                     
-                    } else if (nrecv == 0) {
+                    } else if ( nrecv == 0 ) {
                         disconnectPollSock(sock);
                     
-                    } else {
-                        if( sock->is.adc_control ){
-                            recvSysMsgHandler(&PS, &ADC, &msg, &runner);
-                        } else if ( sock->is.commsock ){
-                            recvSysMsgHandler(&PS, &ADC, &msg, &runner);
-                        }
+                    } else if ( sock->is.commsock ){
+                        recvSysMsgHandler(&PS, &ADC, &msg, &runner);
                     }
                 }
             }
@@ -237,8 +211,10 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     free(ADC.reg_dict[0]);
     free(ADC.reg_dict[1]);
     free(ADC.reg_dict);
-    if( ADC.data[0] != NULL){
-        free(ADC.data[0]);
+    for(n=0;n<2;n++){
+        if( ADC.data[n] != NULL){
+            free(ADC.data[n]);
+        }
     }
     free(ADC.data);
 	FPGAclose(&FPGA);
@@ -247,45 +223,6 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
 
  
 
-    /*
-    uint32_t recLen = 2048;
-	uint32_t pioVarGain = 0;
-	double gain = 0.0;
-	uint32_t set_unsigned = 0;
-	uint32_t set_lownoise = 0;
-    uint32_t filter_bw = 0;
-	
-	if(argc>1) recLen = (uint32_t )atoi(argv[1]);
-	if(argc>2) pioVarGain = (uint32_t )atoi(argv[2]);
-	if(argc>3) gain = atof(argv[3]);
-	if(argc>4) set_unsigned = (uint32_t )atoi(argv[4]);
-	if(argc>5) set_lownoise = (uint32_t )atoi(argv[5]);
-	if(argc>6) filter_bw = (uint32_t )atoi(argv[6]);
-	
-	setRecLen(&ADC,recLen);
-	setPioVarGain(&ADC,pioVarGain);
-	
-	
-	adcSetGain(&ADC,gain);
-	usleep(100);
-	adcSetDTypeUnsignedInt(&ADC, set_unsigned);
-	usleep(100);
-	adcSetLowNoiseMode(&ADC, set_lownoise);
-    usleep(100);
-    adcSetFilterBW(&ADC,filter_bw);
-
-	adcSetReg1(&ADC);
-	usleep(100);
-	adcSetReg7(&ADC);
-	usleep(100);
-	
-	DREF32(ADC.stateReset)=1;
-	usleep(5);
-	DREF32(ADC.stateReset)=0;
-	usleep(5);
-    
-    connectPollInterrupter(&PS,&ADC,"gpio@0x100000000");
-	*/
  
 
 
