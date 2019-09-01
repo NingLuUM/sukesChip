@@ -71,7 +71,6 @@ enum ADC_ADDRS{
 	clamp_disable_addr = 17
 };
 
-
 typedef union GPREG0_{
 	struct{
 		union{

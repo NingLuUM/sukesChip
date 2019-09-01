@@ -3,13 +3,20 @@
 struct FPGAvars_;
 struct SOCK_;
 struct POLLserver_;
+struct RCVsys_;
 struct ADCvars_;
 struct FMSG_;
 typedef struct FPGAvars_ FPGAvars_t;
 typedef struct SOCK_ SOCK_t;
 typedef struct POLLserver_ POLLserver_t;
+typedef struct RCVsys_ RCVsys_t;
 typedef struct ADCvars_ ADCvars_t;
 typedef struct FMSG_ FMSG_t;
+
+// rcv system functions
+void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen);
+void rcvSetPioVarGain(RCVsys_t *RCV, uint32_t val);
+void rcvSetLEDs(RCVsys_t *RCV, uint32_t val);
 
 // adc function prototypes
 void adcIssueSerialCmd(ADCvars_t *ADC, uint32_t cmd);
@@ -21,6 +28,7 @@ void adcSetFilterBW(ADCvars_t *ADC, uint32_t filter);
 void adcSetInternalAcCoupling(ADCvars_t *ADC, uint32_t accoupling);
 void adcIssueDirectCmd(ADCvars_t *ADC, FMSG_t *msg);
 void adcSetDefaultSettings(ADCvars_t *ADC);
+void adcSync(ADCvars_t *ADC);
 
 typedef struct POLLserver_{
 	int epfd;
@@ -59,16 +67,11 @@ typedef struct FPGAvars_{ // structure to hold variables that are mapped to the 
 
 
 typedef struct ADCvars_{
-	// memory mapped variables in FPGA
-	uint32_t volatile *stateReset;
+    // shared with RCVsys	
 	uint32_t volatile *controlComms;
-	uint32_t volatile *recLen;
-	uint32_t volatile *pioVarGain;
 	uint32_t volatile *serialCommand;
-	uint32_t volatile *dataReadyFlag;
-	uint32_t volatile *leds;
 	
-	GPREG0_t gpreg0;
+    GPREG0_t gpreg0;
 	GPREG1_t gpreg1;
 	GPREG2_t gpreg2;
 	GPREG3_t gpreg3;
@@ -100,9 +103,33 @@ typedef struct ADCvars_{
 	ADCREG_t **reg;
     uint32_t **reg_dict;
 	
-	char volatile *ramBank0;
+    void (*issueSerialCommand)(ADCvars_t *,uint32_t);
+    void (*setDefaultSettings)(ADCvars_t *);
+    void (*setGain)(ADCvars_t *,double);
+    void (*setUnsignedInt)(ADCvars_t *,uint32_t);
+    void (*setLowNoiseMode)(ADCvars_t *,uint32_t);
+    void (*toggleChannelPower)(ADCvars_t *,uint32_t);
+    void (*setFilterBW)(ADCvars_t *,uint32_t);
+    void (*setInternalAcCoupling)(ADCvars_t *,uint32_t);
+    void (*issueDirectCommand)(ADCvars_t *,FMSG_t *);
+    void (*sync)(ADCvars_t *);	
+} ADCvars_t;
+
+
+typedef struct RCVsys_{
+
+	// memory mapped variables in FPGA
+	uint32_t volatile *stateReset;
+	uint32_t volatile *controlComms;
+	uint32_t volatile *serialCommand;
+    uint32_t volatile *recLen;
+	uint32_t volatile *pioVarGain;
+	uint32_t volatile *dataReadyFlag;
+	uint32_t volatile *leds;
+    char volatile *ramBank0;
 	char volatile *ramBank1;
     
+    // reference values for setting up data storage
     uint32_t recLen_ref;
     uint32_t npulses;
 
@@ -121,18 +148,13 @@ typedef struct ADCvars_{
 
 	SOCK_t interrupt;
     
-    void (*issueSerialCommand)(ADCvars_t *,uint32_t);
-    void (*setDefaultSettings)(ADCvars_t *);
-    void (*setGain)(ADCvars_t *,double);
-    void (*setUnsignedInt)(ADCvars_t *,uint32_t);
-    void (*setLowNoiseMode)(ADCvars_t *,uint32_t);
-    void (*toggleChannelPower)(ADCvars_t *,uint32_t);
-    void (*setFilterBW)(ADCvars_t *,uint32_t);
-    void (*setInternalAcCoupling)(ADCvars_t *,uint32_t);
-    void (*issueDirectCommand)(ADCvars_t *,FMSG_t *);
-	
-} ADCvars_t;
+    ADCvars_t *ADC;
 
+    void (*setRecLen)(RCVsys_t *,uint32_t);   
+    void (*setPioVarGain)(RCVsys_t *,uint32_t); 
+    void (*setLEDs)(RCVsys_t *,uint32_t); 
+
+} RCVsys_t;
 
 typedef union LED_{
 	struct{
@@ -205,3 +227,9 @@ typedef struct FMSG_{
         double d[5];
     };
 } FMSG_t;
+
+
+
+
+
+

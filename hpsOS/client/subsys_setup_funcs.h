@@ -71,15 +71,8 @@ int FPGA_init(FPGAvars_t *FPGA){ // maps the FPGA hardware registers to the vari
 
 int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
 	
-	ADC->stateReset = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_FPGA_STATE_RESET_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	ADC->controlComms = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_CONTROL_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	ADC->recLen = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_SET_ADC_RECORD_LENGTH_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	ADC->pioVarGain = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_VAR_GAIN_SETTING_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	ADC->serialCommand = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_SERIAL_COMMAND_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	ADC->dataReadyFlag = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + DATA_READY_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	ADC->leds = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_LED_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	ADC->ramBank0 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK0_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-	ADC->ramBank1 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK1_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 
 	ADC->gpreg0.adccmd=0;       ADC->gpreg0.addr=0;	
 	ADC->gpreg1.adccmd=0;       ADC->gpreg1.addr=1;
@@ -172,9 +165,6 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
     ADC->reg_dict[1][0x9B] = 0x9B+17;
     
     // setup function pointers
-    ADC->setRecLen = &setRecLen_;
-    ADC->setPioVarGain = &setPioVarGain_;
-    ADC->setLEDs = &setLEDS_;
     ADC->issueSerialCommand = &adcIssueSerialCmd;
     ADC->setDefaultSettings = &adcSetDefaultSettings;
     ADC->setGain = &adcSetGain;
@@ -185,27 +175,49 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
     ADC->setInternalAcCoupling = &adcSetInternalAcCoupling;
     ADC->issueDirectCommand = &adcIssueDirectCmd;
     ADC->sync = &adcSync;
- 
-    DREF32(ADC->pioVarGain) = 0;
-	DREF32(ADC->recLen) = 2048;
-	
-	DREF32(ADC->stateReset)=1; 
-	usleep(10);
 	
     ADC->setDefaultSettings(ADC);
-
-    ADC->interrupt.ps = NULL;
-    
-    ADC->recLen_ref = 2048;
-    ADC->npulses = 1;
-    ADC->queryMode.all = 0;
-    ADC->queryMode.realTime = 1;
-    ADC->data = (char **)calloc(2,sizeof(char *));
-    ADC->data[0] = (char *)calloc(3*MAX_RECLEN,sizeof(uint32_t));
-    ADC->data[1] = (char *)calloc(3*MAX_RECLEN,sizeof(uint32_t));	
-   
    
     return(1);
 }
 
+int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
 
+	RCV->stateReset = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_FPGA_STATE_RESET_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+	RCV->controlComms = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_CONTROL_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+	RCV->recLen = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_SET_ADC_RECORD_LENGTH_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+	RCV->pioVarGain = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_VAR_GAIN_SETTING_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+	RCV->serialCommand = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_SERIAL_COMMAND_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+	RCV->dataReadyFlag = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + DATA_READY_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+	RCV->leds = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_LED_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+	RCV->ramBank0 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK0_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+	RCV->ramBank1 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK1_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+    
+    // setup function pointers
+    RCV->setRecLen = &setRecLen_;
+    RCV->setPioVarGain = &setPioVarGain_;
+    RCV->setLEDs = &setLEDS_;
+ 
+    DREF32(RCV->pioVarGain) = 0;
+	DREF32(RCV->recLen) = 2048;
+	
+	DREF32(RCV->stateReset)=1; 
+	usleep(10);
+
+    RCV->ADC = ADC;
+
+    RCV->interrupt.ps = NULL;
+    
+    RCV->recLen_ref = 2048;
+    RCV->npulses = 1;
+    RCV->queryMode.all = 0;
+    RCV->queryMode.realTime = 1;
+    RCV->data = (char **)calloc(2,sizeof(char *));
+    RCV->data[0] = (char *)calloc(3*MAX_RECLEN,sizeof(uint32_t));
+    RCV->data[1] = (char *)calloc(3*MAX_RECLEN,sizeof(uint32_t));	
+   
+    RCV->setRecLen = &rcvSetRecLen;   
+    RCV->setPioVarGain = &rcvSetPioVarGain; 
+    RCV->setLEDs = &rcvSetLEDs; 
+    return(1);
+}
