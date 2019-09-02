@@ -188,14 +188,17 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner
             RCV->setRecLen(RCV,msg->u[1]);
             break;
         }
+        
         case(CASE_SET_PIO_VAR_GAIN):{
             RCV->setPioVarGain(RCV,msg->u[1]);
             break;
         }
+        
         case(CASE_SET_LEDS):{
             RCV->setLEDs(RCV,msg->u[1]);
             break;
         }
+        
         case(CASE_QUERY_DATA):{
             DREF32(RCV->stateReset)=1;
             usleep(5);
@@ -203,34 +206,42 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner
             usleep(5);
             break;
         }
+        
         case(CASE_ADC_SET_GAIN):{
             RCV->ADC->setGain(RCV->ADC,msg->d[1]);
             break;
         }
+        
         case(CASE_ADC_SET_UNSIGNED):{
             RCV->ADC->setUnsignedInt(RCV->ADC, msg->u[1]);
             break;
         }
+        
         case(CASE_ADC_SET_LOW_NOISE_MODE):{
             RCV->ADC->setLowNoiseMode(RCV->ADC, msg->u[1]);
             break;
         }
+        
         case(CASE_ADC_TOGGLE_CHANNEL_POWER):{
             RCV->ADC->toggleChannelPower(RCV->ADC,msg->u[1]);
             break;
         }
+        
         case(CASE_ADC_SET_FILTER_BW):{
             RCV->ADC->setFilterBW(RCV->ADC,msg->u[1]);
             break;
         }
+        
         case(CASE_ADC_SET_INTERNAL_AC_COUPLING):{
             RCV->ADC->setInternalAcCoupling(RCV->ADC,msg->u[1]);
             break;
         }
+        
         case(CASE_ADC_ISSUE_DIRECT_CMD):{
             RCV->ADC->issueDirectCommand(RCV->ADC, msg);
             break;
         }
+        
         case(CASE_CONNECT_INTERRUPT):{
             if(msg->u[1] && ( RCV->interrupt.ps == NULL ) ){
                 connectPollInterrupter(PS,RCV,"gpio@0x100000000");
@@ -239,6 +250,7 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner
             }
             break;
         }
+        
         case(CASE_SET_QUERY_MODE):{
             RCV->queryMode.all = 0;
             
@@ -268,6 +280,7 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner
             printf("queryMode: rt %d, td %d, sdf %d, -- 16bit: %d\n",RCV->queryMode.realTime,RCV->queryMode.transferData,RCV->queryMode.saveDataFile,RCV->queryMode.is16bit);
             break;
         }
+        
         case(CASE_SETUP_LOCAL_STORAGE):{
             if( msg->u[1] ){
                 RCV->npulses = msg->u[1];
@@ -286,10 +299,12 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner
             }
             break;
         }
+        
         case(CASE_ADC_SET_DEFAULT_SETTINGS):{
             RCV->ADC->setDefaultSettings(RCV->ADC);
             break;
         }
+        
         case(CASE_UPDATE_AUTO_SHUTDOWN_SETTING):{
             if(msg->u[1]){
                 g_auto_shutdown_enabled = 1;
@@ -298,10 +313,12 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner
             }
             break;
         }
+        
         case(CASE_EXIT_PROGRAM):{
             *runner=0;
             break;
         }
+        
         default:{
             *runner=0;
             break;
@@ -316,6 +333,7 @@ void controlMsgHandler(POLLserver_t *PS, FMSG_t *msg, int *runner){
         case(CASE_ADD_DATA_SOCKET):{
             break;
         }
+        
         default:{
             break;
         }

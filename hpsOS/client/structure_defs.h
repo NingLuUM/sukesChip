@@ -30,6 +30,7 @@ void adcIssueDirectCmd(ADCvars_t *ADC, FMSG_t *msg);
 void adcSetDefaultSettings(ADCvars_t *ADC);
 void adcSync(ADCvars_t *ADC);
 
+
 typedef struct POLLserver_{
 	int epfd;
 	struct epoll_event ev;
@@ -156,6 +157,7 @@ typedef struct RCVsys_{
 
 } RCVsys_t;
 
+
 typedef union LED_{
 	struct{
 		uint32_t hiRest : 3;
@@ -164,6 +166,7 @@ typedef union LED_{
 	};
 	uint32_t vals;
 } LED_t;
+
 
 typedef union RAMBANK0_{
 	struct {
@@ -184,6 +187,7 @@ typedef union RAMBANK0_{
 	}s;
 } RAMBANK0_t;
 
+
 typedef union RAMBANK1_{
 	struct{
 		uint32_t ch5hi : 8;
@@ -196,6 +200,7 @@ typedef union RAMBANK1_{
 		int32_t ch7 : 12;
 	}s;
 } RAMBANK1_t;
+
 
 typedef union RAMBANK16_{
     struct{
@@ -220,12 +225,11 @@ typedef union RAMBANK16_{
     }s;
 } RAMBANK16_t;
 
-typedef struct FMSG_{
-    union{
-        uint32_t u[10];
-        float f[10];
-        double d[5];
-    };
+
+typedef union FMSG_{
+    uint32_t u[10];
+    float f[10];
+    double d[5];
 } FMSG_t;
 
 

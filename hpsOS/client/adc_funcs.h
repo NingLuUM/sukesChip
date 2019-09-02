@@ -52,7 +52,7 @@ void adcSetDefaultSettings(ADCvars_t *ADC){
     ADC->gpreg4.DFS = 1;
     ADC->issueSerialCommand(ADC,ADC->gpreg4.adccmd);
     
-    // DISABLE THE CLAMP
+    // DISABLE THE CLAMP!!!
     ADC->gpreg70.CLAMP_DISABLE = 1;
     ADC->issueSerialCommand(ADC,ADC->gpreg70.adccmd);
 }

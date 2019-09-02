@@ -194,16 +194,14 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
 	RCV->ramBank1 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK1_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
     
     // setup function pointers
-    RCV->setRecLen = &setRecLen_;
-    RCV->setPioVarGain = &setPioVarGain_;
-    RCV->setLEDs = &setLEDS_;
+    RCV->setRecLen = &rcvSetRecLen;   
+    RCV->setPioVarGain = &rcvSetPioVarGain; 
+    RCV->setLEDs = &rcvSetLEDs; 
  
     DREF32(RCV->pioVarGain) = 0;
 	DREF32(RCV->recLen) = 2048;
-	
 	DREF32(RCV->stateReset)=1; 
-	usleep(10);
-
+    
     RCV->ADC = ADC;
 
     RCV->interrupt.ps = NULL;
@@ -215,9 +213,8 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
     RCV->data = (char **)calloc(2,sizeof(char *));
     RCV->data[0] = (char *)calloc(3*MAX_RECLEN,sizeof(uint32_t));
     RCV->data[1] = (char *)calloc(3*MAX_RECLEN,sizeof(uint32_t));	
+    
+    RCV->setLEDs(RCV,0x1f);
    
-    RCV->setRecLen = &rcvSetRecLen;   
-    RCV->setPioVarGain = &rcvSetPioVarGain; 
-    RCV->setLEDs = &rcvSetLEDs; 
     return(1);
 }

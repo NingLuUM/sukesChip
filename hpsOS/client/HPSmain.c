@@ -133,7 +133,6 @@ int g_auto_shutdown_enabled = 1;
 // timer variables for cross-function timing tests
 struct timespec gstart, gend, gdifftime;
 
-
 #include "adc_register_defs.h"
 #include "structure_defs.h"
 #include "adc_funcs.h"
@@ -157,8 +156,6 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     RCV_init(&FPGA,&ADC,&RCV);
 
     connectPollInterrupter(&PS,&RCV,"gpio@0x100000000");
-    RCV.setLEDs(&RCV,0x1f);
-
     addEnetServerSock(&PS,&ENETserver[0],INIT_PORT);
     addEnetServerSock(&PS,&ENETserver[1],ADC_CONTROL_PORT);
     
@@ -167,7 +164,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
         ENETclient[i].partner = &ENETserver[i];
         ENETserver[i].partner = &ENETclient[i];
     }
-
+    
     int n;
     SOCK_t *sock;
     FMSG_t msg;
