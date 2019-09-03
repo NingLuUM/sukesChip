@@ -20,7 +20,7 @@ module ADC_Control_Module(
 	
 	input [15:0]			iRecLength,
 	input					iStateReset,
-	output reg [7:0]	oDataReady,
+	output reg [7:0]	oRcvInterrupt,
 	
 	output reg [7:0]	oBYTEEN0,
 	output reg [63:0]	oADCData0,
@@ -51,9 +51,9 @@ reg [4:0] senCnt;
 reg [1:0] trig_received_flag;
 reg write_complete_flag;
 
-reg [15:0] 	waddr_cntr;
+reg [14:0] 	waddr_cntr;
 wire waddr_overrun;
-assign waddr_overrun = waddr_cntr[15];
+assign waddr_overrun = waddr_cntr[14];
 
 reg [7:0][11:0] data_out;
 wire [ 7: 0] data_out_h;
@@ -64,7 +64,7 @@ initial
 begin
 	fclk_flag = 1'b0;
 	ADC_RESET = 1'b0;
-	ADC_SEN = 1'b1;				//***
+	ADC_SEN = 1'b1;
 	ADC_SYNC = 1'b0;
 	ADC_SDATA = 1'b0;
 	oWREN = 2'b00;
@@ -83,7 +83,7 @@ begin
 	last_adc_control_comm = 8'b0;
 	syncFlag = 1'b0;
 	
-	oDataReady <= 8'b0;
+	oRcvInterrupt <= 8'b0;
 	
 	data_sr[0] = 12'b0; data_sr[1] = 12'b0; data_sr[2] = 12'b0; data_sr[3] = 12'b0;
 	data_sr[4] = 12'b0; data_sr[5] = 12'b0; data_sr[6] = 12'b0; data_sr[7] = 12'b0;
@@ -105,9 +105,9 @@ begin
 		if ( !trig_received_flag && iSystemTrig )
 		begin
 			trig_received_flag <= 2'b11;
-			waddr_cntr <= 16'b0;
+			waddr_cntr <= 15'b0;
 			write_complete_flag <= 1'b0;
-			oDataReady <= 8'b0;
+			oRcvInterrupt <= 8'b0;
 		end
 	
 		
@@ -140,7 +140,7 @@ begin
 				
 					waddr_cntr <= waddr_cntr + 1'b1;
 				end
-				else //if ( waddr_cntr == iRecLength ) // iRecLength
+				else 
 				begin
 					oWREN <= 2'b00;
 					oCLKEN <= 2'b00;
@@ -149,7 +149,7 @@ begin
 					oBYTEEN1 <= 4'b0000;
 					write_complete_flag <= 1'b1;
 					trig_received_flag[0] <= 1'b0;
-					oDataReady <= 8'b11111111;
+					oRcvInterrupt <= 8'b11111111;
 				end
 			end
 		end
@@ -163,8 +163,8 @@ begin
 		oBYTEEN1 <= 4'b0000;
 		trig_received_flag <= 2'b00;
 		write_complete_flag <= 1'b0;
-		waddr_cntr <= 16'b0;
-		oDataReady <= 8'b0;
+		waddr_cntr <= 15'b0;
+		oRcvInterrupt <= 8'b0;
 	end
 end
 

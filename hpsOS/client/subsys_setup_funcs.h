@@ -218,3 +218,13 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
    
     return(1);
 }
+
+int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
+
+	TX->instructions = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_INSTRUCTIONMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+	TX->phaseDelays = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_PHASEDELAYMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+    
+    TX->interrupt.ps = NULL;
+
+    return(1);
+}

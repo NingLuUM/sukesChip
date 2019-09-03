@@ -5,13 +5,13 @@ struct SOCK_;
 struct POLLserver_;
 struct RCVsys_;
 struct ADCvars_;
-struct FMSG_;
+union FMSG_;
 typedef struct FPGAvars_ FPGAvars_t;
 typedef struct SOCK_ SOCK_t;
 typedef struct POLLserver_ POLLserver_t;
 typedef struct RCVsys_ RCVsys_t;
 typedef struct ADCvars_ ADCvars_t;
-typedef struct FMSG_ FMSG_t;
+typedef union FMSG_ FMSG_t;
 
 // rcv system functions
 void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen);
@@ -157,6 +157,13 @@ typedef struct RCVsys_{
 
 } RCVsys_t;
 
+typedef struct TXsys_{
+    char volatile *instructions;
+    char volatile *phaseDelays;
+
+    SOCK_t interrupt;
+
+} TXsys_t;
 
 typedef union LED_{
 	struct{

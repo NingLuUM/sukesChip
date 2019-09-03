@@ -101,7 +101,7 @@ void disconnectPollSock(SOCK_t *tmp){
     tmp->fd = 0;
 }
 
-void connectPollInterrupter(POLLserver_t *ps, RCVsys_t *RCV, char *gpio_lab){
+void connectPollInterrupter(POLLserver_t *ps, SOCK_t *interrupt, char *gpio_lab){
 	 
 	// CHANGE THIS TO DESIRED LABEL
 	const char *gpio_label = gpio_lab;
@@ -284,17 +284,17 @@ void connectPollInterrupter(POLLserver_t *ps, RCVsys_t *RCV, char *gpio_lab){
 	if (result == PATH_MAX)
 		error(1, errno, "buffer overflow reading '%s'", path);
 
-	RCV->interrupt.fd = file_fd;
-    RCV->interrupt.ps = ps;
-    RCV->interrupt.is.flags = 0;
-    RCV->interrupt.is.rcv_interrupt = 1;
-    RCV->interrupt.portNum = 0;
+	interrupt->fd = file_fd;
+    interrupt->ps = ps;
+    interrupt->is.flags = 0;
+    interrupt->is.rcv_interrupt = 1;
+    interrupt->portNum = 0;
 	
-	result = read(RCV->interrupt.fd, buffer, PATH_MAX);
+	result = read(interrupt->fd, buffer, PATH_MAX);
 	
-    ps->ev.data.ptr = &(RCV->interrupt);
+    ps->ev.data.ptr = interrupt;
     ps->ev.events = EPOLLIN | EPOLLET;
-    epoll_ctl(ps->epfd, EPOLL_CTL_ADD, RCV->interrupt.fd, &(ps->ev));
+    epoll_ctl(ps->epfd, EPOLL_CTL_ADD, interrupt->fd, &(ps->ev));
     
     // need to have epoll_wait once before interrupt can really be used
     epoll_wait(ps->epfd, ps->events, MAX_POLL_EVENTS, 10); // 10 ms

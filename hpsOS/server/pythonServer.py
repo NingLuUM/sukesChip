@@ -242,7 +242,7 @@ r = receiver()
 r.connectToFpga()
 r.setAutoShutdown(0)
 r.setPioVarGain(0)
-r.setRecLen(500)
+r.setRecLen(8192)
 r.setAdcGain(10)
 #~ r.setAdcInternalAcCoupling(1)
 #~ r.setAdcLowNoiseMode(1)
@@ -255,7 +255,7 @@ r.queryData()
 #~ r.disconnectFromFpga()
 
 
-#~ r.closeProgram()
+r.closeProgram()
 
 
 

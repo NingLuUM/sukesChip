@@ -168,7 +168,15 @@ wire  	[63:0] 	adc_writedata_bank0;
 wire		[3:0]		adc_byteen_bank1;
 wire  	[31:0] 	adc_writedata_bank1;
 
-wire [7:0]			adc_data_ready_flag;
+wire [7:0]			rcv_interrupt;
+wire [7:0]			tx_interrupt;
+
+wire [14:0]		tx_phasedelay_read_addr;
+wire [127:0]	tx_phasedelays;
+
+wire [13:0]		tx_instruction_read_addr;
+wire [63:0]		tx_instruction;
+
 wire					FRAME_CLK_SHIFT;
 wire 					BIT_CLK_SHIFT;
 
@@ -212,7 +220,7 @@ ADC_Control_Module u2(
 	.iRecLength				(adc_record_length),
 	.iStateReset			(adc_state_reset),
 	
-	.oDataReady				(adc_data_ready_flag),
+	.oRcvInterrupt				(rcv_interrupt),
 	
 	.oBYTEEN0				(adc_byteen_bank0),
 	.oADCData0				(adc_writedata_bank0),
@@ -245,7 +253,9 @@ soc_system u0(
 
 		.pio_set_adc_record_length_export			(adc_record_length),
 
-		.data_ready_export			(adc_data_ready_flag),
+		.rcv_interrupt_export			(rcv_interrupt),
+		
+		.tx_interrupt_export			(tx_interrupt),
 		
 		.adc_ram_bank0_address						(adc_write_addr),
 		.adc_ram_bank0_byteenable					(adc_byteen_bank0),
@@ -262,8 +272,23 @@ soc_system u0(
 		.adc_ram_bank1_clken							(adc_clken_bank[1]),
 		.adc_ram_bank1_writedata					(adc_writedata_bank1),
 		.adc_ram_bank1_readdata						(32'b0),
-
 		
+		.tx_instruction_mem_address            (tx_instruction_read_addr),
+		.tx_instruction_mem_chipselect         (1'b1), 
+		.tx_instruction_mem_clken              (1'b1),
+		.tx_instruction_mem_write              (1'b0),
+		.tx_instruction_mem_readdata           (tx_instruction),
+		.tx_instruction_mem_writedata          (64'b0),
+		.tx_instruction_mem_byteenable         (8'b11111111),
+		
+		.tx_phase_delay_mem_address            (tx_phasedelay_read_addr),
+		.tx_phase_delay_mem_chipselect         (1'b1),
+		.tx_phase_delay_mem_clken              (1'b1),
+		.tx_phase_delay_mem_write              (1'b0),
+		.tx_phase_delay_mem_readdata           (tx_phasedelays),
+		.tx_phase_delay_mem_writedata          (128'b0),
+		.tx_phase_delay_mem_byteenable			(16'b1111111111111111),
+
 		.ram_clock_bridge_clk						(CLK200), 
 		.adc_clock_bridge_clk						(CLK25), 
 		

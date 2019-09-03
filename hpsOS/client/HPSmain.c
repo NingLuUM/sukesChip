@@ -77,7 +77,7 @@
 #define INIT_PORT           ( 3400 )
 #define ADC_CONTROL_PORT    ( 3500 )
 
-#define MAX_RECLEN          ( 32768 )
+#define MAX_RECLEN          ( 16384 )
 #define MAX_PACKETSIZE      ( 8192 )
 
 #define MAX_SOCKETS         ( 10 )
@@ -146,6 +146,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     FPGAvars_t FPGA;
     ADCvars_t ADC;
     RCVsys_t RCV;
+    TXsys_t TX;
     SOCK_t ENETserver[MAX_SERVER_PORTS];
     SOCK_t ENETclient[MAX_SERVER_PORTS];
 
@@ -154,8 +155,10 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     FPGA_init(&FPGA);	
 	ADC_init(&FPGA,&ADC);
     RCV_init(&FPGA,&ADC,&RCV);
+    TX_init(&FPGA,&TX);
 
-    connectPollInterrupter(&PS,&RCV,"gpio@0x100000000");
+    connectPollInterrupter(&PS,&(RCV.interrupt),"gpio@0x100000000");
+    connectPollInterrupter(&PS,&(TX.interrupt),"gpio@0x100000010");
     addEnetServerSock(&PS,&ENETserver[0],INIT_PORT);
     addEnetServerSock(&PS,&ENETserver[1],ADC_CONTROL_PORT);
     
@@ -234,6 +237,9 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     }
     if(RCV.interrupt.ps!=NULL){
         disconnectPollSock(&RCV.interrupt);
+    }
+    if(TX.interrupt.ps!=NULL){
+        disconnectPollSock(&TX.interrupt);
     }
     
     free(ADC.reg);

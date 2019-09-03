@@ -244,7 +244,7 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner
         
         case(CASE_CONNECT_INTERRUPT):{
             if(msg->u[1] && ( RCV->interrupt.ps == NULL ) ){
-                connectPollInterrupter(PS,RCV,"gpio@0x100000000");
+                connectPollInterrupter(PS,&(RCV->interrupt),"gpio@0x100000000");
             } else if ( !msg->u[1] && ( RCV->interrupt.ps != NULL ) ){
                 disconnectPollSock(&(RCV->interrupt));
             }
