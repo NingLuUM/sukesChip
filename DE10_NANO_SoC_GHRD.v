@@ -192,8 +192,8 @@ ADC_Control_Module u2(
 
 	.adc_clkinp			(CLK25),
 	
-	.frame_clk				(FRAME_CLK_SHIFT),
-	.bit_clk				(BIT_CLK_SHIFT),
+	.frame_clk				(FRAME_CLK),
+	.bit_clk				(BIT_CLK),
 	
 	.adc_control_comm		(adc_control_comms),
 	.adc_serial_cmd			(adc_serial_command),
