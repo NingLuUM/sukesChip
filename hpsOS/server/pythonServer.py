@@ -45,11 +45,14 @@ class receiver():
 		
 		cmsg5 = '{}{}'.format(8*self.recLen*self.npulses,'H')
 		cc = np.array(struct.unpack(cmsg5,bb)).astype(np.uint16)
+		
 		dd = cc[7::8].astype(np.uint16)
-		print 'min:',np.min(dd),'\nmax:',np.max(dd),'\nmean:',np.mean(dd),'\np-to-p:',np.max(dd)-np.min(dd)
+		
 		t = np.linspace(0,len(dd),len(dd))
+		fig = plt.figure(figsize=(25,15))
 		for n in range(0,8):
-			plt.plot(t+n*t[-1],cc[n::8]+0*n*4096.0)
+			print 'channel',n+1,'\nmin:',np.min(cc[n::8]),'\nmax:',np.max(cc[n::8]),'\nmean:',np.mean(cc[n::8]),'\np-to-p:',np.max(cc[n::8])-np.min(cc[n::8]),'\n'
+			plt.plot(t+0*n*t[-1],cc[n::8]+n*4096.0*1.1)
 		#~ plt.plot(dd)
 		plt.show()
 		
@@ -142,6 +145,7 @@ class receiver():
 		self.sock.send(msg)
 		
 	def issueDirectAdcCmd(self,gp_tgc,addr,cmd):
+		self.is16bit = 1
 		msg = struct.pack(self.cmsg,self.CASE_ADC_ISSUE_DIRECT_CMD,gp_tgc,addr,cmd,0,0,0,0,0,0)
 		self.sock.send(msg)
 	
@@ -241,13 +245,16 @@ class receiver():
 r = receiver()
 r.connectToFpga()
 r.setAutoShutdown(0)
-r.setPioVarGain(0)
-r.setRecLen(500)
-r.setAdcGain(10)
+#~ r.setPioVarGain(0)
+r.setRecLen(15000)
+r.setAdcGain(5)
+#~ r.setQueryMode(realTime=0,transferData=1,npulses=1,is16bit=1)
+r.issueDirectAdcCmd(0,2,(111<<13))
 #~ r.setAdcInternalAcCoupling(1)
 #~ r.setAdcLowNoiseMode(1)
 #~ r.setQueryMode(queryMode=REAL_TIME,npulses=1,is16bit=1)
-r.setQueryMode(realTime=0,transferData=1,saveData=0,is16bit=1,npulses=1)
+#~ r.setAdcUnsigned(0)
+r.setQueryMode(realTime=1,transferData=1,saveData=0,is16bit=1,npulses=1)
 #~ r.setQueryMode(STORE_ON_ARM_TRANSFER_TO_ME,npulses=10)
 #~ r.setQueryMode(STORE_ON_ARM_SAVE_ON_ARM,npulses=10)
 

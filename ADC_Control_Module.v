@@ -7,13 +7,11 @@ module ADC_Control_Module(
 	input [23:0]			adc_serial_cmd,
 	
 	output reg				ADC_RESET,
-	output reg				ADC_SYNC,
 	
 	output reg				ADC_SDATA,
 	output reg				ADC_SEN,
 	
-	input					ADC_SCLK,
-	input					ADC_SDOUT,	
+	input					ADC_SCLK,	
 	input [7:0]				ADC_INPUT_DATA_LINES,
 	
 	input					iSystemTrig,
@@ -39,7 +37,6 @@ module ADC_Control_Module(
 
 reg [ 7: 0][11:0] data_sr;
 
-reg syncFlag;
 reg fclk_flag;
 
 reg [7:0] adc_state;
@@ -65,7 +62,7 @@ begin
 	fclk_flag = 1'b0;
 	ADC_RESET = 1'b0;
 	ADC_SEN = 1'b1;				//***
-	ADC_SYNC = 1'b0;
+
 	ADC_SDATA = 1'b0;
 	oWREN = 2'b00;
 	oCLKEN = 2'b00;
@@ -81,7 +78,6 @@ begin
 	
 	adc_state = 8'b0;
 	last_adc_control_comm = 8'b0;
-	syncFlag = 1'b0;
 	
 	oDataReady <= 8'b0;
 	
@@ -181,20 +177,16 @@ begin
 	case( adc_state )
 		hardware_reset:
 			begin
-				syncFlag <= 1'b0;
 				ADC_RESET <= 1'b1;
 				ADC_SEN <= 1'b1;
-				ADC_SYNC <= 1'b0;
 				ADC_SDATA <= 1'b0;
 				senCnt <= 5'b0;
 			end
 		
 		idle_state:
 			begin
-				syncFlag <= 1'b0;
 				ADC_RESET <= 1'b0;
 				ADC_SEN <= 1'b1;
-				ADC_SYNC <= 1'b0;
 				ADC_SDATA <= 1'b0;
 				senCnt <= 5'b0;
 			end
@@ -225,11 +217,7 @@ begin
 		
 		sync_adc:
 			begin
-				if ( !syncFlag )
-				begin
-					ADC_SYNC <= ~ADC_SYNC;
-					if ( ADC_SYNC ) syncFlag <= 1'b1;
-				end	
+				adc_state <= idle_state;
 			end
 			
 		default:
