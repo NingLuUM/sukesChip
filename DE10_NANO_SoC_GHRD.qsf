@@ -446,7 +446,7 @@ set_location_assignment PIN_AH17 -to KEY[0]
 set_location_assignment PIN_AH16 -to KEY[1]
 set_location_assignment PIN_AA19 -to ADC_CLKINP
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_CLKINP
-set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to ADC_CLKINP
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_CLKINP
 set_instance_assignment -name SLEW_RATE 1 -to ADC_CLKINP
 set_location_assignment PIN_Y15 -to ADC_DATA_LINES[0]
 set_instance_assignment -name IO_STANDARD LVDS -to ADC_DATA_LINES[0]
@@ -542,7 +542,7 @@ set_instance_assignment -name SLEW_RATE 0 -to VARGAIN[0]
 set_global_assignment -name VERILOG_FILE ADC_Control_Module_128.v
 set_location_assignment PIN_Y19 -to ADC_CLKINN
 set_instance_assignment -name SLEW_RATE 1 -to ADC_CLKINN
-set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to ADC_CLKINN
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_CLKINN
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_CLKINN
 set_global_assignment -name QIP_FILE TXclocks.qip
 set_global_assignment -name SIP_FILE TXclocks.sip

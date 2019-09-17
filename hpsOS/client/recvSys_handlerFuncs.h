@@ -184,19 +184,19 @@ void queryData(RCVsys_t *RCV, SOCK_t *enet){
 }
 
 
-void queryDataTmp(RCVsys_t *RCV, SOCK_t *enet){
+//~ void queryDataTmp(RCVsys_t *RCV, SOCK_t *enet){
 	
-    static int pulse_counter = 0;
+    //~ static int pulse_counter = 0;
     
-    int dataStatus=0;
-    uint32_t recLen = RCV->recLen_ref;
-    uint32_t npulses = RCV->npulses;
+    //~ int dataStatus=0;
+    //~ uint32_t recLen = RCV->recLen_ref;
+    //~ uint32_t npulses = RCV->npulses;
     
-    DREF32(RCV->stateReset)=1;
-    usleep(5);
-	dataStatus = sendData(enet,DREFPCHAR(RCV->ramBank0),8*recLen*sizeof(uint16_t));
+    //~ DREF32(RCV->stateReset)=1;
+    //~ usleep(5);
+	//~ dataStatus = sendData(enet,DREFPCHAR(RCV->ramBank0),8*recLen*sizeof(uint16_t));
             
-}
+//~ }
 
 
 void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner){

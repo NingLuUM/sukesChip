@@ -58,8 +58,8 @@
 /*****************************************************************************/
 
 // sopc-create-header-files: contains addresses of pio/rams defined in qsys 
-//~ #include "hps_0_recvFixedClocks.h"
-#include "hps_0_rambank128bit.h"
+#include "hps_0_recvFixedClocks.h"
+//~ #include "hps_0_rambank128bit.h"
 // macros to dereference memory-mapped variables from FPGA
 #define DREF8(X)	    ( *( uint8_t  *) X )
 #define DREF16(X)	    ( *( uint16_t *) X )
@@ -192,7 +192,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                     acceptEnetClientSock(sock);
                 
                 } else if ( sock->is.rcv_interrupt ) {
-                    queryDataTmp(&RCV,&ENETclient[1]); 
+                    queryData(&RCV,&ENETclient[1]); 
                 
                 } else if ( PS.events[n].events & EPOLLIN ){
                     nrecv = recv(sock->fd,&msg,10*sizeof(uint32_t),0);

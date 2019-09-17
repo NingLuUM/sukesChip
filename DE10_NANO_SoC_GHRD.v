@@ -163,10 +163,8 @@ wire	[15:0]			adc_record_length;
 wire  	[1:0]       	adc_wren_bank;
 wire  	[1:0]       	adc_chipsel_bank;
 wire  	[1:0]       	adc_clken_bank;
-//wire		[7:0]		adc_byteen_bank0;
-//wire  	[63:0] 	adc_writedata_bank0;
-wire		[15:0]		adc_byteen_bank0;
-wire  	[127:0] 	adc_writedata_bank0;
+wire		[7:0]		adc_byteen_bank0;
+wire  	[63:0] 	adc_writedata_bank0;
 wire		[3:0]		adc_byteen_bank1;
 wire  	[31:0] 	adc_writedata_bank1;
 
@@ -211,8 +209,8 @@ ADC_Control_Module u2(
 
 	.adc_clkinp			(CLK25),
 	
-	.frame_clk				(FRAME_CLK),
-	.bit_clk				(BIT_CLK),
+	.frame_clk				(FRAME_CLK_SHIFT),
+	.bit_clk				(BIT_CLK_SHIFT),
 	
 	.adc_control_comm		(adc_control_comms),
 	.adc_serial_cmd			(adc_serial_command),
@@ -274,7 +272,7 @@ soc_system u0(
 		.adc_ram_bank0_chipselect					(adc_chipsel_bank[0]),
 		.adc_ram_bank0_clken							(adc_clken_bank[0]),
 		.adc_ram_bank0_writedata					(adc_writedata_bank0),
-		.adc_ram_bank0_readdata						(128'b0),//(64'b0), //(32'b0)
+		.adc_ram_bank0_readdata						(64'b0), //(32'b0)
 		
 		.adc_ram_bank1_address						(adc_write_addr),
 		.adc_ram_bank1_byteenable					(adc_byteen_bank1),
