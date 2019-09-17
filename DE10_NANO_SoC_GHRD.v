@@ -76,26 +76,27 @@ module DE10_NANO_SoC_GHRD(
 	
 	// TRIDENT ONLY I/Os //
 	input				EXTERNAL_TRIGGER_INPUT,				// external input trigger via SMA on each 8-channel board
-	input	[ 1: 0]		LOSS_OF_SIGNAL,					// loss-of-signal indicators for CLK buffers
+	//input	[ 1: 0]		LOSS_OF_SIGNAL,					// loss-of-signal indicators for CLK buffers
 	input	[ 7: 0]		ADC_DATA_LINES, 	// Digial data from ADC for all 8 channels
 	input				BIT_CLK,				// bit clock from ADC (= frame_clk * 6)
 	input				FRAME_CLK,			// frame clock from ADC 
-	input				ADC_SDOUT,			// ADC serial data register readout
+	//input				ADC_SDOUT,			// ADC serial data register readout
 	
 	
 	output				ADC_RESET,
 	output				ADC_CLKINP,
+	output				ADC_CLKINN,
 	output				ADC_SCLK,
 	output				ADC_SDATA,
 	output				ADC_SEN,
-	output				ADC_SYNC, 
+	//output				ADC_SYNC, 
 	
-	output [4:0]		COMLED,
-	output [1:0]		VARGAIN
+	output [4:0]		COMLED
+	//output [1:0]		VARGAIN
 
 );
 
-
+assign ADC_CLKINN = ~ADC_CLKINP;
 //=======================================================
 //  REG/WIRE declarations
 //=======================================================
@@ -128,9 +129,9 @@ assign COMLED[2] = led_pins[2];
 assign COMLED[3] = led_pins[3];
 assign COMLED[4] = led_pins[4];
 
-wire [7:0] var_gain;
-assign VARGAIN[0] = var_gain[0];
-assign VARGAIN[1] = var_gain[1];
+//wire [7:0] var_gain;
+//assign VARGAIN[0] = var_gain[0];
+//assign VARGAIN[1] = var_gain[1];
 
 wire CLK2, CLK25, CLK100, CLK200;
 assign ADC_SCLK = CLK2;
@@ -142,7 +143,7 @@ wire adc_reset, adc_sen, adc_sdata, adc_sync;
 assign ADC_RESET	= adc_reset; 
 assign ADC_SEN		= adc_sen;
 assign ADC_SDATA	= adc_sdata; 
-assign ADC_SYNC		= adc_sync;
+//assign ADC_SYNC		= adc_sync;
 
 
 //=======================================================
@@ -207,12 +208,12 @@ ADC_Control_Module u2(
 	.adc_serial_cmd			(adc_serial_command),
 	
 	.ADC_RESET				(adc_reset),
-	.ADC_SYNC				(adc_sync),
+	//.ADC_SYNC				(adc_sync),
 	.ADC_SDATA				(adc_sdata),
 	.ADC_SEN				(adc_sen),
 	
 	.ADC_SCLK				(ADC_SCLK),
-	.ADC_SDOUT				(ADC_SDOUT),
+	//.ADC_SDOUT				(ADC_SDOUT),
 	.ADC_INPUT_DATA_LINES	(ADC_DATA_LINES),
 	
 	.iSystemTrig			(EXTERNAL_TRIGGER_INPUT),
@@ -244,7 +245,7 @@ soc_system u0(
 		
 		
 		.pio_led_external_connection_export			(led_pins),
-		.pio_var_gain_setting_export				(var_gain),
+		//.pio_var_gain_setting_export				(var_gain),
 		
 		.pio_adc_serial_command_export				(adc_serial_command),
 		.pio_adc_control_comms_export				(adc_control_comms),
