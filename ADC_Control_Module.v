@@ -7,13 +7,13 @@ module ADC_Control_Module(
 	input [23:0]			adc_serial_cmd,
 	
 	output reg				ADC_RESET,
-	output reg				ADC_SYNC,
+	//output reg				ADC_SYNC,
 	
 	output reg				ADC_SDATA,
 	output reg				ADC_SEN,
 	
 	input					ADC_SCLK,
-	input					ADC_SDOUT,	
+	//input					ADC_SDOUT,	
 	input [7:0]				ADC_INPUT_DATA_LINES,
 	
 	input					iSystemTrig,
@@ -22,8 +22,10 @@ module ADC_Control_Module(
 	input					iStateReset,
 	output reg [7:0]	oRcvInterrupt,
 	
-	output reg [7:0]	oBYTEEN0,
-	output reg [63:0]	oADCData0,
+	//output reg [7:0]	oBYTEEN0,
+	//output reg [63:0]	oADCData0,
+	output reg [15:0]	oBYTEEN0,
+	output reg [127:0]	oADCData0,
 	
 	output reg [3:0]	oBYTEEN1,
 	output reg [31:0]	oADCData1,
@@ -39,7 +41,7 @@ module ADC_Control_Module(
 
 reg [ 7: 0][11:0] data_sr;
 
-reg syncFlag;
+//reg syncFlag;
 reg fclk_flag;
 
 reg [7:0] adc_state;
@@ -65,12 +67,13 @@ begin
 	fclk_flag = 1'b0;
 	ADC_RESET = 1'b0;
 	ADC_SEN = 1'b1;
-	ADC_SYNC = 1'b0;
+	//ADC_SYNC = 1'b0;
 	ADC_SDATA = 1'b0;
 	oWREN = 2'b00;
 	oCLKEN = 2'b00;
 	oCHIPSEL = 2'b00;
-	oBYTEEN0 = 8'b00000000;
+	oBYTEEN0 = 16'b0000000000000000;
+	//oBYTEEN0 = 8'b00000000;
 	oBYTEEN1 = 4'b0000;
 	
 	trig_received_flag = 2'b0;
@@ -81,7 +84,7 @@ begin
 	
 	adc_state = 8'b0;
 	last_adc_control_comm = 8'b0;
-	syncFlag = 1'b0;
+	//syncFlag = 1'b0;
 	
 	oRcvInterrupt <= 8'b0;
 	
@@ -117,26 +120,41 @@ begin
 			begin
 				if ( !oWREN ) 
 				begin
-					oWREN <= 2'b11;
-					oCLKEN <= 2'b11;
-					oCHIPSEL <= 2'b11;
-					oBYTEEN0 <= 8'b11111111;
-					oBYTEEN1 <= 4'b1111;
+					//oWREN <= 2'b11;
+					//oCLKEN <= 2'b11;
+					//oCHIPSEL <= 2'b11;
+					//oBYTEEN0 <= 8'b11111111;
+					//oBYTEEN1 <= 4'b1111;
+					
+					oWREN <= 2'b01;
+					oCLKEN <= 2'b01;
+					oCHIPSEL <= 2'b01;
+					oBYTEEN0 <= 16'b1111111111111111;
+					//oBYTEEN1 <= 4'b1111;
 				end
 				if ( ( waddr_cntr < iRecLength ) && ( !waddr_overrun ) )
 				begin
 					oWAddr <= waddr_cntr;
 					
 					oADCData0[11:0] <= data_out[0]; 
-					oADCData0[23:12] <= data_out[1];
-					oADCData0[35:24] <= data_out[2];
-					oADCData0[47:36] <= data_out[3];
-					oADCData0[59:48] <= data_out[4];
-					oADCData0[63:60] <= data_out[5][3:0];
+					oADCData0[27:16] <= data_out[1];
+					oADCData0[43:32] <= data_out[2];
+					oADCData0[59:48] <= data_out[3];
+					oADCData0[75:64] <= data_out[4];
+					oADCData0[91:80] <= data_out[5];
+					oADCData0[107:96] <= data_out[6];
+					oADCData0[123:112] <= data_out[7];
 					
-					oADCData1[7:0] <= data_out[5][11:4]; 
-					oADCData1[19:8] <= data_out[6];
-					oADCData1[31:20] <= data_out[7];
+					//oADCData0[11:0] <= data_out[0]; 
+					//oADCData0[23:12] <= data_out[1];
+					//oADCData0[35:24] <= data_out[2];
+					//oADCData0[47:36] <= data_out[3];
+					//oADCData0[59:48] <= data_out[5];
+					//oADCData0[63:60] <= data_out[4][3:0];
+					
+					//oADCData1[7:0] <= data_out[4][11:4]; 
+					//oADCData1[19:8] <= data_out[6];
+					//oADCData1[31:20] <= data_out[7];
 				
 					waddr_cntr <= waddr_cntr + 1'b1;
 				end
@@ -145,7 +163,8 @@ begin
 					oWREN <= 2'b00;
 					oCLKEN <= 2'b00;
 					oCHIPSEL <= 2'b00;
-					oBYTEEN0 <= 8'b00000000;
+					//oBYTEEN0 <= 8'b00000000;
+					oBYTEEN0 <= 16'b0000000000000000;
 					oBYTEEN1 <= 4'b0000;
 					write_complete_flag <= 1'b1;
 					trig_received_flag[0] <= 1'b0;
@@ -159,7 +178,8 @@ begin
 		oWREN <= 2'b00;
 		oCLKEN <= 2'b00;
 		oCHIPSEL <= 2'b00;
-		oBYTEEN0 <= 8'b00000000;
+		//oBYTEEN0 <= 8'b00000000;
+		oBYTEEN0 <= 16'b0000000000000000;
 		oBYTEEN1 <= 4'b0000;
 		trig_received_flag <= 2'b00;
 		write_complete_flag <= 1'b0;
@@ -181,20 +201,20 @@ begin
 	case( adc_state )
 		hardware_reset:
 			begin
-				syncFlag <= 1'b0;
+				//syncFlag <= 1'b0;
 				ADC_RESET <= 1'b1;
 				ADC_SEN <= 1'b1;
-				ADC_SYNC <= 1'b0;
+				//ADC_SYNC <= 1'b0;
 				ADC_SDATA <= 1'b0;
 				senCnt <= 5'b0;
 			end
 		
 		idle_state:
 			begin
-				syncFlag <= 1'b0;
+				//syncFlag <= 1'b0;
 				ADC_RESET <= 1'b0;
 				ADC_SEN <= 1'b1;
-				ADC_SYNC <= 1'b0;
+				//ADC_SYNC <= 1'b0;
 				ADC_SDATA <= 1'b0;
 				senCnt <= 5'b0;
 			end
@@ -225,11 +245,12 @@ begin
 		
 		sync_adc:
 			begin
-				if ( !syncFlag )
-				begin
-					ADC_SYNC <= ~ADC_SYNC;
-					if ( ADC_SYNC ) syncFlag <= 1'b1;
-				end	
+				//if ( !syncFlag )
+				//begin
+				//	ADC_SYNC <= ~ADC_SYNC;
+				//	if ( ADC_SYNC ) syncFlag <= 1'b1;
+				//end	
+				adc_state <= idle_state;
 			end
 			
 		default:

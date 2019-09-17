@@ -4,7 +4,7 @@ preplace inst soc_system.clk_0 -pg 1 -lvl 1 -y 300
 preplace inst soc_system.hps_0.clk_0 -pg 1
 preplace inst soc_system.fpga_only_master.p2b_adapter -pg 1
 preplace inst soc_system.fpga_only_master.b2p_adapter -pg 1
-preplace inst soc_system.pio_adc_control_comms -pg 1 -lvl 3 -y 150
+preplace inst soc_system.pio_adc_control_comms -pg 1 -lvl 3 -y 50
 preplace inst soc_system.hps_only_master.b2p -pg 1
 preplace inst soc_system.fpga_only_master.clk_rst -pg 1
 preplace inst soc_system.pio_led -pg 1 -lvl 3 -y 3720
@@ -17,7 +17,7 @@ preplace inst soc_system.adc_ramBank1 -pg 1 -lvl 3 -y 2310
 preplace inst soc_system.hps_0.timer0 -pg 1
 preplace inst soc_system.hps_0.timer1 -pg 1
 preplace inst soc_system.hps_0.i2c0 -pg 1
-preplace inst soc_system.tx_phaseDelayMem -pg 1 -lvl 4 -y 390
+preplace inst soc_system.tx_phaseDelayMem -pg 1 -lvl 4 -y 420
 preplace inst soc_system.hps_0.timer2 -pg 1
 preplace inst soc_system.hps_0.wd_timer0 -pg 1
 preplace inst soc_system.hps_0.i2c1 -pg 1
@@ -25,26 +25,25 @@ preplace inst soc_system.hps_only_master.clk_rst -pg 1
 preplace inst soc_system.hps_0.timer3 -pg 1
 preplace inst soc_system.hps_0.wd_timer1 -pg 1
 preplace inst soc_system.hps_0.i2c2 -pg 1
-preplace inst soc_system.fpga_only_master -pg 1 -lvl 2 -y 330
+preplace inst soc_system.fpga_only_master -pg 1 -lvl 2 -y 370
 preplace inst soc_system.hps_0.qspi -pg 1
 preplace inst soc_system.hps_0.gpio0 -pg 1
 preplace inst soc_system.hps_0.i2c3 -pg 1
 preplace inst soc_system.hps_0.clkmgr -pg 1
-preplace inst soc_system.tx_instructionMem -pg 1 -lvl 4 -y 250
+preplace inst soc_system.tx_instructionMem -pg 1 -lvl 4 -y 150
 preplace inst soc_system.hps_0.gpio1 -pg 1
 preplace inst soc_system.hps_0.arm_a9_0 -pg 1
 preplace inst soc_system.hps_0.L2 -pg 1
 preplace inst soc_system.hps_only_master.transacto -pg 1
 preplace inst soc_system.hps_0.gpio2 -pg 1
 preplace inst soc_system.hps_0.arm_a9_1 -pg 1
-preplace inst soc_system.data_ready -pg 1 -lvl 3 -y 30
 preplace inst soc_system.hps_0.uart0 -pg 1
 preplace inst soc_system.hps_0.uart1 -pg 1
 preplace inst soc_system.ram_clock_bridge -pg 1 -lvl 1 -y 1340
 preplace inst soc_system.hps_only_master.p2b_adapter -pg 1
-preplace inst soc_system.hps_only_master -pg 1 -lvl 2 -y 470
+preplace inst soc_system.hps_only_master -pg 1 -lvl 2 -y 490
 preplace inst soc_system.hps_0.spim0 -pg 1
-preplace inst soc_system.pio_adc_serial_command -pg 1 -lvl 3 -y 250
+preplace inst soc_system.pio_adc_serial_command -pg 1 -lvl 3 -y 240
 preplace inst soc_system.hps_0.spim1 -pg 1
 preplace inst soc_system.hps_0.timer -pg 1
 preplace inst soc_system.hps_0.sysmgr -pg 1
@@ -55,7 +54,7 @@ preplace inst soc_system.hps_0.sdmmc -pg 1
 preplace inst soc_system.hps_0.axi_ocram -pg 1
 preplace inst soc_system.sysid_qsys -pg 1 -lvl 3 -y 1530
 preplace inst soc_system.hps_only_master.jtag_phy_embedded_in_jtag_master -pg 1
-preplace inst soc_system.pio_var_gain_setting -pg 1 -lvl 3 -y 390
+preplace inst soc_system.pio_var_gain_setting -pg 1 -lvl 3 -y 420
 preplace inst soc_system.hps_only_master.p2b -pg 1
 preplace inst soc_system.hps_only_master.clk_src -pg 1
 preplace inst soc_system.hps_0.arm_gic_0 -pg 1
@@ -69,9 +68,11 @@ preplace inst soc_system.fpga_only_master.p2b -pg 1
 preplace inst soc_system.hps_0.nand0 -pg 1
 preplace inst soc_system.fpga_only_master.clk_src -pg 1
 preplace inst soc_system.adc_clock_bridge -pg 1 -lvl 1 -y 1920
+preplace inst soc_system.tx_interrupt -pg 1 -lvl 4 -y 300
 preplace inst soc_system.hps_only_master.timing_adt -pg 1
 preplace inst soc_system.fpga_only_master.fifo -pg 1
 preplace inst soc_system.hps_0.gmac0 -pg 1
+preplace inst soc_system.rcv_interrupt -pg 1 -lvl 4 -y 30
 preplace inst soc_system.hps_0 -pg 1 -lvl 3 -y 1660
 preplace inst soc_system.hps_0.hps_io.border -pg 1
 preplace inst soc_system.hps_0.gmac1 -pg 1
@@ -91,35 +92,36 @@ preplace inst soc_system.intr_capturer_0 -pg 1 -lvl 3 -y 1240
 preplace inst soc_system.pio_set_adc_record_length -pg 1 -lvl 3 -y 2990
 preplace inst soc_system.fpga_only_master.b2p -pg 1
 preplace inst soc_system.hps_0.bridges -pg 1
-preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)pio_led.external_connection,(SLAVE)soc_system.pio_led_external_connection) 1 0 3 NJ 3750 NJ 3750 NJ
 preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.reset,(SLAVE)clk_0.clk_in_reset) 1 0 1 NJ
 preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)hps_0.memory,(SLAVE)soc_system.memory) 1 0 3 NJ 1850 NJ 1850 NJ
 preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)ram_clock_bridge.in_clk,(SLAVE)soc_system.ram_clock_bridge) 1 0 1 NJ
 preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.hps_0_f2h_stm_hw_events,(SLAVE)hps_0.f2h_stm_hw_events) 1 0 3 NJ 1750 NJ 1750 NJ
-preplace netloc FAN_OUT<net_container>soc_system</net_container>(SLAVE)tx_phaseDelayMem.clk2,(MASTER)ram_clock_bridge.out_clk,(SLAVE)tx_instructionMem.clk2) 1 1 3 NJ 1350 NJ 1230 1400
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.adc_clock_bridge,(SLAVE)adc_clock_bridge.in_clk) 1 0 1 NJ
 preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)pio_set_adc_record_length.external_connection,(SLAVE)soc_system.pio_set_adc_record_length) 1 0 3 NJ 3020 NJ 3020 NJ
 preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.hps_0_f2h_cold_reset_req,(SLAVE)hps_0.f2h_cold_reset_req) 1 0 3 NJ 1710 NJ 1710 NJ
 preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)clk_0.clk_in,(SLAVE)soc_system.clk) 1 0 1 NJ
-preplace netloc INTERCONNECT<net_container>soc_system</net_container>(MASTER)intr_capturer_0.interrupt_receiver,(SLAVE)jtag_uart.irq,(MASTER)hps_0.f2h_irq0,(SLAVE)data_ready.irq) 1 2 2 890 1330 1440
-preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.pio_adc_control_comms,(SLAVE)pio_adc_control_comms.external_connection) 1 0 3 NJ 180 NJ 180 NJ
-preplace netloc INTERCONNECT<net_container>soc_system</net_container>(SLAVE)pio_set_adc_record_length.s1,(SLAVE)pio_adc_control_comms.s1,(SLAVE)pio_var_gain_setting.s1,(SLAVE)sysid_qsys.control_slave,(SLAVE)pio_adc_serial_command.s1,(SLAVE)jtag_uart.avalon_jtag_slave,(MASTER)fpga_only_master.master,(SLAVE)pio_adc_fpga_state_reset.s1,(SLAVE)pio_led.s1,(MASTER)hps_0.h2f_lw_axi_master,(SLAVE)intr_capturer_0.avalon_slave_0,(SLAVE)data_ready.s1) 1 2 2 850 1620 1400
-preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)adc_clock_bridge.in_clk,(SLAVE)soc_system.adc_clock_bridge) 1 0 1 NJ
-preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)data_ready.external_connection,(SLAVE)soc_system.data_ready) 1 0 3 NJ 60 NJ 60 NJ
-preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)tx_instructionMem.s2,(SLAVE)soc_system.tx_instruction_mem) 1 0 4 NJ 270 NJ 230 NJ 360 NJ
+preplace netloc FAN_OUT<net_container>soc_system</net_container>(SLAVE)tx_instructionMem.clk2,(MASTER)ram_clock_bridge.out_clk,(SLAVE)tx_phaseDelayMem.clk2) 1 1 3 410 570 NJ 570 1480
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)pio_adc_control_comms.external_connection,(SLAVE)soc_system.pio_adc_control_comms) 1 0 3 NJ 80 NJ 80 NJ
+preplace netloc INTERCONNECT<net_container>soc_system</net_container>(SLAVE)jtag_uart.irq,(SLAVE)tx_interrupt.irq,(MASTER)hps_0.f2h_irq0,(MASTER)intr_capturer_0.interrupt_receiver,(SLAVE)rcv_interrupt.irq) 1 2 2 870 1480 1440
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.pio_led_external_connection,(SLAVE)pio_led.external_connection) 1 0 3 NJ 3750 NJ 3750 NJ
 preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)hps_0.f2h_debug_reset_req,(SLAVE)soc_system.hps_0_f2h_debug_reset_req) 1 0 3 NJ 1730 NJ 1730 NJ
+preplace netloc INTERCONNECT<net_container>soc_system</net_container>(SLAVE)pio_adc_serial_command.s1,(MASTER)fpga_only_master.master,(MASTER)hps_0.h2f_lw_axi_master,(SLAVE)pio_set_adc_record_length.s1,(SLAVE)pio_var_gain_setting.s1,(SLAVE)pio_led.s1,(SLAVE)rcv_interrupt.s1,(SLAVE)sysid_qsys.control_slave,(SLAVE)intr_capturer_0.avalon_slave_0,(SLAVE)pio_adc_fpga_state_reset.s1,(SLAVE)pio_adc_control_comms.s1,(SLAVE)jtag_uart.avalon_jtag_slave,(SLAVE)tx_interrupt.s1) 1 2 2 810 1620 1500
 preplace netloc POINT_TO_POINT<net_container>soc_system</net_container>(MASTER)hps_only_master.master,(SLAVE)hps_0.f2h_axi_slave) 1 2 1 710
-preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)pio_adc_fpga_state_reset.external_connection,(SLAVE)soc_system.pio_adc_fpga_state_reset) 1 0 3 NJ 2820 NJ 2820 NJ
-preplace netloc FAN_OUT<net_container>soc_system</net_container>(SLAVE)pio_adc_control_comms.clk,(SLAVE)pio_set_adc_record_length.clk,(SLAVE)jtag_uart.clk,(SLAVE)hps_0.h2f_axi_clock,(SLAVE)sysid_qsys.clk,(SLAVE)intr_capturer_0.clock,(SLAVE)hps_0.h2f_lw_axi_clock,(SLAVE)pio_adc_serial_command.clk,(SLAVE)hps_only_master.clk,(SLAVE)data_ready.clk,(SLAVE)pio_adc_fpga_state_reset.clk,(SLAVE)tx_instructionMem.clk1,(SLAVE)tx_phaseDelayMem.clk1,(SLAVE)adc_ramBank1.clk1,(SLAVE)fpga_only_master.clk,(SLAVE)pio_var_gain_setting.clk,(SLAVE)adc_ramBank0.clk1,(SLAVE)hps_0.f2h_axi_clock,(SLAVE)pio_led.clk,(MASTER)clk_0.clk) 1 1 3 450 290 830 380 1440
-preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.tx_phase_delay_mem,(SLAVE)tx_phaseDelayMem.s2) 1 0 4 NJ 430 NJ 430 NJ 500 NJ
+preplace netloc FAN_OUT<net_container>soc_system</net_container>(SLAVE)tx_instructionMem.clk1,(SLAVE)rcv_interrupt.clk,(SLAVE)tx_interrupt.clk,(SLAVE)hps_only_master.clk,(MASTER)clk_0.clk,(SLAVE)hps_0.h2f_axi_clock,(SLAVE)pio_set_adc_record_length.clk,(SLAVE)pio_led.clk,(SLAVE)jtag_uart.clk,(SLAVE)adc_ramBank1.clk1,(SLAVE)pio_adc_control_comms.clk,(SLAVE)pio_var_gain_setting.clk,(SLAVE)hps_0.f2h_axi_clock,(SLAVE)sysid_qsys.clk,(SLAVE)hps_0.h2f_lw_axi_clock,(SLAVE)fpga_only_master.clk,(SLAVE)pio_adc_fpga_state_reset.clk,(SLAVE)intr_capturer_0.clock,(SLAVE)adc_ramBank0.clk1,(SLAVE)tx_phaseDelayMem.clk1,(SLAVE)pio_adc_serial_command.clk) 1 1 3 410 290 770 390 1460
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.pio_adc_fpga_state_reset,(SLAVE)pio_adc_fpga_state_reset.external_connection) 1 0 3 NJ 2820 NJ 2820 NJ
+preplace netloc FAN_OUT<net_container>soc_system</net_container>(SLAVE)rcv_interrupt.reset,(SLAVE)tx_instructionMem.reset2,(SLAVE)hps_only_master.clk_reset,(SLAVE)pio_adc_fpga_state_reset.reset,(SLAVE)tx_phaseDelayMem.reset2,(SLAVE)pio_led.reset,(SLAVE)pio_adc_control_comms.reset,(SLAVE)tx_interrupt.reset,(SLAVE)fpga_only_master.clk_reset,(SLAVE)adc_ramBank1.reset2,(SLAVE)pio_adc_serial_command.reset,(SLAVE)jtag_uart.reset,(SLAVE)adc_ramBank0.reset2,(SLAVE)sysid_qsys.reset,(SLAVE)adc_ramBank0.reset1,(SLAVE)adc_ramBank1.reset1,(SLAVE)pio_var_gain_setting.reset,(SLAVE)tx_phaseDelayMem.reset1,(MASTER)clk_0.clk_reset,(SLAVE)intr_capturer_0.reset_sink,(SLAVE)pio_set_adc_record_length.reset,(SLAVE)tx_instructionMem.reset1) 1 1 3 430 310 790 410 1520
+preplace netloc FAN_OUT<net_container>soc_system</net_container>(MASTER)adc_clock_bridge.out_clk,(SLAVE)adc_ramBank0.clk2,(SLAVE)adc_ramBank1.clk2) 1 1 2 430 2240 850
+preplace netloc FAN_OUT<net_container>soc_system</net_container>(SLAVE)adc_ramBank1.s1,(SLAVE)adc_ramBank0.s1,(SLAVE)tx_instructionMem.s1,(SLAVE)tx_phaseDelayMem.s1,(MASTER)hps_0.h2f_axi_master) 1 2 2 870 2100 1540
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.tx_phase_delay_mem,(SLAVE)tx_phaseDelayMem.s2) 1 0 4 NJ 450 NJ 450 NJ 530 NJ
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)tx_interrupt.external_connection,(SLAVE)soc_system.tx_interrupt) 1 0 4 NJ 370 NJ 330 NJ 370 NJ
 preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.hps_0_hps_io,(SLAVE)hps_0.hps_io) 1 0 3 NJ 1790 NJ 1790 NJ
-preplace netloc FAN_OUT<net_container>soc_system</net_container>(MASTER)clk_0.clk_reset,(SLAVE)sysid_qsys.reset,(SLAVE)tx_instructionMem.reset2,(SLAVE)pio_led.reset,(SLAVE)adc_ramBank1.reset2,(SLAVE)adc_ramBank0.reset1,(SLAVE)adc_ramBank0.reset2,(SLAVE)jtag_uart.reset,(SLAVE)fpga_only_master.clk_reset,(SLAVE)data_ready.reset,(SLAVE)pio_var_gain_setting.reset,(SLAVE)tx_phaseDelayMem.reset2,(SLAVE)pio_set_adc_record_length.reset,(SLAVE)pio_adc_control_comms.reset,(SLAVE)hps_only_master.clk_reset,(SLAVE)pio_adc_serial_command.reset,(SLAVE)adc_ramBank1.reset1,(SLAVE)tx_instructionMem.reset1,(SLAVE)tx_phaseDelayMem.reset1,(SLAVE)intr_capturer_0.reset_sink,(SLAVE)pio_adc_fpga_state_reset.reset) 1 1 3 430 270 810 520 1420
-preplace netloc FAN_OUT<net_container>soc_system</net_container>(MASTER)adc_clock_bridge.out_clk,(SLAVE)adc_ramBank1.clk2,(SLAVE)adc_ramBank0.clk2) 1 1 2 410 2240 870
-preplace netloc EXPORT<net_container>soc_system</net_container>(MASTER)soc_system.hps_0_h2f_reset,(MASTER)hps_0.h2f_reset) 1 3 2 NJ 1790 NJ
-preplace netloc FAN_OUT<net_container>soc_system</net_container>(SLAVE)adc_ramBank0.s1,(SLAVE)tx_phaseDelayMem.s1,(SLAVE)adc_ramBank1.s1,(MASTER)hps_0.h2f_axi_master,(SLAVE)tx_instructionMem.s1) 1 2 2 890 2100 1460
+preplace netloc EXPORT<net_container>soc_system</net_container>(MASTER)hps_0.h2f_reset,(MASTER)soc_system.hps_0_h2f_reset) 1 3 2 NJ 1790 NJ
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.tx_instruction_mem,(SLAVE)tx_instructionMem.s2) 1 0 4 NJ 230 NJ 230 NJ 350 NJ
 preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)adc_ramBank1.s2,(SLAVE)soc_system.adc_ram_bank1) 1 0 3 NJ 2420 NJ 2420 NJ
 preplace netloc POINT_TO_POINT<net_container>soc_system</net_container>(SLAVE)hps_0.f2h_warm_reset_req,(MASTER)hps_only_master.master_reset) 1 2 1 690
+preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.rcv_interrupt,(SLAVE)rcv_interrupt.external_connection) 1 0 4 NJ 160 NJ 160 NJ 160 NJ
 preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)pio_var_gain_setting.external_connection,(SLAVE)soc_system.pio_var_gain_setting) 1 0 3 NJ 290 NJ 250 NJ
 preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)soc_system.adc_ram_bank0,(SLAVE)adc_ramBank0.s2) 1 0 3 NJ 2220 NJ 2220 NJ
 preplace netloc EXPORT<net_container>soc_system</net_container>(SLAVE)pio_adc_serial_command.external_connection,(SLAVE)soc_system.pio_adc_serial_command) 1 0 3 NJ 210 NJ 210 NJ
-levelinfo -pg 1 0 180 1920
-levelinfo -hier soc_system 190 220 530 1210 1670 1790
+levelinfo -pg 1 0 180 1950
+levelinfo -hier soc_system 190 220 530 1210 1670 1820

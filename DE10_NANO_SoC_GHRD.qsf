@@ -543,4 +543,18 @@ set_global_assignment -name VERILOG_FILE ADC_Control_Module_128.v
 set_location_assignment PIN_Y19 -to ADC_CLKINN
 set_instance_assignment -name SLEW_RATE 1 -to ADC_CLKINN
 set_instance_assignment -name CURRENT_STRENGTH_NEW 8MA -to ADC_CLKINN
+set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_CLKINN
+set_global_assignment -name QIP_FILE TXclocks.qip
+set_global_assignment -name SIP_FILE TXclocks.sip
+set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to BIT_CLK
+set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to FRAME_CLK
+set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES
+set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[0]
+set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[1]
+set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[2]
+set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[3]
+set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[4]
+set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[5]
+set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[6]
+set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[7]
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

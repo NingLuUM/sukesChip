@@ -96,7 +96,6 @@ module DE10_NANO_SoC_GHRD(
 
 );
 
-assign ADC_CLKINN = ~ADC_CLKINP;
 //=======================================================
 //  REG/WIRE declarations
 //=======================================================
@@ -136,7 +135,7 @@ assign COMLED[4] = led_pins[4];
 wire CLK2, CLK25, CLK100, CLK200;
 assign ADC_SCLK = CLK2;
 assign ADC_CLKINP = CLK25;
-
+assign ADC_CLKINN = ~CLK25;
 // wires and assignments for adc outputs
 wire adc_reset, adc_sen, adc_sdata, adc_sync;
 
@@ -164,8 +163,10 @@ wire	[15:0]			adc_record_length;
 wire  	[1:0]       	adc_wren_bank;
 wire  	[1:0]       	adc_chipsel_bank;
 wire  	[1:0]       	adc_clken_bank;
-wire		[7:0]		adc_byteen_bank0;
-wire  	[63:0] 	adc_writedata_bank0;
+//wire		[7:0]		adc_byteen_bank0;
+//wire  	[63:0] 	adc_writedata_bank0;
+wire		[15:0]		adc_byteen_bank0;
+wire  	[127:0] 	adc_writedata_bank0;
 wire		[3:0]		adc_byteen_bank1;
 wire  	[31:0] 	adc_writedata_bank1;
 
@@ -185,14 +186,23 @@ assign rst = 0;
 
 
 ADCclock u4 (
+	.refclk   			(FPGA_CLK2_50),
+	.rst      			(rst),
+	.outclk_0 			(CLK25),		// 2 MHz
+	//.outclk_1 			(CLK25),		// 25 MHz
+	//.outclk_2			(CLK100),	// 100 MHz
+	//.outclk_3			(CLK200),		// 200 MHz
+	.outclk_1			(FRAME_CLK_SHIFT),
+	.outclk_2			(BIT_CLK_SHIFT)
+	
+);
+
+TXclocks u5 (
 	.refclk   			(FPGA_CLK1_50),
 	.rst      			(rst),
-	.outclk_0 			(CLK2),		// 2 MHz
-	.outclk_1 			(CLK25),		// 25 MHz
-	.outclk_2			(CLK100),	// 100 MHz
-	.outclk_3			(CLK200),		// 200 MHz
-	.outclk_4			(FRAME_CLK_SHIFT),
-	.outclk_5			(BIT_CLK_SHIFT)
+	.outclk_0			(CLK2),
+	.outclk_1 			(CLK100),		// 2 MHz
+	.outclk_2 			(CLK200)		// 25 MHz
 	
 );
 
@@ -201,8 +211,8 @@ ADC_Control_Module u2(
 
 	.adc_clkinp			(CLK25),
 	
-	.frame_clk				(FRAME_CLK_SHIFT),
-	.bit_clk				(BIT_CLK_SHIFT),
+	.frame_clk				(FRAME_CLK),
+	.bit_clk				(BIT_CLK),
 	
 	.adc_control_comm		(adc_control_comms),
 	.adc_serial_cmd			(adc_serial_command),
@@ -264,7 +274,7 @@ soc_system u0(
 		.adc_ram_bank0_chipselect					(adc_chipsel_bank[0]),
 		.adc_ram_bank0_clken							(adc_clken_bank[0]),
 		.adc_ram_bank0_writedata					(adc_writedata_bank0),
-		.adc_ram_bank0_readdata						(64'b0), //(32'b0)
+		.adc_ram_bank0_readdata						(128'b0),//(64'b0), //(32'b0)
 		
 		.adc_ram_bank1_address						(adc_write_addr),
 		.adc_ram_bank1_byteenable					(adc_byteen_bank1),

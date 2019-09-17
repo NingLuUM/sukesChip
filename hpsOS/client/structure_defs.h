@@ -192,6 +192,8 @@ typedef union RAMBANK0_{
 		int64_t ch4 : 12;
 		int64_t ch5lo : 4;
 	}s;
+	
+	uint64_t dummy;
 } RAMBANK0_t;
 
 
@@ -206,6 +208,7 @@ typedef union RAMBANK1_{
 		int32_t ch6 : 12;
 		int32_t ch7 : 12;
 	}s;
+	uint32_t dummy;
 } RAMBANK1_t;
 
 

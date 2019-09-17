@@ -48,7 +48,9 @@ char *convertTo16bit(RCVsys_t *RCV, int data_idx){
                 b16[n+drecLen].u.ch2 = b0[n].u.ch2;
                 b16[n+drecLen].u.ch3 = b0[n].u.ch3;
                 b16[n+drecLen].u.ch4 = b0[n].u.ch4;
-                b16[n+drecLen].u.ch5 = ( ( b1[n].u.ch5hi << 4 ) | b0[n].u.ch5lo );
+                //~ b16[n+drecLen].u.ch5 = (uint16_t)( ( (b1[n].dummy & 0xff) << 4 ) | ((uint32_t)( (b0[n].dummy & 0xf0000000 ) >> 60)) );
+                b16[n+drecLen].u.ch5 = ( ( (b1[n].u.ch5hi & 0xff) << 4 ) | ( b0[n].u.ch5lo & 0xf ) ) ;
+                //~ b16[n+drecLen].u.ch5 = ( ( b0[n].u.ch5lo ) ) ;
                 b16[n+drecLen].u.ch6 = b1[n].u.ch6;
                 b16[n+drecLen].u.ch7 = b1[n].u.ch7;
             }
@@ -64,7 +66,7 @@ char *convertTo16bit(RCVsys_t *RCV, int data_idx){
                 b16[n+drecLen].s.ch2 = b0[n].s.ch2;
                 b16[n+drecLen].s.ch3 = b0[n].s.ch3;
                 b16[n+drecLen].s.ch4 = b0[n].s.ch4;
-                b16[n+drecLen].s.ch5 = ( ( b1[n].s.ch5hi << 4 ) | b0[n].s.ch5lo );
+                b16[n+drecLen].s.ch5 = ( ( b1[n].s.ch5hi << 4 ) | ( b0[n].s.ch5lo ) );
                 b16[n+drecLen].s.ch6 = b1[n].s.ch6;
                 b16[n+drecLen].s.ch7 = b1[n].s.ch7;
             }
@@ -73,6 +75,7 @@ char *convertTo16bit(RCVsys_t *RCV, int data_idx){
     
     return( (char *)b16 );
 }
+
 
 int sendData(SOCK_t *enet, char *data, size_t dsize){
 
@@ -178,6 +181,21 @@ void queryData(RCVsys_t *RCV, SOCK_t *enet){
             usleep(5);
         }
     }
+}
+
+
+void queryDataTmp(RCVsys_t *RCV, SOCK_t *enet){
+	
+    static int pulse_counter = 0;
+    
+    int dataStatus=0;
+    uint32_t recLen = RCV->recLen_ref;
+    uint32_t npulses = RCV->npulses;
+    
+    DREF32(RCV->stateReset)=1;
+    usleep(5);
+	dataStatus = sendData(enet,DREFPCHAR(RCV->ramBank0),8*recLen*sizeof(uint16_t));
+            
 }
 
 

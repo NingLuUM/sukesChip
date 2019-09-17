@@ -49,7 +49,7 @@ class receiver():
 		print 'min:',np.min(dd),'\nmax:',np.max(dd),'\nmean:',np.mean(dd),'\np-to-p:',np.max(dd)-np.min(dd)
 		t = np.linspace(0,len(dd),len(dd))
 		for n in range(0,8):
-			plt.plot(t+n*t[-1],cc[n::8]+0*n*4096.0)
+			plt.plot(t+self.horz_plot*n*t[-1],(cc[n::8]&0x0fff)+self.vert_plot*n*4096.0)
 		#~ plt.plot(dd)
 		plt.show()
 		
@@ -101,8 +101,9 @@ class receiver():
 			dd[n*self.recLen:(n+1)*self.recLen,6] = c6[self.recLen:2*self.recLen]
 			dd[n*self.recLen:(n+1)*self.recLen,7] = c7[self.recLen:2*self.recLen]
 		#~ print 'min:',np.min(dd),'\nmax:',np.max(dd),'\nmean:',np.mean(dd),'\np-to-p:',np.max(dd)-np.min(dd)
+		t = np.linspace(0,len(dd),len(dd))
 		for n in range(0,8):
-			plt.plot(dd[:,n].astype(np.int64)-2048+4096*2*n)
+			plt.plot(t+self.horz_plot*n*t[-1],dd[:,n].astype(np.int64)+self.vert_plot*(-2048+4096*2*n))
 		plt.show()
 		
 	def queryData(self):
@@ -167,13 +168,18 @@ class receiver():
 		msg = struct.pack(self.cmsg,self.CASE_ADC_SET_DEFAULT_SETTINGS,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		
-	def setQueryMode(self,realTime=1, transferData=1, saveData=0, is16bit=1, npulses=1):#_(self):
+	def setQueryMode(self,realTime=1, transferData=1, saveData=0, is16bit=1, npulses=1, plot_horz0_vert1=0):#_(self):
 		
 		self.realTime = realTime
 		self.transferData = transferData
 		self.saveData = saveData
 		self.is16bit = is16bit
-
+		if plot_horz0_vert1:
+			self.vert_plot = 1
+			self.horz_plot = 0
+		else:
+			self.vert_plot = 0
+			self.horz_plot = 1
 		msg = struct.pack(self.cmsg,self.CASE_SET_QUERY_MODE,self.realTime,self.transferData,self.saveData,self.is16bit,0,0,0,0,0)
 		self.sock.send(msg)
 		if self.realTime:
@@ -221,6 +227,8 @@ class receiver():
 		self.transferData = 0
 		self.saveData = 0
 		self.is16bit = 0
+		self.horz_plot = 1
+		self.vert_plot = 0
 		self.sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 		self.dsock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 		
@@ -241,13 +249,15 @@ class receiver():
 r = receiver()
 r.connectToFpga()
 r.setAutoShutdown(0)
-r.setPioVarGain(0)
-r.setRecLen(8192)
-r.setAdcGain(10)
+r.resetToDefaultAdcSettings()
+#~ r.setPioVarGain(0)
+r.setRecLen(500)
+r.setAdcGain(0)
+#~ r.issueDirectAdcCmd(0,2,(111<<13))
 #~ r.setAdcInternalAcCoupling(1)
 #~ r.setAdcLowNoiseMode(1)
 #~ r.setQueryMode(queryMode=REAL_TIME,npulses=1,is16bit=1)
-r.setQueryMode(realTime=0,transferData=1,saveData=0,is16bit=1,npulses=1)
+r.setQueryMode(realTime=0,transferData=1,saveData=0,is16bit=1,npulses=1,plot_horz0_vert1=0)
 #~ r.setQueryMode(STORE_ON_ARM_TRANSFER_TO_ME,npulses=10)
 #~ r.setQueryMode(STORE_ON_ARM_SAVE_ON_ARM,npulses=10)
 
@@ -255,7 +265,7 @@ r.queryData()
 #~ r.disconnectFromFpga()
 
 
-r.closeProgram()
+#~ r.closeProgram()
 
 
 
