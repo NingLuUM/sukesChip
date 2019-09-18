@@ -137,7 +137,7 @@ assign ADC_SCLK = CLK2;
 assign ADC_CLKINP = CLK25;
 assign ADC_CLKINN = ~CLK25;
 // wires and assignments for adc outputs
-wire adc_reset, adc_sen, adc_sdata, adc_sync;
+wire adc_reset, adc_sen, adc_sdata;//, adc_sync;
 
 assign ADC_RESET	= adc_reset; 
 assign ADC_SEN		= adc_sen;
@@ -184,32 +184,32 @@ assign rst = 0;
 
 
 ADCclock u4 (
-	.refclk   			(FPGA_CLK2_50),
+	.refclk   			(FPGA_CLK1_50),
 	.rst      			(rst),
-	.outclk_0 			(CLK25),		// 2 MHz
-	//.outclk_1 			(CLK25),		// 25 MHz
-	//.outclk_2			(CLK100),	// 100 MHz
-	//.outclk_3			(CLK200),		// 200 MHz
-	.outclk_1			(FRAME_CLK_SHIFT),
-	.outclk_2			(BIT_CLK_SHIFT)
+	.outclk_0 			(CLK2),		// 2 MHz
+	.outclk_1 			(CLK25),		// 25 MHz
+	.outclk_2			(CLK100),	// 100 MHz
+	.outclk_3			(BIT_CLK_SHIFT),		// 150 MHz
+	//.outclk_1			(FRAME_CLK_SHIFT),
+	.outclk_4			(CLK200)
 	
 );
 
-TXclocks u5 (
-	.refclk   			(FPGA_CLK1_50),
-	.rst      			(rst),
-	.outclk_0			(CLK2),
-	.outclk_1 			(CLK100),		// 2 MHz
-	.outclk_2 			(CLK200)		// 25 MHz
+//TXclocks u5 (
+//	.refclk   			(FPGA_CLK1_50),
+//	.rst      			(rst),
+//	.outclk_0			(CLK2),
+//	.outclk_1 			(CLK100),		// 2 MHz
+//	.outclk_2 			(CLK200)		// 25 MHz
 	
-);
+//);
 
 		
 ADC_Control_Module u2(
 
 	.adc_clkinp			(CLK25),
-	
-	.frame_clk				(FRAME_CLK_SHIFT),
+	//.ramclk			(CLK200),
+	.frame_clk				(CLK25),
 	.bit_clk				(BIT_CLK_SHIFT),
 	
 	.adc_control_comm		(adc_control_comms),
