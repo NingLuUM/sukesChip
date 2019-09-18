@@ -1,5 +1,5 @@
 #
-TARGET = newTest
+TARGET = redBoard
 
 #
 CROSS_COMPILE = arm-linux-gnueabihf-

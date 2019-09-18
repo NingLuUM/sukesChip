@@ -446,7 +446,7 @@ set_location_assignment PIN_AH17 -to KEY[0]
 set_location_assignment PIN_AH16 -to KEY[1]
 set_location_assignment PIN_AD5 -to ADC_CLKINP
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_CLKINP
-set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to ADC_CLKINP
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to ADC_CLKINP
 set_instance_assignment -name SLEW_RATE 1 -to ADC_CLKINP
 set_location_assignment PIN_AF22 -to ADC_DATA_LINES[0]
 set_instance_assignment -name IO_STANDARD LVDS -to ADC_DATA_LINES[0]

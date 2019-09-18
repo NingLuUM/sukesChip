@@ -2,8 +2,13 @@
 
 
 void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen){
-	DREF32(RCV->recLen) = recLen;
-    RCV->recLen_ref = recLen;
+	if(recLen){
+		DREF32(RCV->recLen) = recLen;
+		RCV->recLen_ref = recLen;
+	} else {
+		DREF32(RCV->recLen) = 1;
+		RCV->recLen_ref = 1;
+	}
 	usleep(5);
 }
 
@@ -181,11 +186,22 @@ void queryData(RCVsys_t *RCV, SOCK_t *enet){
 }
 
 
+void setupInternalStorage(RCVsys_t *RCV){        
+	if( RCV->data[1] != NULL ){
+		free( RCV->data[1] );
+		RCV->data[1] = NULL;
+	}
+	RCV->data[1] = (char *)malloc(3*RCV->recLen_ref*RCV->npulses*sizeof(uint32_t));           
+}
+
 void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner){
 
     switch(msg->u[0]){
         case(CASE_SET_RECLEN):{
             RCV->setRecLen(RCV,msg->u[1]);
+            if( msg->u[2] ){
+				setupInternalStorage(RCV);
+			}
             break;
         }
         
@@ -281,22 +297,20 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner
             break;
         }
         
-        case(CASE_SETUP_LOCAL_STORAGE):{
+        case(CASE_SET_NPULSES):{
             if( msg->u[1] ){
                 RCV->npulses = msg->u[1];
-                if( RCV->data[1] != NULL ){
-                    free( RCV->data[1] );
-                    RCV->data[1] = NULL;
-                }
-                RCV->data[1] = (char *)malloc(3*RCV->recLen_ref*msg->u[1]*sizeof(uint32_t));
             } else {
                 RCV->npulses = 1;
-                if ( RCV->data[1] != NULL ){
-                    free(RCV->data[1]);
-                    RCV->data[1] = NULL;
-                }
-                RCV->data[1] = (char *)malloc(3*MAX_RECLEN*sizeof(uint32_t));
             }
+            if( msg->u[2] ){
+				setupInternalStorage(RCV);
+			}
+            break;
+        }
+        
+        case(CASE_SETUP_LOCAL_STORAGE):{
+            setupInternalStorage(RCV);
             break;
         }
         

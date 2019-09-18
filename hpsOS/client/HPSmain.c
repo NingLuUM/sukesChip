@@ -120,6 +120,7 @@
 #define CASE_ADC_SET_DEFAULT_SETTINGS       ( 13 )
 #define CASE_SET_QUERY_MODE                 ( 14 )
 #define CASE_UPDATE_AUTO_SHUTDOWN_SETTING   ( 15 )
+#define CASE_SET_NPULSES					( 16 )
 // TODO: move to header containing handler(?) 
 
 #define CASE_EXIT_PROGRAM 100
