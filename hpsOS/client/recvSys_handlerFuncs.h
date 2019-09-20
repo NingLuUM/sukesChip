@@ -13,7 +13,7 @@ void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen){
 }
 
 void rcvSetPioVarGain(RCVsys_t *RCV, uint32_t val){
-	DREF32(RCV->pioVarGain) = val & 0x03;
+	DREF32(RCV->pioVarGain) = val & 0xf;//0x03
     usleep(5);
 }
 
@@ -31,6 +31,7 @@ void rcvmemcpy( char *dest, char *src, size_t nbytes){
 	}
 }
 
+/*
 char *convertTo16bit(RCVsys_t *RCV, int data_idx){
     uint64_t drecLen;
     uint32_t recLen = RCV->recLen_ref;
@@ -80,7 +81,7 @@ char *convertTo16bit(RCVsys_t *RCV, int data_idx){
     
     return( (char *)b16 );
 }
-
+*/
 
 int sendData(SOCK_t *enet, char *data, size_t dsize){
 
@@ -133,54 +134,25 @@ void queryData(RCVsys_t *RCV, SOCK_t *enet){
     usleep(5);
 	
     if( RCV->queryMode.realTime ){
-        if( RCV->queryMode.is16bit ){
-            rcvmemcpy( &(RCV->data[0][0]), DREFPCHAR(RCV->ramBank0), 2*recLen*sizeof(uint32_t));
-            rcvmemcpy( &(RCV->data[0][2*recLen*sizeof(uint32_t)]), DREFPCHAR(RCV->ramBank1), recLen*sizeof(uint32_t));
-            char *b16c;
-            b16c = convertTo16bit(RCV,0);
-            dataStatus = sendData(enet,b16c,npulses*recLen*sizeof(RAMBANK16_t));
-            if(dataStatus){
-                free(b16c);
-            }
-        } else {
-            dataStatus = sendData(enet,DREFPCHAR(RCV->ramBank0),2*recLen*sizeof(int32_t));
-            dataStatus = sendData(enet,DREFPCHAR(RCV->ramBank1),recLen*sizeof(int32_t));
-        }
+        dataStatus = sendData(enet,DREFPCHAR(RCV->ramBank),8*recLen*sizeof(uint16_t));
+            
     } else {
         
-        rcvmemcpy( &(RCV->data[1][pulse_counter*3*recLen*sizeof(uint32_t)]), DREFPCHAR(RCV->ramBank0), 2*recLen*sizeof(uint32_t));
-        rcvmemcpy( &(RCV->data[1][(pulse_counter*3*recLen+2*recLen)*sizeof(uint32_t)]), DREFPCHAR(RCV->ramBank1), recLen*sizeof(uint32_t));
+        rcvmemcpy( &(RCV->data[1][pulse_counter*8*recLen*sizeof(uint16_t)]), DREFPCHAR(RCV->ramBank), 8*recLen*sizeof(uint16_t));
         pulse_counter++;
 
         if( pulse_counter == npulses ){
             pulse_counter = 0;
             
-            if( RCV->queryMode.is16bit ){
-                char *b16c;
-                b16c = convertTo16bit(RCV,1);
-                
-                if ( RCV->queryMode.transferData ){
-                    dataStatus = sendData(enet,b16c,npulses*recLen*sizeof(RAMBANK16_t));
-                }
-                
-                if ( RCV->queryMode.saveDataFile ){
-                    dataStatus = saveData(enet,b16c,npulses*recLen*sizeof(RAMBANK16_t));
-                }
-                
-                if(dataStatus){
-                    free(b16c);
-                }
 
-            } else {
-                if ( RCV->queryMode.transferData ){
-                    dataStatus = sendData(enet,RCV->data[1],3*recLen*npulses*sizeof(uint32_t));
-                } 
+			if ( RCV->queryMode.transferData ){
+				dataStatus = sendData(enet,RCV->data[1],npulses*recLen*8*sizeof(uint16_t));
+			}
+			
+			if ( RCV->queryMode.saveDataFile ){
+				dataStatus = saveData(enet,RCV->data[1],npulses*recLen*8*sizeof(uint16_t));
+			}
                 
-                if ( RCV->queryMode.saveDataFile ){
-                    dataStatus = saveData(enet,RCV->data[1],3*recLen*npulses*sizeof(uint32_t));
-                }
-            }
-    
         } else {
             DREF32(RCV->stateReset)=0;
             usleep(5);
@@ -207,7 +179,7 @@ void setupInternalStorage(RCVsys_t *RCV){
 		free( RCV->data[1] );
 		RCV->data[1] = NULL;
 	}
-	RCV->data[1] = (char *)malloc(3*RCV->recLen_ref*RCV->npulses*sizeof(uint32_t));           
+	RCV->data[1] = (char *)malloc(RCV->recLen_ref*RCV->npulses*8*sizeof(uint16_t));           
 }
 
 void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner){

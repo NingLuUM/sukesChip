@@ -20,15 +20,15 @@ module ADC_Control_Module(
 	input					iStateReset,
 	output reg [7:0]	oRcvInterrupt,
 	
-	output reg [7:0]	oBYTEEN0,
-	output reg [63:0]	oADCData0,
+	input	[3:0]				down_sample_clk_divisor,
+	input	[3:0]				sampling_mode_opts,
 	
-	output reg [3:0]	oBYTEEN1,
-	output reg [31:0]	oADCData1,
+	output reg [15:0]	oBYTEEN,
+	output reg [127:0]	oADCData,
 	
-	output reg [1:0]		oWREN,
-	output reg [1:0]		oCLKEN,
-	output reg [1:0]		oCHIPSEL,
+	output reg 		oWREN,
+	output reg 		oCLKEN,
+	output reg 		oCHIPSEL,
 
 	output reg [14:0]		oWAddr
 
@@ -52,7 +52,12 @@ reg [14:0] 	waddr_cntr;
 wire waddr_overrun;
 assign waddr_overrun = waddr_cntr[14];
 
-reg [7:0][11:0] data_out;
+reg [3:0] first_pulse;
+reg [3:0] sample_cntr;
+
+//reg [7:0][11:0] data_out;
+reg [127:0] data_to_ram;
+reg [127:0] data_out;
 wire [ 7: 0] data_out_h;
 wire [ 7: 0] data_out_l;
 
@@ -63,11 +68,13 @@ begin
 	ADC_RESET = 1'b0;
 	ADC_SEN = 1'b1;
 	ADC_SDATA = 1'b0;
-	oWREN = 2'b00;
-	oCLKEN = 2'b00;
-	oCHIPSEL = 2'b00;
-	oBYTEEN0 = 8'b00000000;
-	oBYTEEN1 = 4'b0000;
+	oWREN = 1'b0;
+	oCLKEN = 1'b0;
+	oCHIPSEL = 1'b0;
+	oBYTEEN = 16'b0000000000000000;
+	
+	first_pulse = 4'b1111;
+	sample_cntr = 4'b0;
 	
 	trig_received_flag = 2'b0;
 	write_complete_flag = 1'b0;
@@ -83,6 +90,8 @@ begin
 	data_sr[0] = 12'b0; data_sr[1] = 12'b0; data_sr[2] = 12'b0; data_sr[3] = 12'b0;
 	data_sr[4] = 12'b0; data_sr[5] = 12'b0; data_sr[6] = 12'b0; data_sr[7] = 12'b0;
 	
+	data_to_ram = 128'b0;
+	data_out = 128'b0;
 end
 
 
@@ -102,6 +111,9 @@ begin
 			trig_received_flag <= 2'b11;
 			waddr_cntr <= 15'b0;
 			write_complete_flag <= 1'b0;
+			first_pulse <= 4'b1111;
+			sample_cntr <= 4'b0000;
+			data_to_ram <= 128'b0;
 			oRcvInterrupt <= 8'b0;
 		end
 	
@@ -110,38 +122,75 @@ begin
 		begin
 			if ( !write_complete_flag )
 			begin
-				if ( !oWREN ) 
+				if ( !oWREN && !down_sample_clk_divisor ) 
 				begin
-					oWREN <= 2'b11;
-					oCLKEN <= 2'b11;
-					oCHIPSEL <= 2'b11;
-					oBYTEEN0 <= 8'b11111111;
-					oBYTEEN1 <= 4'b1111;
+					oWREN <= 1'b1;
+					oCLKEN <= 1'b1;
+					oCHIPSEL <= 1'b1;
+					oBYTEEN <= 16'b1111111111111111;
 				end
+				else if ( down_sample_clk_divisor && first_pulse )
+				begin
+					oCLKEN <= 1'b1;
+					oCHIPSEL <= 1'b1;
+					oBYTEEN <= 16'b1111111111111111;
+					sample_cntr <= 4'b0;
+					data_to_ram <= 128'b0;
+				end
+				
 				if ( ( waddr_cntr < iRecLength ) && ( !waddr_overrun ) )
 				begin
-					oWAddr <= waddr_cntr;
 					
-					oADCData0[11:0] <= data_out[0]; 
-					oADCData0[23:12] <= data_out[1];
-					oADCData0[35:24] <= data_out[2];
-					oADCData0[47:36] <= data_out[3];
-					oADCData0[59:48] <= data_out[4];
-					oADCData0[63:60] <= data_out[5][3:0];
+					if(!down_sample_clk_divisor)
+					begin
+						oWAddr <= waddr_cntr;
+						oADCData <= data_out;
+						waddr_cntr <= waddr_cntr + 1'b1;
+					end
+					else
+					begin
+						if( ( sample_cntr == 4'b0 ) && ( first_pulse == 4'b0 ) )
+						begin
+							oWREN <= 1'b1;
+							oWAddr <= waddr_cntr;
+							oADCData <= data_to_ram;
+							data_to_ram <= data_out;
+							waddr_cntr <= waddr_cntr + 1'b1;
+							sample_cntr <=4'b0001;
+						end
+						else 
+						begin
+							if ( first_pulse ) first_pulse <= 4'b0000;
+							data_to_ram[15:0] <= data_to_ram[15:0] + data_out[15:0];
+							data_to_ram[31:16] <= data_to_ram[31:16] + data_out[31:16];
+							data_to_ram[47:32] <= data_to_ram[47:32] + data_out[47:32];
+							data_to_ram[63:48] <= data_to_ram[63:48] + data_out[63:48];
+							data_to_ram[79:64] <= data_to_ram[79:64] + data_out[79:64];
+							data_to_ram[95:80] <= data_to_ram[95:80] + data_out[95:80];
+							data_to_ram[111:96] <= data_to_ram[111:96] + data_out[111:96];
+							data_to_ram[127:112] <= data_to_ram[127:112] + data_out[127:112];
+							oWREN <= 1'b0;
+							if( sample_cntr == down_sample_clk_divisor )
+							begin
+								sample_cntr <= 4'b0000;
+							end
+							else
+							begin
+								sample_cntr <= sample_cntr+1'b1;
+							end
+						end
 					
-					oADCData1[7:0] <= data_out[5][11:4]; 
-					oADCData1[19:8] <= data_out[6];
-					oADCData1[31:20] <= data_out[7];
-				
-					waddr_cntr <= waddr_cntr + 1'b1;
+					end
+			
 				end
 				else 
 				begin
-					oWREN <= 2'b00;
-					oCLKEN <= 2'b00;
-					oCHIPSEL <= 2'b00;
-					oBYTEEN0 <= 8'b00000000;
-					oBYTEEN1 <= 4'b0000;
+					oWREN <= 1'b0;
+					oCLKEN <= 1'b0;
+					oCHIPSEL <= 1'b0;
+					oBYTEEN <= 16'b0000000000000000;
+					first_pulse <= 4'b1111;
+					sample_cntr <= 4'b0000;
 					write_complete_flag <= 1'b1;
 					trig_received_flag[0] <= 1'b0;
 					oRcvInterrupt <= 8'b11111111;
@@ -151,11 +200,12 @@ begin
 	end
 	else // iStateReset == 1
 	begin
-		oWREN <= 2'b00;
-		oCLKEN <= 2'b00;
-		oCHIPSEL <= 2'b00;
-		oBYTEEN0 <= 8'b00000000;
-		oBYTEEN1 <= 4'b0000;
+		oWREN <= 1'b0;
+		oCLKEN <= 1'b0;
+		oCHIPSEL <= 1'b0;
+		oBYTEEN <= 16'b0000000000000000;
+		first_pulse <= 4'b1111;
+		sample_cntr <= 4'b0000;
 		trig_received_flag <= 2'b00;
 		write_complete_flag <= 1'b0;
 		waddr_cntr <= 15'b0;
@@ -272,7 +322,14 @@ end
 
 always @ (posedge frame_clk)
 begin
-	data_out <= data_sr;
+	data_out[127:112] <= {4'b0000,data_sr[0]};
+	data_out[111:96] <= {4'b0000,data_sr[1]};
+	data_out[95:80] <= {4'b0000,data_sr[2]};
+	data_out[79:64] <= {4'b0000,data_sr[3]};
+	data_out[63:48] <= {4'b0000,data_sr[4]};
+	data_out[47:32] <= {4'b0000,data_sr[5]};
+	data_out[31:16] <= {4'b0000,data_sr[6]};
+	data_out[15:0] <= {4'b0000,data_sr[7]};
 end
 
 

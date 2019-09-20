@@ -58,7 +58,8 @@
 /*****************************************************************************/
 
 // sopc-create-header-files: contains addresses of pio/rams defined in qsys 
-#include "hps_0_ramclks.h"
+//~ #include "hps_0_ramclks.h"
+#include "hps_0_16bitADCdata.h"
 //~ #include "hps_0_rambank128bit.h"
 // macros to dereference memory-mapped variables from FPGA
 #define DREF8(X)	    ( *( uint8_t  *) X )

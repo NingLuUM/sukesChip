@@ -190,8 +190,7 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
 	RCV->serialCommand = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_SERIAL_COMMAND_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	RCV->dataReadyFlag = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + RCV_INTERRUPT_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	RCV->leds = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_LED_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	RCV->ramBank0 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK0_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-	RCV->ramBank1 = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK1_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+	RCV->ramBank = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
     
     // setup function pointers
     RCV->setRecLen = &rcvSetRecLen;   
@@ -211,8 +210,8 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
     RCV->queryMode.all = 0;
     RCV->queryMode.realTime = 1;
     RCV->data = (char **)calloc(2,sizeof(char *));
-    RCV->data[0] = (char *)calloc(3*MAX_RECLEN,sizeof(uint32_t));
-    RCV->data[1] = (char *)calloc(3*MAX_RECLEN,sizeof(uint32_t));	
+    RCV->data[0] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));
+    RCV->data[1] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));	
     
     RCV->setLEDs(RCV,0x1f);
    

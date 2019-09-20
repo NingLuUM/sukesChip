@@ -125,7 +125,7 @@ assign COMLED[2] = led_pins[2];
 assign COMLED[3] = led_pins[3];
 assign COMLED[4] = led_pins[4];
 
-//wire [7:0] var_gain;
+wire [7:0] var_gain;
 //assign VARGAIN[0] = var_gain[0];
 //assign VARGAIN[1] = var_gain[1];
 
@@ -157,13 +157,11 @@ wire	[1:0]			adc_state;
 wire	[15:0]			adc_record_length;
 
 
-wire  	[1:0]       	adc_wren_bank;
-wire  	[1:0]       	adc_chipsel_bank;
-wire  	[1:0]       	adc_clken_bank;
-wire		[7:0]		adc_byteen_bank0;
-wire  	[63:0] 	adc_writedata_bank0;
-wire		[3:0]		adc_byteen_bank1;
-wire  	[31:0] 	adc_writedata_bank1;
+wire  	       	adc_wren_bank;
+wire  	       	adc_chipsel_bank;
+wire  	       	adc_clken_bank;
+wire		[15:0]		adc_byteen_bank;
+wire  	[127:0] 	adc_writedata_bank;
 
 wire [7:0]			rcv_interrupt;
 wire [7:0]			tx_interrupt;
@@ -217,11 +215,11 @@ ADC_Control_Module u2(
 	
 	.oRcvInterrupt				(rcv_interrupt),
 	
-	.oBYTEEN0				(adc_byteen_bank0),
-	.oADCData0				(adc_writedata_bank0),
+	.down_sample_clk_divisor (var_gain[3:0]),
+	.sampling_mode_opts		(4'b0),
 	
-	.oBYTEEN1				(adc_byteen_bank1),
-	.oADCData1				(adc_writedata_bank1),
+	.oBYTEEN				(adc_byteen_bank),
+	.oADCData				(adc_writedata_bank),
 	
 	.oWREN					(adc_wren_bank),
 	.oCLKEN					(adc_clken_bank),
@@ -239,7 +237,7 @@ soc_system u0(
 		
 		
 		.pio_led_external_connection_export			(led_pins),
-		//.pio_var_gain_setting_export				(var_gain),
+		.pio_var_gain_setting_export				(var_gain),
 		
 		.pio_adc_serial_command_export				(adc_serial_command),
 		.pio_adc_control_comms_export				(adc_control_comms),
@@ -252,21 +250,14 @@ soc_system u0(
 		
 		.tx_interrupt_export			(tx_interrupt),
 		
-		.adc_ram_bank0_address						(adc_write_addr),
-		.adc_ram_bank0_byteenable					(adc_byteen_bank0),
-		.adc_ram_bank0_write							(adc_wren_bank[0]),
-		.adc_ram_bank0_chipselect					(adc_chipsel_bank[0]),
-		.adc_ram_bank0_clken							(adc_clken_bank[0]),
-		.adc_ram_bank0_writedata					(adc_writedata_bank0),
-		.adc_ram_bank0_readdata						(64'b0), //(32'b0)
+		.adc_ram_bank_address						(adc_write_addr),
+		.adc_ram_bank_byteenable					(adc_byteen_bank),
+		.adc_ram_bank_write							(adc_wren_bank),
+		.adc_ram_bank_chipselect					(adc_chipsel_bank),
+		.adc_ram_bank_clken							(adc_clken_bank),
+		.adc_ram_bank_writedata					(adc_writedata_bank),
+		.adc_ram_bank_readdata						(128'b0), //(32'b0)
 		
-		.adc_ram_bank1_address						(adc_write_addr),
-		.adc_ram_bank1_byteenable					(adc_byteen_bank1),
-		.adc_ram_bank1_write							(adc_wren_bank[1]),
-		.adc_ram_bank1_chipselect					(adc_chipsel_bank[1]),
-		.adc_ram_bank1_clken							(adc_clken_bank[1]),
-		.adc_ram_bank1_writedata					(adc_writedata_bank1),
-		.adc_ram_bank1_readdata						(32'b0),
 		
 		.tx_instruction_mem_address            (tx_instruction_read_addr),
 		.tx_instruction_mem_chipselect         (1'b1), 

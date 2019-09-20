@@ -127,8 +127,7 @@ typedef struct RCVsys_{
 	uint32_t volatile *pioVarGain;
 	uint32_t volatile *dataReadyFlag;
 	uint32_t volatile *leds;
-    char volatile *ramBank0;
-	char volatile *ramBank1;
+    char volatile *ramBank;
     
     // reference values for setting up data storage
     uint32_t recLen_ref;
@@ -173,43 +172,6 @@ typedef union LED_{
 	};
 	uint32_t vals;
 } LED_t;
-
-
-typedef union RAMBANK0_{
-	struct {
-		uint64_t ch0 : 12;
-		uint64_t ch1 : 12;
-		uint64_t ch2 : 12;
-		uint64_t ch3 : 12;
-		uint64_t ch4 : 12;
-		uint64_t ch5lo : 4;
-	}u;
-	struct{
-		int64_t ch0 : 12;
-		int64_t ch1 : 12;
-		int64_t ch2 : 12;
-		int64_t ch3 : 12;
-		int64_t ch4 : 12;
-		int64_t ch5lo : 4;
-	}s;
-	
-	uint64_t dummy;
-} RAMBANK0_t;
-
-
-typedef union RAMBANK1_{
-	struct{
-		uint32_t ch5hi : 8;
-		uint32_t ch6 : 12;
-		uint32_t ch7 : 12;
-	}u;
-	struct{
-		int32_t ch5hi : 8;
-		int32_t ch6 : 12;
-		int32_t ch7 : 12;
-	}s;
-	uint32_t dummy;
-} RAMBANK1_t;
 
 
 typedef union RAMBANK16_{

@@ -29,7 +29,7 @@ class receiver():
 		self.sock.send(msg)
 		
 	def setRecDuration(self,duration):
-		recLen = int(self.ADC_CLK*duration)
+		recLen = int(duration*self.ADC_CLK/(self.clockDiv+1.0))
 		if recLen < 32768:
 			self.recLen = recLen
 		else:
@@ -41,6 +41,11 @@ class receiver():
 		
 	def setPioVarGain(self,varGain):
 		msg = struct.pack(self.cmsg,self.CASE_SET_PIO_VAR_GAIN, ( varGain & 0x3 ) ,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		
+	def setClockDivisor(self,clockDiv):
+		self.clockDiv = clockDiv-1
+		msg = struct.pack(self.cmsg,self.CASE_SET_PIO_VAR_GAIN, ( np.uint32(clockDiv-1) & 0xf ) ,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 
 	def setLeds(self,ledVal):
@@ -67,7 +72,7 @@ class receiver():
 			
 	def plotDatas(self,datas):
 		print 'npulses',self.npulses
-		t = np.linspace(0,self.recLen/self.ADC_CLK,self.recLen)
+		t = np.linspace(0,self.recLen/self.ADC_CLK*(self.clockDiv+1),self.recLen)
 		
 		fig,ax = plt.subplots(self.nrows,self.ncols,sharey=True,sharex=True,figsize=(self.figwidth, self.figheight))
 		
@@ -82,7 +87,7 @@ class receiver():
 			for nc in range(0,self.ncols):
 				for nr in range(0,self.nrows):	
 					for npls in range(0,self.npulses):
-						ax[nr,nc].plot(t+npls*t[-1],datas[npls*self.recLen:(npls+1)*self.recLen,n])
+						ax[nr,nc].plot(t+npls*t[-1],datas[npls*self.recLen:(npls+1)*self.recLen,n]/(self.clockDiv+1.0))
 						pk2pk = np.max(datas[npls*self.recLen:(npls+1)*self.recLen,n])-np.min(datas[npls*self.recLen:(npls+1)*self.recLen,n])
 					ax[nr,nc].set_title('{}{}{}{}'.format('Ch[',n,'], pk-pk ',pk2pk))
 					ax[nr,nc].set_ylim((self.ylims[0],self.ylims[1]))
@@ -122,7 +127,7 @@ class receiver():
 		dd = np.zeros((self.npulses*self.recLen,8))
 		
 		for n in range(0,8):
-			dd[:,n] = cc[n::8]&0x0fff
+			dd[:,n] = cc[n::8]&0xffff
 			
 		self.plotDatas(dd)
 		
@@ -179,7 +184,9 @@ class receiver():
 		else:
 			msg = struct.pack(self.cmsg,self.CASE_QUERY_DATA,0,0,0,0,0,0,0,0,0)
 			self.sock.send(msg)
+			#~ print 'issue query cmd'
 			bb = self.sock.recv(4,socket.MSG_WAITALL)
+			#~ print 'query cmd response'
 	
 			
 	def setAdcGain(self,adcGain):
@@ -199,6 +206,7 @@ class receiver():
 		self.sock.send(msg)
 	
 	def setAdcFilterBw(self,filterbw):
+		#0b00: 14MHz. 0b01: 10MHz. 0b10: 7.5MHz. 0b11: Not used.
 		msg = struct.pack(self.cmsg,self.CASE_ADC_SET_FILTER_BW,filterbw,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 	
@@ -311,7 +319,8 @@ class receiver():
 		self.realTime = 1
 		self.transferData = 0
 		self.saveData = 0
-		self.is16bit = 0
+		self.is16bit = 1
+		self.clockDiv = 0
 
 		# variables to control size of plotted data
 		self.ylims = [-200,4300]
@@ -351,19 +360,22 @@ r = receiver()
 r.connectToFpga()
 r.resetToDefaultAdcSettings()
 r.setAutoShutdown(0)
+r.setClockDivisor(2)
 
 #~ r.setAdcLowNoiseMode(0)
 
-r.setRecLen(700) # npoints (max = 32767)
-r.setNPulses(3)
+#~ r.setRecLen(500) # npoints (max = 32767)
+r.setRecDuration(10.00) # us (max = 1310.68)
+r.setNPulses(6)
+r.setAdcFilterBw(2)
 
-#~ r.setRecDuration(1310.68) # us (max = 1310.68)
-r.setAdcGain(30)
-r.setPioVarGain(0)
+
+r.setAdcGain(5)
+#~ r.setPioVarGain(0)
 
 #~ r.setRamp()
 
-r.setQueryMode(realTime=0,transferData=1,saveData=0,is16bit=1)
+r.setQueryMode(realTime=0,transferData=1,saveData=0)
 #~ r.plotterSetup(figheight = 15, figwidth = 10, nrows = 4, ncols = 2)
 #~ r.plotterSetup(ylims = [-200,4300], xlims = [-100,2600], figheight = 10, figwidth = 30, nrows = 4, ncols = 2)
 
