@@ -27,7 +27,6 @@ module Output_Control_Module(
 	input					itxADCTriggerAck,
 	output reg				otxADCTriggerLine,
 	
-
 );
 
 // wires to split up itxInstruction into it's component parts

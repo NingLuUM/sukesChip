@@ -83,7 +83,8 @@ class receiver():
 				for nr in range(0,self.nrows):	
 					for npls in range(0,self.npulses):
 						ax[nr,nc].plot(t+npls*t[-1],datas[npls*self.recLen:(npls+1)*self.recLen,n])
-					ax[nr,nc].set_title('{}{}{}'.format('Ch[',n,']'))
+						pk2pk = np.max(datas[npls*self.recLen:(npls+1)*self.recLen,n])-np.min(datas[npls*self.recLen:(npls+1)*self.recLen,n])
+					ax[nr,nc].set_title('{}{}{}{}'.format('Ch[',n,'], pk-pk ',pk2pk))
 					ax[nr,nc].set_ylim((self.ylims[0],self.ylims[1]))
 					if self.xlims[2] > 0:
 						ax[nr,nc].set_xlim((self.xlims[0],self.xlims[1]))
@@ -294,7 +295,7 @@ class receiver():
 		self.CASE_EXIT_PROGRAM = 100
 		
 		# it is what it says
-		self.ADC_CLK = 25.0
+		self.ADC_CLK = 50.0
 		
 		# ethernet sockets for transferring data to/from arm
 		# 'sock' is used to send data to arm
@@ -353,16 +354,17 @@ r.setAutoShutdown(0)
 
 #~ r.setAdcLowNoiseMode(0)
 
-r.setRecLen(500) # npoints (max = 32767)
-r.setNPulses(30)
+r.setRecLen(700) # npoints (max = 32767)
+r.setNPulses(3)
 
 #~ r.setRecDuration(1310.68) # us (max = 1310.68)
-r.setAdcGain(0)
+r.setAdcGain(30)
 r.setPioVarGain(0)
 
 #~ r.setRamp()
 
 r.setQueryMode(realTime=0,transferData=1,saveData=0,is16bit=1)
+#~ r.plotterSetup(figheight = 15, figwidth = 10, nrows = 4, ncols = 2)
 #~ r.plotterSetup(ylims = [-200,4300], xlims = [-100,2600], figheight = 10, figwidth = 30, nrows = 4, ncols = 2)
 
 r.queryData()

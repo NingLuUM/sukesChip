@@ -258,7 +258,7 @@
 #define SYSID_QSYS_SPAN 8
 #define SYSID_QSYS_END 0x10007
 #define SYSID_QSYS_ID 2899645186
-#define SYSID_QSYS_TIMESTAMP 1568818067
+#define SYSID_QSYS_TIMESTAMP 1568993948
 
 /*
  * Macros for device 'adc_ramBank1', class 'altera_avalon_onchip_memory2'

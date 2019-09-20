@@ -452,7 +452,7 @@
    version="17.1"
    enabled="1">
   <parameter name="DERIVED_CLOCK_RATE" value="0" />
-  <parameter name="EXPLICIT_CLOCK_RATE" value="25000000" />
+  <parameter name="EXPLICIT_CLOCK_RATE" value="50000000" />
   <parameter name="NUM_CLOCK_OUTPUTS" value="1" />
  </module>
  <module

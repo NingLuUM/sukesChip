@@ -76,11 +76,9 @@ module DE10_NANO_SoC_GHRD(
 	
 	// TRIDENT ONLY I/Os //
 	input				EXTERNAL_TRIGGER_INPUT,				// external input trigger via SMA on each 8-channel board
-	//input	[ 1: 0]		LOSS_OF_SIGNAL,					// loss-of-signal indicators for CLK buffers
 	input	[ 7: 0]		ADC_DATA_LINES, 	// Digial data from ADC for all 8 channels
 	input				BIT_CLK,				// bit clock from ADC (= frame_clk * 6)
 	input				FRAME_CLK,			// frame clock from ADC 
-	//input				ADC_SDOUT,			// ADC serial data register readout
 	
 	
 	output				ADC_RESET,
@@ -89,7 +87,6 @@ module DE10_NANO_SoC_GHRD(
 	output				ADC_SCLK,
 	output				ADC_SDATA,
 	output				ADC_SEN,
-	//output				ADC_SYNC, 
 	
 	output [4:0]		COMLED
 	//output [1:0]		VARGAIN
@@ -187,41 +184,30 @@ ADCclock u4 (
 	.refclk   			(FPGA_CLK1_50),
 	.rst      			(rst),
 	.outclk_0 			(CLK2),		// 2 MHz
-	.outclk_1 			(CLK25),		// 25 MHz
+	.outclk_1 			(CLK25),		// 25 MHz **50mhz
 	.outclk_2			(CLK100),	// 100 MHz
-	.outclk_3			(BIT_CLK_SHIFT),		// 150 MHz
-	//.outclk_1			(FRAME_CLK_SHIFT),
-	.outclk_4			(CLK200)
 	
+	.outclk_3			(CLK200),	// 200MHz	
+	.outclk_4			(FRAME_CLK_SHIFT),		// 25 MHz + 0ps phase delay **50mhz - 1ns phase delay
+	.outclk_5			(BIT_CLK_SHIFT)		// 150 MHz + 1667ps phase delay **300mhz 0 phase delay
 );
 
-//TXclocks u5 (
-//	.refclk   			(FPGA_CLK1_50),
-//	.rst      			(rst),
-//	.outclk_0			(CLK2),
-//	.outclk_1 			(CLK100),		// 2 MHz
-//	.outclk_2 			(CLK200)		// 25 MHz
-	
-//);
 
 		
 ADC_Control_Module u2(
 
 	.adc_clkinp			(CLK25),
-	//.ramclk			(CLK200),
-	.frame_clk				(CLK25),
+	.frame_clk				(FRAME_CLK_SHIFT),
 	.bit_clk				(BIT_CLK_SHIFT),
 	
 	.adc_control_comm		(adc_control_comms),
 	.adc_serial_cmd			(adc_serial_command),
 	
 	.ADC_RESET				(adc_reset),
-	//.ADC_SYNC				(adc_sync),
 	.ADC_SDATA				(adc_sdata),
 	.ADC_SEN				(adc_sen),
 	
 	.ADC_SCLK				(ADC_SCLK),
-	//.ADC_SDOUT				(ADC_SDOUT),
 	.ADC_INPUT_DATA_LINES	(ADC_DATA_LINES),
 	
 	.iSystemTrig			(EXTERNAL_TRIGGER_INPUT),
@@ -289,6 +275,7 @@ soc_system u0(
 		.tx_instruction_mem_readdata           (tx_instruction),
 		.tx_instruction_mem_writedata          (64'b0),
 		.tx_instruction_mem_byteenable         (8'b11111111),
+		
 		
 		.tx_phase_delay_mem_address            (tx_phasedelay_read_addr),
 		.tx_phase_delay_mem_chipselect         (1'b1),
