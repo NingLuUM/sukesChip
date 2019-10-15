@@ -405,15 +405,9 @@ set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to FPGA_CLK2_50
 set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to FPGA_CLK3_50
 set_global_assignment -name VERILOG_INPUT_VERSION SYSTEMVERILOG_2005
 set_global_assignment -name VERILOG_SHOW_LMF_MAPPING_MESSAGES OFF
-set_instance_assignment -name IO_STANDARD LVDS -to FRAME_CLK
-set_instance_assignment -name IO_STANDARD LVDS -to BIT_CLK
 set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to KEY[1]
 set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to KEY[0]
 set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to KEY
-set_location_assignment PIN_V12 -to BIT_CLK
-set_location_assignment PIN_W12 -to "BIT_CLK(n)"
-set_location_assignment PIN_AE24 -to FRAME_CLK
-set_location_assignment PIN_AE23 -to "FRAME_CLK(n)"
 set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to SW[0]
 set_instance_assignment -name IO_STANDARD "2.5 V" -to SW
 set_instance_assignment -name IO_STANDARD "2.5 V" -to KEY
@@ -439,12 +433,11 @@ set_instance_assignment -name SLEW_RATE 0 -to LED[4]
 set_instance_assignment -name SLEW_RATE 0 -to LED[5]
 set_instance_assignment -name SLEW_RATE 0 -to LED[1]
 set_instance_assignment -name SLEW_RATE 0 -to LED[7]
-set_location_assignment PIN_AA26 -to EXTERNAL_TRIGGER_INPUT
 set_instance_assignment -name IO_STANDARD "2.5 V" -to EXTERNAL_TRIGGER_INPUT
 set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to EXTERNAL_TRIGGER_INPUT
 set_location_assignment PIN_AH17 -to KEY[0]
 set_location_assignment PIN_AH16 -to KEY[1]
-set_location_assignment PIN_AA19 -to ADC_CLKINP
+set_location_assignment PIN_AH14 -to ADC_CLKINP
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_CLKINP
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_CLKINP
 set_instance_assignment -name SLEW_RATE 1 -to ADC_CLKINP
@@ -466,17 +459,15 @@ set_location_assignment PIN_C12 -to "ADC_DATA_LINES[4](n)"
 set_location_assignment PIN_AC22 -to ADC_DATA_LINES[5]
 set_instance_assignment -name IO_STANDARD LVDS -to ADC_DATA_LINES[5]
 set_location_assignment PIN_AC23 -to "ADC_DATA_LINES[5](n)"
-set_location_assignment PIN_Y17 -to ADC_DATA_LINES[6]
+set_location_assignment PIN_AE24 -to ADC_DATA_LINES[6]
 set_instance_assignment -name IO_STANDARD LVDS -to ADC_DATA_LINES[6]
-set_location_assignment PIN_Y18 -to "ADC_DATA_LINES[6](n)"
-set_location_assignment PIN_Y11 -to ADC_DATA_LINES[7]
+set_location_assignment PIN_AE23 -to "ADC_DATA_LINES[6](n)"
 set_instance_assignment -name IO_STANDARD LVDS -to ADC_DATA_LINES[7]
-set_location_assignment PIN_AA11 -to "ADC_DATA_LINES[7](n)"
 set_instance_assignment -name IO_STANDARD LVDS -to ADC_DATA_LINES
-set_location_assignment PIN_AG28 -to ADC_RESET
-set_location_assignment PIN_AF28 -to ADC_SCLK
-set_location_assignment PIN_AE25 -to ADC_SDATA
-set_location_assignment PIN_AF27 -to ADC_SEN
+set_location_assignment PIN_AA26 -to ADC_RESET
+set_location_assignment PIN_AB26 -to ADC_SCLK
+set_location_assignment PIN_Y17 -to ADC_SDATA
+set_location_assignment PIN_W14 -to ADC_SEN
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_RESET
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_SCLK
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_SDATA
@@ -509,28 +500,6 @@ set_global_assignment -name QIP_FILE ip/altsource_probe/hps_reset.qip
 set_global_assignment -name QIP_FILE soc_system/synthesis/soc_system.qip
 set_global_assignment -name QIP_FILE ADCclock.qip
 set_global_assignment -name SIP_FILE ADCclock.sip
-set_location_assignment PIN_AH3 -to COMLED[0]
-set_location_assignment PIN_AH14 -to COMLED[1]
-set_location_assignment PIN_AH13 -to COMLED[2]
-set_location_assignment PIN_D11 -to COMLED[3]
-set_location_assignment PIN_E8 -to COMLED[4]
-set_instance_assignment -name IO_STANDARD "2.5 V" -to COMLED[4]
-set_instance_assignment -name IO_STANDARD "2.5 V" -to COMLED[3]
-set_instance_assignment -name IO_STANDARD "2.5 V" -to COMLED[2]
-set_instance_assignment -name IO_STANDARD "2.5 V" -to COMLED[1]
-set_instance_assignment -name IO_STANDARD "2.5 V" -to COMLED[0]
-set_instance_assignment -name IO_STANDARD "2.5 V" -to COMLED
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to COMLED[4]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to COMLED[3]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to COMLED[2]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to COMLED[1]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to COMLED[0]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to COMLED
-set_instance_assignment -name SLEW_RATE 0 -to COMLED[4]
-set_instance_assignment -name SLEW_RATE 0 -to COMLED[3]
-set_instance_assignment -name SLEW_RATE 0 -to COMLED[2]
-set_instance_assignment -name SLEW_RATE 0 -to COMLED[1]
-set_instance_assignment -name SLEW_RATE 0 -to COMLED[0]
 set_instance_assignment -name IO_STANDARD "2.5 V" -to VARGAIN[1]
 set_instance_assignment -name IO_STANDARD "2.5 V" -to VARGAIN[0]
 set_instance_assignment -name IO_STANDARD "2.5 V" -to VARGAIN
@@ -540,14 +509,12 @@ set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to VARGAIN
 set_instance_assignment -name SLEW_RATE 0 -to VARGAIN[1]
 set_instance_assignment -name SLEW_RATE 0 -to VARGAIN[0]
 set_global_assignment -name VERILOG_FILE ADC_Control_Module_128.v
-set_location_assignment PIN_Y19 -to ADC_CLKINN
+set_location_assignment PIN_AH3 -to ADC_CLKINN
 set_instance_assignment -name SLEW_RATE 1 -to ADC_CLKINN
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_CLKINN
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_CLKINN
 set_global_assignment -name QIP_FILE TXclocks.qip
 set_global_assignment -name SIP_FILE TXclocks.sip
-set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to BIT_CLK
-set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to FRAME_CLK
 set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES
 set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[0]
 set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[1]
@@ -557,4 +524,22 @@ set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[
 set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[5]
 set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[6]
 set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[7]
+set_location_assignment PIN_W11 -to ADC_SDOUT
+set_location_assignment PIN_AA11 -to ADC_SYNC
+set_location_assignment PIN_V12 -to VARGAIN[0]
+set_location_assignment PIN_W12 -to VARGAIN[1]
+set_location_assignment PIN_AA13 -to ADC_PDN
+set_location_assignment PIN_D11 -to TRANSDUCER_OUTPUTS[1]
+set_location_assignment PIN_E8 -to TRANSDUCER_OUTPUTS[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_PDN
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_PDN
+set_instance_assignment -name SLEW_RATE 0 -to ADC_PDN
+set_instance_assignment -name IO_STANDARD "2.5 V" -to TRANSDUCER_OUTPUTS[1]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to TRANSDUCER_OUTPUTS[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to TRANSDUCER_OUTPUTS
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to TRANSDUCER_OUTPUTS[1]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to TRANSDUCER_OUTPUTS[0]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to TRANSDUCER_OUTPUTS
+set_instance_assignment -name SLEW_RATE 0 -to TRANSDUCER_OUTPUTS[1]
+set_instance_assignment -name SLEW_RATE 0 -to TRANSDUCER_OUTPUTS[0]
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

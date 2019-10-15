@@ -263,8 +263,14 @@ class receiver():
 		msg = struct.pack(self.cmsg,self.CASE_SET_QUERY_MODE,self.realTime,self.transferData,self.saveData,self.is16bit,0,0,0,0,0)
 		self.sock.send(msg)
 		
+	def setChargeTime(self,ct1,ct2):
+		msg = struct.pack(self.cmsg,self.CASE_TX_SET_CHARGETIME,ct1,ct2,0,0,0,0,0,0,0)
+		self.sock.send(msg)
 		
-	
+	def fireTx(self):
+		msg = struct.pack(self.cmsg,self.CASE_TX_FIRE,1,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		
 	def setAutoShutdown(self,asd=0):
 		msg = struct.pack(self.cmsg,self.CASE_UPDATE_AUTO_SHUTDOWN_SETTING,asd,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
@@ -300,6 +306,8 @@ class receiver():
 		self.CASE_SET_QUERY_MODE = 14
 		self.CASE_UPDATE_AUTO_SHUTDOWN_SETTING = 15
 		self.CASE_SET_NPULSES = 16
+		self.CASE_TX_SET_CHARGETIME = 50
+		self.CASE_TX_FIRE = 51
 		self.CASE_EXIT_PROGRAM = 100
 		
 		# it is what it says
@@ -360,13 +368,13 @@ r = receiver()
 r.connectToFpga()
 r.resetToDefaultAdcSettings()
 r.setAutoShutdown(0)
-r.setClockDivisor(2)
+r.setClockDivisor(1)
 
 #~ r.setAdcLowNoiseMode(0)
 
 #~ r.setRecLen(500) # npoints (max = 32767)
 r.setRecDuration(10.00) # us (max = 1310.68)
-r.setNPulses(6)
+r.setNPulses(1)
 r.setAdcFilterBw(2)
 
 
@@ -378,7 +386,8 @@ r.setAdcGain(5)
 r.setQueryMode(realTime=0,transferData=1,saveData=0)
 #~ r.plotterSetup(figheight = 15, figwidth = 10, nrows = 4, ncols = 2)
 #~ r.plotterSetup(ylims = [-200,4300], xlims = [-100,2600], figheight = 10, figwidth = 30, nrows = 4, ncols = 2)
-
+r.setChargeTime(100,100)
+r.fireTx()
 r.queryData()
 
 #~ r.disconnectFromFpga()

@@ -156,13 +156,27 @@ typedef struct RCVsys_{
 
 } RCVsys_t;
 
+
 typedef struct TXsys_{
+	uint32_t volatile *controlComms;
+	uint32_t volatile *chargeTime_reg;
+	
+	union{
+		struct{
+			uint32_t ch1 : 9;
+			uint32_t ch2 : 9;
+			uint32_t blnk : 14;
+		};
+		uint32_t chall;
+	}chargeTimes;
+	
     char volatile *instructions;
     char volatile *phaseDelays;
 
     SOCK_t interrupt;
 
 } TXsys_t;
+
 
 typedef union LED_{
 	struct{

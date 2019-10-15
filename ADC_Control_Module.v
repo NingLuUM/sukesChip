@@ -10,11 +10,15 @@ module ADC_Control_Module(
 	
 	output reg				ADC_SDATA,
 	output reg				ADC_SEN,
+	output reg				ADC_PDN,	
 	
 	input					ADC_SCLK,
 	input [7:0]				ADC_INPUT_DATA_LINES,
 	
-	input					iSystemTrig,
+	input					itxTrig,
+	output reg				otxTrigAck,
+	
+	
 	
 	input [15:0]			iRecLength,
 	input					iStateReset,
@@ -67,11 +71,13 @@ begin
 	fclk_flag = 1'b0;
 	ADC_RESET = 1'b0;
 	ADC_SEN = 1'b1;
+	ADC_PDN = 1'b0;
 	ADC_SDATA = 1'b0;
 	oWREN = 1'b0;
 	oCLKEN = 1'b0;
 	oCHIPSEL = 1'b0;
 	oBYTEEN = 16'b0000000000000000;
+	otxTrigAck = 1'b0;
 	
 	first_pulse = 4'b1111;
 	sample_cntr = 4'b0;
@@ -106,7 +112,7 @@ begin
 
 	if ( !iStateReset )
 	begin
-		if ( !trig_received_flag && iSystemTrig )
+		if ( !trig_received_flag && itxTrig )
 		begin
 			trig_received_flag <= 2'b11;
 			waddr_cntr <= 15'b0;
@@ -128,6 +134,7 @@ begin
 					oCLKEN <= 1'b1;
 					oCHIPSEL <= 1'b1;
 					oBYTEEN <= 16'b1111111111111111;
+					otxTrigAck <= 1'b1;
 				end
 				else if ( down_sample_clk_divisor && first_pulse )
 				begin
@@ -194,6 +201,7 @@ begin
 					write_complete_flag <= 1'b1;
 					trig_received_flag[0] <= 1'b0;
 					oRcvInterrupt <= 8'b11111111;
+					otxTrigAck <= 1'b0;
 				end
 			end
 		end
@@ -210,6 +218,7 @@ begin
 		write_complete_flag <= 1'b0;
 		waddr_cntr <= 15'b0;
 		oRcvInterrupt <= 8'b0;
+		otxTrigAck <= 1'b0;
 	end
 end
 
@@ -322,14 +331,14 @@ end
 
 always @ (posedge frame_clk)
 begin
-	data_out[127:112] <= {4'b0000,data_sr[0]};
-	data_out[111:96] <= {4'b0000,data_sr[1]};
-	data_out[95:80] <= {4'b0000,data_sr[2]};
-	data_out[79:64] <= {4'b0000,data_sr[3]};
-	data_out[63:48] <= {4'b0000,data_sr[4]};
-	data_out[47:32] <= {4'b0000,data_sr[5]};
-	data_out[31:16] <= {4'b0000,data_sr[6]};
-	data_out[15:0] <= {4'b0000,data_sr[7]};
+	data_out[127:112] <= {4'b0000,data_sr[7]};
+	data_out[111:96] <= {4'b0000,~data_sr[6]}; // wired backwards, bits need flipping
+	data_out[95:80] <= {4'b0000,data_sr[5]};
+	data_out[79:64] <= {4'b0000,data_sr[4]};
+	data_out[63:48] <= {4'b0000,data_sr[3]};
+	data_out[47:32] <= {4'b0000,data_sr[2]};
+	data_out[31:16] <= {4'b0000,data_sr[1]}; 
+	data_out[15:0] <= {4'b0000,data_sr[0]};
 end
 
 

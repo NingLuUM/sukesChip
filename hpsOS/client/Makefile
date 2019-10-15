@@ -1,5 +1,5 @@
 #
-TARGET = newTest
+TARGET = txrx_Test
 
 #
 CROSS_COMPILE = arm-linux-gnueabihf-

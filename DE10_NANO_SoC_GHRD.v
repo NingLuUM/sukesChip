@@ -77,8 +77,8 @@ module DE10_NANO_SoC_GHRD(
 	// TRIDENT ONLY I/Os //
 	input				EXTERNAL_TRIGGER_INPUT,				// external input trigger via SMA on each 8-channel board
 	input	[ 7: 0]		ADC_DATA_LINES, 	// Digial data from ADC for all 8 channels
-	input				BIT_CLK,				// bit clock from ADC (= frame_clk * 6)
-	input				FRAME_CLK,			// frame clock from ADC 
+	//input				BIT_CLK,				// bit clock from ADC (= frame_clk * 6)
+	//input				FRAME_CLK,			// frame clock from ADC 
 	
 	
 	output				ADC_RESET,
@@ -87,9 +87,13 @@ module DE10_NANO_SoC_GHRD(
 	output				ADC_SCLK,
 	output				ADC_SDATA,
 	output				ADC_SEN,
+	output				ADC_PDN,
 	
-	output [4:0]		COMLED
-	//output [1:0]		VARGAIN
+	input					ADC_SDOUT,
+	
+	//output [4:0]		COMLED,
+	output [1:0]		TRANSDUCER_OUTPUTS,
+	output [1:0]		VARGAIN
 
 );
 
@@ -119,27 +123,28 @@ assign stm_hw_events = {{15{1'b0}}, SW, fpga_led_internal, fpga_debounced_button
 reg gnd = 1'b0;
 
 wire [7:0] led_pins;
-assign COMLED[0] = led_pins[0];
-assign COMLED[1] = led_pins[1];
-assign COMLED[2] = led_pins[2];
-assign COMLED[3] = led_pins[3];
-assign COMLED[4] = led_pins[4];
+//assign COMLED[0] = led_pins[0];
+//assign COMLED[1] = led_pins[1];
+//assign COMLED[2] = led_pins[2];
+//assign COMLED[3] = led_pins[3];
+//assign COMLED[4] = led_pins[4];
 
 wire [7:0] var_gain;
-//assign VARGAIN[0] = var_gain[0];
-//assign VARGAIN[1] = var_gain[1];
+assign VARGAIN[0] = var_gain[0];
+assign VARGAIN[1] = var_gain[1];
 
-wire CLK2, CLK25, CLK100, CLK200;
+wire CLK2, CLK50, CLK100, CLK200;
 assign ADC_SCLK = CLK2;
-assign ADC_CLKINP = CLK25;
-assign ADC_CLKINN = ~CLK25;
+assign ADC_CLKINP = CLK50;
+assign ADC_CLKINN = ~CLK50;
 // wires and assignments for adc outputs
-wire adc_reset, adc_sen, adc_sdata;//, adc_sync;
+wire adc_reset, adc_sen, adc_sdata, adc_sync, adc_pdn;
 
 assign ADC_RESET	= adc_reset; 
 assign ADC_SEN		= adc_sen;
 assign ADC_SDATA	= adc_sdata; 
-//assign ADC_SYNC		= adc_sync;
+assign ADC_SYNC	= adc_sync;
+assign ADC_PDN		= adc_pdn;
 
 
 //=======================================================
@@ -169,11 +174,16 @@ wire [7:0]			tx_interrupt;
 wire [14:0]		tx_phasedelay_read_addr;
 wire [127:0]	tx_phasedelays;
 
+wire	[31:0] txControlComms;
+wire	[31:0]	chargeTimes;
+
 wire [14:0]		tx_instruction_read_addr;
 wire [127:0]		tx_instruction;
 
 wire					FRAME_CLK_SHIFT;
 wire 					BIT_CLK_SHIFT;
+
+wire	[1:0] trigLines_txAdc;
 
 assign rst = 0;
 
@@ -182,19 +192,19 @@ ADCclock u4 (
 	.refclk   			(FPGA_CLK1_50),
 	.rst      			(rst),
 	.outclk_0 			(CLK2),		// 2 MHz
-	.outclk_1 			(CLK25),		// 25 MHz **50mhz
+	.outclk_1 			(CLK50),		// 50mhz
 	.outclk_2			(CLK100),	// 100 MHz
 	
 	.outclk_3			(CLK200),	// 200MHz	
-	.outclk_4			(FRAME_CLK_SHIFT),		// 25 MHz + 0ps phase delay **50mhz - 1ns phase delay
-	.outclk_5			(BIT_CLK_SHIFT)		// 150 MHz + 1667ps phase delay **300mhz 0 phase delay
+	.outclk_4			(FRAME_CLK_SHIFT),		// **50mhz - 1ns phase delay
+	.outclk_5			(BIT_CLK_SHIFT)		// **300mhz 0 phase delay
 );
 
 
 		
 ADC_Control_Module u2(
 
-	.adc_clkinp			(CLK25),
+	.adc_clkinp			(CLK50),
 	.frame_clk				(FRAME_CLK_SHIFT),
 	.bit_clk				(BIT_CLK_SHIFT),
 	
@@ -204,11 +214,12 @@ ADC_Control_Module u2(
 	.ADC_RESET				(adc_reset),
 	.ADC_SDATA				(adc_sdata),
 	.ADC_SEN				(adc_sen),
-	
+	.ADC_PDN				(adc_pdn),
 	.ADC_SCLK				(ADC_SCLK),
 	.ADC_INPUT_DATA_LINES	(ADC_DATA_LINES),
 	
-	.iSystemTrig			(EXTERNAL_TRIGGER_INPUT),
+	.itxTrig			(trigLines_txAdc[0]),
+	.otxTrigAck		(trigLines_txAdc[1]),
 	
 	.iRecLength				(adc_record_length),
 	.iStateReset			(adc_state_reset),
@@ -229,6 +240,19 @@ ADC_Control_Module u2(
 );
 
 
+Output_Control_Module u3(
+	.txCLK(CLK100),
+	.itxControlComms(txControlComms[7:0]),
+	
+	.iChargeTime1(chargeTimes[8:0]),
+	.iChargeTime2(chargeTimes[17:9]),	
+	
+	.itxADCTriggerAck(trigLines_txAdc[1]),
+	.otxADCTriggerLine(trigLines_txAdc[0]),
+	
+	.otxTransducerOutput(TRANSDUCER_OUTPUTS)
+	
+);
 
 //=======================================================
 //  Structural coding
@@ -249,6 +273,11 @@ soc_system u0(
 		.rcv_interrupt_export			(rcv_interrupt),
 		
 		.tx_interrupt_export			(tx_interrupt),
+		
+		.tx_control_comms_export			(txControlComms),
+		.pio_charge_times_export			(chargeTimes),
+		
+		
 		
 		.adc_ram_bank_address						(adc_write_addr),
 		.adc_ram_bank_byteenable					(adc_byteen_bank),
@@ -277,7 +306,7 @@ soc_system u0(
 		.tx_phase_delay_mem_byteenable			(16'b1111111111111111),
 
 		.ram_clock_bridge_clk						(CLK200), 
-		.adc_clock_bridge_clk						(CLK25), 
+		.adc_clock_bridge_clk						(CLK50), 
 		
 		
 		//Clock&Reset

@@ -59,8 +59,9 @@
 
 // sopc-create-header-files: contains addresses of pio/rams defined in qsys 
 //~ #include "hps_0_ramclks.h"
-#include "hps_0_16bitADCdata.h"
+//~ #include "hps_0_16bitADCdata.h"
 //~ #include "hps_0_rambank128bit.h"
+#include "hps_0_txrx_test.h"
 // macros to dereference memory-mapped variables from FPGA
 #define DREF8(X)	    ( *( uint8_t  *) X )
 #define DREF16(X)	    ( *( uint16_t *) X )
@@ -123,6 +124,8 @@
 #define CASE_UPDATE_AUTO_SHUTDOWN_SETTING   ( 15 )
 #define CASE_SET_NPULSES					( 16 )
 // TODO: move to header containing handler(?) 
+#define CASE_TX_SET_CHARGETIME				( 50 )
+#define	CASE_TX_FIRE						( 51 )
 
 #define CASE_EXIT_PROGRAM 100
 
@@ -194,7 +197,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                     acceptEnetClientSock(sock);
                 
                 } else if ( sock->is.rcv_interrupt ) {
-                    queryData(&RCV,&ENETclient[1]); 
+                    queryData(&RCV,&TX,&ENETclient[1]); 
                 
                 } else if ( PS.events[n].events & EPOLLIN ){
                     nrecv = recv(sock->fd,&msg,10*sizeof(uint32_t),0);
@@ -208,7 +211,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                         disconnectPollSock(sock);
                     
                     } else if ( sock->is.commsock ){
-                        recvSysMsgHandler(&PS, &RCV, &msg, &runner);
+                        recvSysMsgHandler(&PS, &RCV, &TX, &msg, &runner);
                     }
                 }
             }

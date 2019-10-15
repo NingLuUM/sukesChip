@@ -222,6 +222,14 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
 
 	TX->instructions = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_INSTRUCTIONMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 	TX->phaseDelays = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_PHASEDELAYMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+	
+    TX->controlComms = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_CONTROL_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->chargeTime_reg = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_CHARGE_TIMES_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->chargeTimes.ch1 = 500;
+    TX->chargeTimes.ch2 = 500;
+    
+    DREF32(TX->controlComms) = 0;
+    DREF32(TX->chargeTime_reg) = TX->chargeTimes.chall;
     
     TX->interrupt.ps = NULL;
 

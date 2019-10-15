@@ -122,7 +122,7 @@ int saveData(SOCK_t *enet, char *data, size_t dsize){
 }
 
 
-void queryData(RCVsys_t *RCV, SOCK_t *enet){
+void queryData(RCVsys_t *RCV, TXsys_t*TX, SOCK_t *enet){
 	
     static int pulse_counter = 0;
     
@@ -131,6 +131,7 @@ void queryData(RCVsys_t *RCV, SOCK_t *enet){
     uint32_t npulses = RCV->npulses;
     
     DREF32(RCV->stateReset)=1;
+    DREF32(TX->controlComms)=0;
     usleep(5);
 	
     if( RCV->queryMode.realTime ){
@@ -161,19 +162,7 @@ void queryData(RCVsys_t *RCV, SOCK_t *enet){
 }
 
 
-//~ void queryDataTmp(RCVsys_t *RCV, SOCK_t *enet){
-	
-    //~ static int pulse_counter = 0;
-    
-    //~ int dataStatus=0;
-    //~ uint32_t recLen = RCV->recLen_ref;
-    //~ uint32_t npulses = RCV->npulses;
-    
-    //~ DREF32(RCV->stateReset)=1;
-    //~ usleep(5);
-	//~ dataStatus = sendData(enet,DREFPCHAR(RCV->ramBank0),8*recLen*sizeof(uint16_t));
-            
-//~ }
+
 void setupInternalStorage(RCVsys_t *RCV){        
 	if( RCV->data[1] != NULL ){
 		free( RCV->data[1] );
@@ -182,7 +171,8 @@ void setupInternalStorage(RCVsys_t *RCV){
 	RCV->data[1] = (char *)malloc(RCV->recLen_ref*RCV->npulses*8*sizeof(uint16_t));           
 }
 
-void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner){
+
+void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, TXsys_t *TX, FMSG_t *msg, int *runner){
 
     switch(msg->u[0]){
         case(CASE_SET_RECLEN):{
@@ -297,7 +287,6 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner
             break;
         }
         
-        
         case(CASE_SETUP_LOCAL_STORAGE):{
             setupInternalStorage(RCV);
             break;
@@ -322,6 +311,18 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner
             break;
         }
         
+        case(CASE_TX_SET_CHARGETIME):{
+			TX->chargeTimes.ch1 = msg->u[1];
+			TX->chargeTimes.ch2 = msg->u[2];
+			DREF32(TX->chargeTime_reg) = TX->chargeTimes.chall;
+			break;
+		}
+		
+		case(CASE_TX_FIRE):{
+			DREF32(TX->controlComms) = 1;
+			break;
+		}
+		
         default:{
             *runner=0;
             break;
