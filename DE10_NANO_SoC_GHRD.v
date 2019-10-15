@@ -169,8 +169,8 @@ wire [7:0]			tx_interrupt;
 wire [14:0]		tx_phasedelay_read_addr;
 wire [127:0]	tx_phasedelays;
 
-wire [13:0]		tx_instruction_read_addr;
-wire [63:0]		tx_instruction;
+wire [14:0]		tx_instruction_read_addr;
+wire [127:0]		tx_instruction;
 
 wire					FRAME_CLK_SHIFT;
 wire 					BIT_CLK_SHIFT;
