@@ -123,9 +123,12 @@
 #define CASE_SET_QUERY_MODE                 ( 14 )
 #define CASE_UPDATE_AUTO_SHUTDOWN_SETTING   ( 15 )
 #define CASE_SET_NPULSES					( 16 )
+#define CASE_SET_CLOCK_DIVISOR				( 17 )
+#define CASE_SET_RCV_SAMPLING_MODE			( 18 )
 // TODO: move to header containing handler(?) 
 #define CASE_TX_SET_CHARGETIME				( 50 )
 #define	CASE_TX_FIRE						( 51 )
+#define	CASE_TX_SET_FCLOCK_DELAY			( 52 )
 
 #define CASE_EXIT_PROGRAM 100
 

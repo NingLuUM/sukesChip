@@ -88,6 +88,7 @@ module DE10_NANO_SoC_GHRD(
 	output				ADC_SDATA,
 	output				ADC_SEN,
 	output				ADC_PDN,
+	output				ADC_SYNC,
 	
 	input					ADC_SDOUT,
 	
@@ -110,6 +111,12 @@ wire			hps_debug_reset;
 wire	[27: 0]	stm_hw_events;
 wire			fpga_clk_50;
 
+//wire	[7:0]	ADC_data;
+
+//assign ADC_data[0] = ~ADC_DATA_LINES[5];
+//assign ADC_data[1] = ADC_DATA_LINES[6];
+//assign ADC_data[7:2] = ADC_DATA_LINES[6];
+
 //assign LED[7: 1] = fpga_led_internal;
 assign fpga_clk_50 = FPGA_CLK1_50;
 assign stm_hw_events = {{15{1'b0}}, SW, fpga_led_internal, fpga_debounced_buttons};
@@ -129,9 +136,9 @@ wire [7:0] led_pins;
 //assign COMLED[3] = led_pins[3];
 //assign COMLED[4] = led_pins[4];
 
-wire [7:0] var_gain;
-assign VARGAIN[0] = var_gain[0];
-assign VARGAIN[1] = var_gain[1];
+wire [31:0] adc_pio_settings;
+assign VARGAIN[0] = adc_pio_settings[1];
+assign VARGAIN[1] = adc_pio_settings[0];
 
 wire CLK2, CLK50, CLK100, CLK200;
 assign ADC_SCLK = CLK2;
@@ -187,7 +194,6 @@ wire	[1:0] trigLines_txAdc;
 
 assign rst = 0;
 
-
 ADCclock u4 (
 	.refclk   			(FPGA_CLK1_50),
 	.rst      			(rst),
@@ -215,19 +221,24 @@ ADC_Control_Module u2(
 	.ADC_SDATA				(adc_sdata),
 	.ADC_SEN				(adc_sen),
 	.ADC_PDN				(adc_pdn),
+	.ADC_SYNC				(adc_sync),
+	
 	.ADC_SCLK				(ADC_SCLK),
 	.ADC_INPUT_DATA_LINES	(ADC_DATA_LINES),
 	
 	.itxTrig			(trigLines_txAdc[0]),
 	.otxTrigAck		(trigLines_txAdc[1]),
 	
+	.fclk_delay		(adc_pio_settings[8:6]),
+	
+	
 	.iRecLength				(adc_record_length),
 	.iStateReset			(adc_state_reset),
 	
 	.oRcvInterrupt				(rcv_interrupt),
 	
-	.down_sample_clk_divisor (var_gain[3:0]),
-	.sampling_mode_opts		(4'b0),
+	.down_sample_clk_divisor (adc_pio_settings[5:2]),
+	.sampling_mode_opts		(adc_pio_settings[12:9]),
 	
 	.oBYTEEN				(adc_byteen_bank),
 	.oADCData				(adc_writedata_bank),
@@ -247,6 +258,8 @@ Output_Control_Module u3(
 	.iChargeTime1(chargeTimes[8:0]),
 	.iChargeTime2(chargeTimes[17:9]),	
 	
+	.iFireDelay(chargeTimes[31:18]),
+	
 	.itxADCTriggerAck(trigLines_txAdc[1]),
 	.otxADCTriggerLine(trigLines_txAdc[0]),
 	
@@ -261,7 +274,7 @@ soc_system u0(
 		
 		
 		.pio_led_external_connection_export			(led_pins),
-		.pio_var_gain_setting_export				(var_gain),
+		.pio_adc_settings_export				(adc_pio_settings),
 		
 		.pio_adc_serial_command_export				(adc_serial_command),
 		.pio_adc_control_comms_export				(adc_control_comms),

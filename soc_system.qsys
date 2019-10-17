@@ -173,6 +173,22 @@
          type = "String";
       }
    }
+   element pio_adc_settings
+   {
+      datum _sortIndex
+      {
+         value = "7";
+         type = "int";
+      }
+   }
+   element pio_adc_settings.s1
+   {
+      datum baseAddress
+      {
+         value = "96";
+         type = "String";
+      }
+   }
    element pio_charge_times
    {
       datum _sortIndex
@@ -218,22 +234,6 @@
       datum baseAddress
       {
          value = "272";
-         type = "String";
-      }
-   }
-   element pio_var_gain_setting
-   {
-      datum _sortIndex
-      {
-         value = "7";
-         type = "int";
-      }
-   }
-   element pio_var_gain_setting.s1
-   {
-      datum baseAddress
-      {
-         value = "96";
          type = "String";
       }
    }
@@ -413,6 +413,11 @@
    type="conduit"
    dir="end" />
  <interface
+   name="pio_adc_settings"
+   internal="pio_adc_settings.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
    name="pio_charge_times"
    internal="pio_charge_times.external_connection"
    type="conduit"
@@ -425,11 +430,6 @@
  <interface
    name="pio_set_adc_record_length"
    internal="pio_set_adc_record_length.external_connection"
-   type="conduit"
-   dir="end" />
- <interface
-   name="pio_var_gain_setting"
-   internal="pio_var_gain_setting.external_connection"
    type="conduit"
    dir="end" />
  <interface
@@ -1150,6 +1150,24 @@
   <parameter name="width" value="24" />
  </module>
  <module
+   name="pio_adc_settings"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="255" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
    name="pio_charge_times"
    kind="altera_avalon_pio"
    version="17.1"
@@ -1198,24 +1216,6 @@
   <parameter name="simDoTestBenchWiring" value="false" />
   <parameter name="simDrivenValue" value="0" />
   <parameter name="width" value="16" />
- </module>
- <module
-   name="pio_var_gain_setting"
-   kind="altera_avalon_pio"
-   version="17.1"
-   enabled="1">
-  <parameter name="bitClearingEdgeCapReg" value="false" />
-  <parameter name="bitModifyingOutReg" value="false" />
-  <parameter name="captureEdge" value="false" />
-  <parameter name="clockRate" value="50000000" />
-  <parameter name="direction" value="Output" />
-  <parameter name="edgeType" value="RISING" />
-  <parameter name="generateIRQ" value="false" />
-  <parameter name="irqType" value="LEVEL" />
-  <parameter name="resetValue" value="255" />
-  <parameter name="simDoTestBenchWiring" value="false" />
-  <parameter name="simDrivenValue" value="0" />
-  <parameter name="width" value="8" />
  </module>
  <module
    name="ram_clock_bridge"
@@ -1445,7 +1445,7 @@
    kind="avalon"
    version="17.1"
    start="hps_0.h2f_lw_axi_master"
-   end="pio_var_gain_setting.s1">
+   end="pio_adc_settings.s1">
   <parameter name="arbitrationPriority" value="1" />
   <parameter name="baseAddress" value="0x0060" />
   <parameter name="defaultConnection" value="false" />
@@ -1559,7 +1559,7 @@
    kind="clock"
    version="17.1"
    start="clk_0.clk"
-   end="pio_var_gain_setting.clk" />
+   end="pio_adc_settings.clk" />
  <connection kind="clock" version="17.1" start="clk_0.clk" end="rcv_interrupt.clk" />
  <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_interrupt.clk" />
  <connection
@@ -1709,7 +1709,7 @@
    kind="reset"
    version="17.1"
    start="clk_0.clk_reset"
-   end="pio_var_gain_setting.reset" />
+   end="pio_adc_settings.reset" />
  <connection
    kind="reset"
    version="17.1"

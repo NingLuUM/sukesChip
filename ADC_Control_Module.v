@@ -11,6 +11,7 @@ module ADC_Control_Module(
 	output reg				ADC_SDATA,
 	output reg				ADC_SEN,
 	output reg				ADC_PDN,	
+	output reg				ADC_SYNC,	
 	
 	input					ADC_SCLK,
 	input [7:0]				ADC_INPUT_DATA_LINES,
@@ -18,7 +19,8 @@ module ADC_Control_Module(
 	input					itxTrig,
 	output reg				otxTrigAck,
 	
-	
+	input [2:0]			fclk_delay,
+
 	
 	input [15:0]			iRecLength,
 	input					iStateReset,
@@ -59,6 +61,10 @@ assign waddr_overrun = waddr_cntr[14];
 reg [3:0] first_pulse;
 reg [3:0] sample_cntr;
 
+
+reg [2:0] fclk_delay_cntr;
+
+
 //reg [7:0][11:0] data_out;
 reg [127:0] data_to_ram;
 reg [127:0] data_out;
@@ -73,6 +79,7 @@ begin
 	ADC_SEN = 1'b1;
 	ADC_PDN = 1'b0;
 	ADC_SDATA = 1'b0;
+	ADC_SYNC = 1'b0;
 	oWREN = 1'b0;
 	oCLKEN = 1'b0;
 	oCHIPSEL = 1'b0;
@@ -81,6 +88,9 @@ begin
 	
 	first_pulse = 4'b1111;
 	sample_cntr = 4'b0;
+	
+	fclk_delay_cntr = 3'b0;
+	//fclk_write_cntr = 3'b0;
 	
 	trig_received_flag = 2'b0;
 	write_complete_flag = 1'b0;
@@ -101,6 +111,7 @@ begin
 end
 
 
+
 parameter [7:0] hardware_reset = 8'b11111111;
 parameter [7:0] idle_state  = 8'b00000000;
 parameter [7:0] buffer_serial_command 	= 8'b00000001;
@@ -112,6 +123,7 @@ begin
 
 	if ( !iStateReset )
 	begin
+	
 		if ( !trig_received_flag && itxTrig )
 		begin
 			trig_received_flag <= 2'b11;
@@ -168,14 +180,30 @@ begin
 						else 
 						begin
 							if ( first_pulse ) first_pulse <= 4'b0000;
-							data_to_ram[15:0] <= data_to_ram[15:0] + data_out[15:0];
-							data_to_ram[31:16] <= data_to_ram[31:16] + data_out[31:16];
-							data_to_ram[47:32] <= data_to_ram[47:32] + data_out[47:32];
-							data_to_ram[63:48] <= data_to_ram[63:48] + data_out[63:48];
-							data_to_ram[79:64] <= data_to_ram[79:64] + data_out[79:64];
-							data_to_ram[95:80] <= data_to_ram[95:80] + data_out[95:80];
-							data_to_ram[111:96] <= data_to_ram[111:96] + data_out[111:96];
-							data_to_ram[127:112] <= data_to_ram[127:112] + data_out[127:112];
+							
+							if( !sampling_mode_opts ) // capture every Nth timepoint
+							begin
+								data_to_ram[15:0] <= data_out[15:0];
+								data_to_ram[31:16] <= data_out[31:16];
+								data_to_ram[47:32] <= data_out[47:32];
+								data_to_ram[63:48] <= data_out[63:48];
+								data_to_ram[79:64] <= data_out[79:64];
+								data_to_ram[95:80] <= data_out[95:80];
+								data_to_ram[111:96] <= data_out[111:96];
+								data_to_ram[127:112] <= data_out[127:112];
+							end
+							else if( sampling_mode_opts == 4'b0001 ) // rolling average
+							begin
+								data_to_ram[15:0] <= data_to_ram[15:0] + data_out[15:0];
+								data_to_ram[31:16] <= data_to_ram[31:16] + data_out[31:16];
+								data_to_ram[47:32] <= data_to_ram[47:32] + data_out[47:32];
+								data_to_ram[63:48] <= data_to_ram[63:48] + data_out[63:48];
+								data_to_ram[79:64] <= data_to_ram[79:64] + data_out[79:64];
+								data_to_ram[95:80] <= data_to_ram[95:80] + data_out[95:80];
+								data_to_ram[111:96] <= data_to_ram[111:96] + data_out[111:96];
+								data_to_ram[127:112] <= data_to_ram[127:112] + data_out[127:112];
+							end
+							
 							oWREN <= 1'b0;
 							if( sample_cntr == down_sample_clk_divisor )
 							begin
@@ -296,8 +324,63 @@ ddio d0(
 	.dataout_l(data_out_l)
 );
 
+
+always @ (posedge bit_clk)
+begin
+	
+	if( adc_clkinp & !fclk_flag )
+	begin
+		fclk_flag <= 1'b1;
+		fclk_delay_cntr <= 3'b0;	
+	end
+	else 
+	begin
+		if( !adc_clkinp & fclk_flag ) fclk_flag <= 1'b0;
+		fclk_delay_cntr <= fclk_delay_cntr + 1'b1;	
+	end
+
+	if(fclk_delay_cntr == fclk_delay)
+	begin
+	
+		data_sr[0] <= {data_out_h[0], data_out_l[0], 10'b0};
+		data_sr[1] <= {data_out_h[1], data_out_l[1], 10'b0};
+		data_sr[2] <= {data_out_h[2], data_out_l[2], 10'b0};
+		data_sr[3] <= {data_out_h[3], data_out_l[3], 10'b0};
+		data_sr[4] <= {data_out_h[4], data_out_l[4], 10'b0};
+		data_sr[5] <= {data_out_h[5], data_out_l[5], 10'b0};
+		data_sr[6] <= {data_out_h[6], data_out_l[6], 10'b0};
+		data_sr[7] <= {data_out_h[7], data_out_l[7], 10'b0};
+		
+		data_out[127:112] <= {4'b0000,data_sr[7]};
+		data_out[111:96] <= {4'b0000,data_sr[6]}; // wired backwards, bits need flipping
+		data_out[95:80] <= {4'b0000,data_sr[5]};
+		data_out[79:64] <= {4'b0000,data_sr[4]};
+		data_out[63:48] <= {4'b0000,data_sr[3]};
+		data_out[47:32] <= {4'b0000,data_sr[2]};
+		data_out[31:16] <= {4'b0000,data_sr[1]}; 
+		data_out[15:0] <= {4'b0000,data_sr[0]};
+
+	end
+	else 
+	begin	
+	
+		data_sr[0] <= {data_out_h[0], data_out_l[0], data_sr[0][11:2]};
+		data_sr[1] <= {data_out_h[1], data_out_l[1], data_sr[1][11:2]};
+		data_sr[2] <= {data_out_h[2], data_out_l[2], data_sr[2][11:2]};
+		data_sr[3] <= {data_out_h[3], data_out_l[3], data_sr[3][11:2]};
+		data_sr[4] <= {data_out_h[4], data_out_l[4], data_sr[4][11:2]};
+		data_sr[5] <= {data_out_h[5], data_out_l[5], data_sr[5][11:2]};
+		data_sr[6] <= {data_out_h[6], data_out_l[6], data_sr[6][11:2]};
+		data_sr[7] <= {data_out_h[7], data_out_l[7], data_sr[7][11:2]};		
+		
+	end
+
+end
+
+
 // Shift register
 // Serializes the double data outputs
+/*
 always @ (posedge bit_clk)
 begin
 	if( frame_clk & !fclk_flag )
@@ -340,6 +423,7 @@ begin
 	data_out[31:16] <= {4'b0000,data_sr[1]}; 
 	data_out[15:0] <= {4'b0000,data_sr[0]};
 end
+*/
 
 
 endmodule

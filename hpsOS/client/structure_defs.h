@@ -16,6 +16,8 @@ typedef union FMSG_ FMSG_t;
 // rcv system functions
 void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen);
 void rcvSetPioVarGain(RCVsys_t *RCV, uint32_t val);
+void rcvSetClkDivisor(RCVsys_t *RCV, uint32_t val);
+void rcvSetSamplingMode(RCVsys_t *RCV, uint32_t val);
 void rcvSetLEDs(RCVsys_t *RCV, uint32_t val);
 
 // adc function prototypes
@@ -124,7 +126,7 @@ typedef struct RCVsys_{
 	uint32_t volatile *controlComms;
 	uint32_t volatile *serialCommand;
     uint32_t volatile *recLen;
-	uint32_t volatile *pioVarGain;
+	uint32_t volatile *pioSettings;
 	uint32_t volatile *dataReadyFlag;
 	uint32_t volatile *leds;
     char volatile *ramBank;
@@ -143,6 +145,18 @@ typedef struct RCVsys_{
         };
         uint8_t all;
     } queryMode;
+    
+    union{
+        struct{
+            uint32_t varGain : 2;
+            uint32_t clkDiv : 4;
+            uint32_t fclk_delay : 3;
+            uint32_t sampling_mode : 4;
+           
+            uint32_t blnk : 19;
+        };
+        uint32_t all;
+    } pioSettings_ref;
 
     char **data;
 
@@ -152,7 +166,9 @@ typedef struct RCVsys_{
 
     void (*setRecLen)(RCVsys_t *,uint32_t);   
     void (*setPioVarGain)(RCVsys_t *,uint32_t); 
-    void (*setLEDs)(RCVsys_t *,uint32_t); 
+    void (*setLEDs)(RCVsys_t *,uint32_t);
+    void (*setClkDivisor)(RCVsys_t *,uint32_t); 
+    void (*setSamplingMode)(RCVsys_t *,uint32_t); 
 
 } RCVsys_t;
 
@@ -165,7 +181,7 @@ typedef struct TXsys_{
 		struct{
 			uint32_t ch1 : 9;
 			uint32_t ch2 : 9;
-			uint32_t blnk : 14;
+			uint32_t fire_delay : 14;
 		};
 		uint32_t chall;
 	}chargeTimes;

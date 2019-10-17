@@ -186,7 +186,7 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
 	RCV->stateReset = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_FPGA_STATE_RESET_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	RCV->controlComms = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_CONTROL_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	RCV->recLen = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_SET_ADC_RECORD_LENGTH_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	RCV->pioVarGain = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_VAR_GAIN_SETTING_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+	RCV->pioSettings = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_SETTINGS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	RCV->serialCommand = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_SERIAL_COMMAND_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	RCV->dataReadyFlag = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + RCV_INTERRUPT_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	RCV->leds = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_LED_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
@@ -195,9 +195,14 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
     // setup function pointers
     RCV->setRecLen = &rcvSetRecLen;   
     RCV->setPioVarGain = &rcvSetPioVarGain; 
+    RCV->setClkDivisor = &rcvSetClkDivisor;
+    RCV->setSamplingMode = &rcvSetSamplingMode;
     RCV->setLEDs = &rcvSetLEDs; 
  
-    DREF32(RCV->pioVarGain) = 0;
+	RCV->pioSettings_ref.all = 0;
+	RCV->pioSettings_ref.fclk_delay = 1;
+	
+    DREF32(RCV->pioSettings) = RCV->pioSettings_ref.all;
 	DREF32(RCV->recLen) = 2048;
 	DREF32(RCV->stateReset)=1; 
     
@@ -213,7 +218,7 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
     RCV->data[0] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));
     RCV->data[1] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));	
     
-    RCV->setLEDs(RCV,0x1f);
+    //~ RCV->setLEDs(RCV,0x1f);
    
     return(1);
 }
@@ -225,8 +230,10 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
 	
     TX->controlComms = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_CONTROL_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
     TX->chargeTime_reg = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_CHARGE_TIMES_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-    TX->chargeTimes.ch1 = 500;
-    TX->chargeTimes.ch2 = 500;
+    TX->chargeTimes.ch1 = 0;
+    TX->chargeTimes.ch2 = 0;
+    
+    TX->chargeTimes.fire_delay = 0;
     
     DREF32(TX->controlComms) = 0;
     DREF32(TX->chargeTime_reg) = TX->chargeTimes.chall;

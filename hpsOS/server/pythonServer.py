@@ -13,11 +13,11 @@ import os
 class receiver():
 	
 	def setRecLen(self,recLen,allocate=0):
-		if recLen < 32768:
+		if recLen < self.MAX_RECLEN:
 			self.recLen = recLen
 		else:
 			self.recLen = 2048
-			print 'max recLen = 32767'
+			print 'max recLen = 16384'
 			
 		if allocate > 0:
 			self.allocated = 0
@@ -30,22 +30,29 @@ class receiver():
 		
 	def setRecDuration(self,duration):
 		recLen = int(duration*self.ADC_CLK/(self.clockDiv+1.0))
-		if recLen < 32768:
+		if recLen < self.MAX_RECLEN:
 			self.recLen = recLen
 		else:
 			self.recLen = 2048
-			print 'max duration = ', np.round(32768/self.ADC_CLK,2)
+			print 'max duration = ', np.round(self.MAX_RECLEN/self.ADC_CLK,2)
 		self.cmsg4 = '{}{}{}{}'.format(self.recLen,'q',self.recLen,'I')
 		msg = struct.pack(self.cmsg,self.CASE_SET_RECLEN,self.recLen,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)	
 		
-	def setPioVarGain(self,varGain):
+	def setPioVarAtten(self,varGain):
 		msg = struct.pack(self.cmsg,self.CASE_SET_PIO_VAR_GAIN, ( varGain & 0x3 ) ,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		
 	def setClockDivisor(self,clockDiv):
 		self.clockDiv = clockDiv-1
-		msg = struct.pack(self.cmsg,self.CASE_SET_PIO_VAR_GAIN, ( np.uint32(clockDiv-1) & 0xf ) ,0,0,0,0,0,0,0,0)
+		msg = struct.pack(self.cmsg,self.CASE_SET_CLOCK_DIVISOR, ( np.uint32(clockDiv-1) & 0xf ) ,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+
+	def setSamplingMode(self,samplingMode):
+		# 0 -> sample every Nth
+		# 1 -> sample on rolling average
+		self.samplingMode = samplingMode
+		msg = struct.pack(self.cmsg,self.CASE_SET_RCV_SAMPLING_MODE, self.samplingMode ,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 
 	def setLeds(self,ledVal):
@@ -71,9 +78,17 @@ class receiver():
 			self.ncols = ncols
 			
 	def plotDatas(self,datas):
-		print 'npulses',self.npulses
-		t = np.linspace(0,self.recLen/self.ADC_CLK*(self.clockDiv+1),self.recLen)
 		
+		print 'npulses',self.npulses
+		
+		if self.samplingMode:
+			clockDiv = (self.clockDiv+1.0)
+		else:
+			clockDiv = 1
+			
+		t = np.linspace(0,self.recLen/self.ADC_CLK*clockDiv,self.recLen)
+		
+			
 		fig,ax = plt.subplots(self.nrows,self.ncols,sharey=True,sharex=True,figsize=(self.figwidth, self.figheight))
 		
 		if self.nrows==1 and self.ncols==1:
@@ -87,8 +102,8 @@ class receiver():
 			for nc in range(0,self.ncols):
 				for nr in range(0,self.nrows):	
 					for npls in range(0,self.npulses):
-						ax[nr,nc].plot(t+npls*t[-1],datas[npls*self.recLen:(npls+1)*self.recLen,n]/(self.clockDiv+1.0))
-						pk2pk = np.max(datas[npls*self.recLen:(npls+1)*self.recLen,n])-np.min(datas[npls*self.recLen:(npls+1)*self.recLen,n])
+						ax[nr,nc].plot(t+npls*t[-1],datas[npls*self.recLen:(npls+1)*self.recLen,n]/clockDiv)
+						pk2pk = (np.max(datas[npls*self.recLen:(npls+1)*self.recLen,n])-np.min(datas[npls*self.recLen:(npls+1)*self.recLen,n]))/clockDiv
 					ax[nr,nc].set_title('{}{}{}{}'.format('Ch[',n,'], pk-pk ',pk2pk))
 					ax[nr,nc].set_ylim((self.ylims[0],self.ylims[1]))
 					if self.xlims[2] > 0:
@@ -109,7 +124,7 @@ class receiver():
 		plt.tight_layout()
 		plt.show()
 		
-	def queryDataLocal16(self):
+	def queryDataLocal16(self,pltr):
 		msg = struct.pack(self.cmsg,self.CASE_QUERY_DATA,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		aa = 0
@@ -128,8 +143,9 @@ class receiver():
 		
 		for n in range(0,8):
 			dd[:,n] = cc[n::8]&0xffff
-			
-		self.plotDatas(dd)
+		
+		if pltr:	
+			self.plotDatas(dd)
 		
 	def queryDataLocal(self):
 		msg = struct.pack(self.cmsg,self.CASE_QUERY_DATA,0,0,0,0,0,0,0,0,0)
@@ -171,14 +187,17 @@ class receiver():
 		
 		self.plotDatas(dd)
 			
-	def queryData(self):
+	def queryData(self,pltr=1):
 		if self.allocated == 0:
 			self.setupLocalStorage()
 			
 		if(self.realTime or self.transferData):
+			
 			if(self.is16bit):
-				self.queryDataLocal16()
+				#~ print 'helper'
+				self.queryDataLocal16(pltr)
 			else:
+				#~ print 'helper'
 				self.queryDataLocal()
 		
 		else:
@@ -186,9 +205,7 @@ class receiver():
 			self.sock.send(msg)
 			#~ print 'issue query cmd'
 			bb = self.sock.recv(4,socket.MSG_WAITALL)
-			#~ print 'query cmd response'
-	
-			
+					
 	def setAdcGain(self,adcGain):
 		msg = struct.pack(self.cmsg3,self.CASE_ADC_SET_GAIN,0,adcGain,0,0,0,0,0,0)
 		self.sock.send(msg)
@@ -263,12 +280,21 @@ class receiver():
 		msg = struct.pack(self.cmsg,self.CASE_SET_QUERY_MODE,self.realTime,self.transferData,self.saveData,self.is16bit,0,0,0,0,0)
 		self.sock.send(msg)
 		
-	def setChargeTime(self,ct1,ct2):
-		msg = struct.pack(self.cmsg,self.CASE_TX_SET_CHARGETIME,ct1,ct2,0,0,0,0,0,0,0)
+	def setChargeTime_us(self,ct1,ct2,fireDelay=0):
+		
+		msg = struct.pack(self.cmsg,self.CASE_TX_SET_CHARGETIME,np.uint32(ct1*100),np.uint32(ct2*100),(np.uint32(fireDelay*100)>>1),0,0,0,0,0,0)
 		self.sock.send(msg)
 		
 	def fireTx(self):
 		msg = struct.pack(self.cmsg,self.CASE_TX_FIRE,1,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		
+	def setFclkDelay(self,fclk):
+		# fclk_delay -> 0-5
+		# bit_lag -> 0-1
+		#~ fclk = fclk_delay/2
+		bclk = 0#fclk_delay%2
+		msg = struct.pack(self.cmsg,self.CASE_TX_SET_FCLOCK_DELAY,fclk,bclk,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		
 	def setAutoShutdown(self,asd=0):
@@ -306,18 +332,25 @@ class receiver():
 		self.CASE_SET_QUERY_MODE = 14
 		self.CASE_UPDATE_AUTO_SHUTDOWN_SETTING = 15
 		self.CASE_SET_NPULSES = 16
+		self.CASE_SET_CLOCK_DIVISOR = 17
+		self.CASE_SET_RCV_SAMPLING_MODE = 18
 		self.CASE_TX_SET_CHARGETIME = 50
 		self.CASE_TX_FIRE = 51
+		self.CASE_TX_SET_FCLOCK_DELAY = 52
 		self.CASE_EXIT_PROGRAM = 100
 		
 		# it is what it says
 		self.ADC_CLK = 50.0
+		
+		self.MAX_RECLEN = 16384
 		
 		# ethernet sockets for transferring data to/from arm
 		# 'sock' is used to send data to arm
 		# 'dsock' receives data from arm
 		self.sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 		self.dsock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+		
+		self.allocated = 0
 		
 		# for allocating storage on arm/setting up enet transfer
 		self.npulses = 1
@@ -329,6 +362,7 @@ class receiver():
 		self.saveData = 0
 		self.is16bit = 1
 		self.clockDiv = 0
+		self.samplingMode = 0
 
 		# variables to control size of plotted data
 		self.ylims = [-200,4300]
@@ -368,28 +402,39 @@ r = receiver()
 r.connectToFpga()
 r.resetToDefaultAdcSettings()
 r.setAutoShutdown(0)
+
+r.toggleAdcChannelPower(0b10011111)
+
 r.setClockDivisor(1)
 
+r.setRecDuration(200.00) # us (max = 327.68)
+
+r.setAdcGain(0)
+r.setPioVarAtten(2)
+
+r.setChargeTime_us(5.0,00,000)
+
+#~ r.setNPulses(1)
+#~ r.setFclkDelay(1) # accepts values 0-5
+#~ r.setRecLen(17000) # npoints (max = 16384)
 #~ r.setAdcLowNoiseMode(0)
-
-#~ r.setRecLen(500) # npoints (max = 32767)
-r.setRecDuration(10.00) # us (max = 1310.68)
-r.setNPulses(1)
-r.setAdcFilterBw(2)
-
-
-r.setAdcGain(5)
-#~ r.setPioVarGain(0)
-
+#~ r.setAdcFilterBw(0)
+#~ r.setAdcInternalAcCoupling(1)
+#~ r.setAdcUnsigned(0)
 #~ r.setRamp()
 
 r.setQueryMode(realTime=0,transferData=1,saveData=0)
 #~ r.plotterSetup(figheight = 15, figwidth = 10, nrows = 4, ncols = 2)
 #~ r.plotterSetup(ylims = [-200,4300], xlims = [-100,2600], figheight = 10, figwidth = 30, nrows = 4, ncols = 2)
-r.setChargeTime(100,100)
-r.fireTx()
-r.queryData()
 
+
+for n in range(0,1):
+	r.fireTx()
+	r.queryData(pltr=0)
+	time.sleep(.15)
+	
+r.fireTx()
+r.queryData(pltr=1)
 #~ r.disconnectFromFpga()
 
 

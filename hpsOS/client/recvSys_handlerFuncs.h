@@ -13,7 +13,20 @@ void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen){
 }
 
 void rcvSetPioVarGain(RCVsys_t *RCV, uint32_t val){
-	DREF32(RCV->pioVarGain) = val & 0xf;//0x03
+	RCV->pioSettings_ref.varGain = val;
+	DREF32(RCV->pioSettings) = RCV->pioSettings_ref.all;//0x03
+    usleep(5);
+}
+
+void rcvSetClkDivisor(RCVsys_t *RCV, uint32_t val){
+	RCV->pioSettings_ref.clkDiv = val;
+	DREF32(RCV->pioSettings) = RCV->pioSettings_ref.all;//0x03
+    usleep(5);
+}
+
+void rcvSetSamplingMode(RCVsys_t *RCV, uint32_t val){
+	RCV->pioSettings_ref.sampling_mode = val;
+	DREF32(RCV->pioSettings) = RCV->pioSettings_ref.all;//0x03
     usleep(5);
 }
 
@@ -194,10 +207,10 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, TXsys_t *TX, FMSG_t *msg
         }
         
         case(CASE_QUERY_DATA):{
-            DREF32(RCV->stateReset)=1;
-            usleep(5);
-            DREF32(RCV->stateReset)=0;
-            usleep(5);
+			//~ DREF32(RCV->stateReset)=1;
+			//~ usleep(5);
+			//~ DREF32(RCV->stateReset)=0;
+			//~ usleep(5);
             break;
         }
         
@@ -306,6 +319,16 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, TXsys_t *TX, FMSG_t *msg
             break;
         }
         
+        case(CASE_SET_CLOCK_DIVISOR):{
+            RCV->setClkDivisor(RCV,msg->u[1]);
+            break;
+        }
+        
+        case(CASE_SET_RCV_SAMPLING_MODE):{
+            RCV->setSamplingMode(RCV,msg->u[1]);
+            break;
+        }
+        
         case(CASE_EXIT_PROGRAM):{
             *runner=0;
             break;
@@ -314,12 +337,23 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, TXsys_t *TX, FMSG_t *msg
         case(CASE_TX_SET_CHARGETIME):{
 			TX->chargeTimes.ch1 = msg->u[1];
 			TX->chargeTimes.ch2 = msg->u[2];
+			TX->chargeTimes.fire_delay = msg->u[3];
 			DREF32(TX->chargeTime_reg) = TX->chargeTimes.chall;
 			break;
 		}
-		
+			
 		case(CASE_TX_FIRE):{
+			DREF32(RCV->stateReset)=1;
+			usleep(5);
+			DREF32(RCV->stateReset)=0;
+            usleep(5);
 			DREF32(TX->controlComms) = 1;
+			break;
+		}
+		
+		case(CASE_TX_SET_FCLOCK_DELAY):{
+			RCV->pioSettings_ref.fclk_delay = msg->u[1];
+			DREF32(RCV->pioSettings) = RCV->pioSettings_ref.all;
 			break;
 		}
 		

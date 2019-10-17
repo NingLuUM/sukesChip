@@ -39,11 +39,11 @@ void adcSetDefaultSettings(ADCvars_t *ADC){
 	// NOT IN MANUAL!!!, NEEDED FOR FINE GAIN CONTROL
 	ADC->tgcreg0x97.INTERP_ENABLE = 1;
 	ADC->issueSerialCommand(ADC,ADC->tgcreg0x97.adccmd);
-    
+	
     // GO TO GENERAL PURPOSE REGISTERS
 	ADC->gpreg0.TGC_REGISTER_WREN = 0;
 	ADC->issueSerialCommand(ADC,ADC->gpreg0.adccmd);
-
+	
     // SET TO DC COUPLING (VARIABE NAME IS MISLEADING/BACKWARDS)
     ADC->gpreg7.INTERNAL_AC_COUPLING = 1;
 	ADC->issueSerialCommand(ADC,ADC->gpreg7.adccmd);
@@ -65,7 +65,7 @@ void adcSetGain(ADCvars_t *ADC, double gainVal){
     coarseGain = (uint32_t )(gainVal);
     fineGain = (uint32_t )((gainVal-floor(gainVal))*8);
 
-	// set TGC_REG_WREN = 1 to access gain controls
+	//~ // set TGC_REG_WREN = 1 to access gain controls
 	if( !(ADC->gpreg0.TGC_REGISTER_WREN) ){
 		ADC->gpreg0.TGC_REGISTER_WREN = 1;
 		ADC->issueSerialCommand(ADC,ADC->gpreg0.adccmd);
@@ -165,6 +165,7 @@ void adcIssueDirectCmd(ADCvars_t *ADC, FMSG_t *msg){
         ADC->issueSerialCommand(ADC,ADC->gpreg0.adccmd);
 
         regaddr = ADC->reg_dict[1][msg->u[2]];
+        printf("regaddr = %u\n",regaddr);
         ADC->reg[regaddr]->cmd = msg->u[3];
         ADC->issueSerialCommand(ADC,ADC->reg[regaddr]->adccmd);
     } else {

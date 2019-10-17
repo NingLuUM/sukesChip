@@ -5,7 +5,8 @@ module Output_Control_Module(
 	input	[7:0]			itxControlComms,
 	
 	input	[8:0]			iChargeTime1,
-	input	[8:0]			iChargeTime2,	
+	input	[8:0]			iChargeTime2,
+	input [13:0]		iFireDelay,
 	
 	input					itxADCTriggerAck,
 	output reg				otxADCTriggerLine,
@@ -19,8 +20,9 @@ reg [1:0] adcTrigFlag;
 reg [1:0] fireFlag1;
 reg [1:0] fireFlag2;
 
-reg [9:0] ctCounter1;
+reg	[9:0] ctCounter1;
 reg	[9:0] ctCounter2;
+reg	[15:0] delay_cntr;
 
 initial
 begin
@@ -28,6 +30,7 @@ begin
 	otxADCTriggerLine = 1'b0;
 	ctCounter1 = 9'b0;
 	ctCounter2 = 9'b0;
+	delay_cntr = 16'b0;
 end
 
 
@@ -48,6 +51,7 @@ begin
 				fireFlag2 <= 2'b00;
 				ctCounter1 <= 9'b000000000;
 				ctCounter2 <= 9'b000000000;
+				delay_cntr <= 16'b0;
 			end
 		
 		CASE_FIRE:
@@ -63,30 +67,51 @@ begin
 					adcTrigFlag[1] <= 1'b1;
 				end
 				
-				if( !fireFlag1 && ( ctCounter1 < iChargeTime1 ) )
+				if(delay_cntr[15:1] >= iFireDelay)
 				begin
-					fireFlag1[0] <= 1'b1;
-					otxTransducerOutput[0] <= 1'b1;
-					ctCounter1 <= ctCounter1 + 1'b1;
+					if( iChargeTime1 )
+					begin
+						if( !fireFlag1 )
+						begin
+							fireFlag1[0] <= 1'b1;
+							otxTransducerOutput[0] <= 1'b1;
+							ctCounter1 <= ctCounter1 + 1'b1;
+						end
+						else if ( ( fireFlag1[0] & !fireFlag1[1] ) && ( ( ctCounter1 >= iChargeTime1 ) || ctCounter1[9] ) )
+						begin
+							fireFlag1[1] <= 1'b1;
+							otxTransducerOutput[0] <= 1'b0;
+							ctCounter1 <= ctCounter1 + 1'b1;
+						end
+						else if ( ctCounter1 < iChargeTime1 )
+						begin
+							ctCounter1 <= ctCounter1 + 1'b1;
+						end
+					end
+					
+					if( iChargeTime2 )
+					begin
+						if( !fireFlag2 )
+						begin
+							fireFlag2[0] <= 1'b1;
+							otxTransducerOutput[1] <= 1'b1;
+							ctCounter2 <= ctCounter2 + 1'b1;
+						end
+						else if ( ( fireFlag2[0] & !fireFlag2[1] ) && ( ( ctCounter2 >= iChargeTime2 ) || ctCounter2[9] ) )
+						begin
+							fireFlag2[1] <= 1'b1;
+							otxTransducerOutput[1] <= 1'b0;
+							ctCounter2 <= ctCounter2 + 1'b1;
+						end
+						else if ( ctCounter2 < iChargeTime2 )
+						begin
+							ctCounter2 <= ctCounter2 + 1'b1;
+						end
+					end
 				end
-				else if ( ( fireFlag1[0] & !fireFlag1[1] ) && ( ( ctCounter1 >= iChargeTime1 ) || ctCounter1[9] ) )
+				else
 				begin
-					fireFlag1[1] <= 1'b1;
-					otxTransducerOutput[0] <= 1'b0;
-					ctCounter1 <= ctCounter1 + 1'b1;
-				end
-				
-				if( !fireFlag2 && ( ctCounter2 < iChargeTime2 ) )
-				begin
-					fireFlag2[0] <= 1'b1;
-					otxTransducerOutput[1] <= 1'b1;
-					ctCounter2 <= ctCounter2 + 1'b1;
-				end
-				else if ( ( fireFlag2[0] & !fireFlag2[1] ) && ( ( ctCounter2 >= iChargeTime2 ) || ctCounter2[9] ) )
-				begin
-					fireFlag2[1] <= 1'b1;
-					otxTransducerOutput[1] <= 1'b0;
-					ctCounter2 <= ctCounter2 + 1'b1;
+					delay_cntr <= delay_cntr + 1'b1;
 				end
 
 			end
@@ -101,6 +126,7 @@ begin
 				fireFlag2 <= 2'b00;
 				ctCounter1 <= 9'b000000000;
 				ctCounter2 <= 9'b000000000;
+				delay_cntr <= 16'b0;
 			end
 	
 	endcase
