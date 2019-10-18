@@ -18,6 +18,7 @@ void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen);
 void rcvSetPioVarGain(RCVsys_t *RCV, uint32_t val);
 void rcvSetClkDivisor(RCVsys_t *RCV, uint32_t val);
 void rcvSetSamplingMode(RCVsys_t *RCV, uint32_t val);
+void rcvSetCompressorMode(RCVsys_t *RCV, uint32_t val);
 void rcvSetLEDs(RCVsys_t *RCV, uint32_t val);
 
 // adc function prototypes
@@ -151,9 +152,9 @@ typedef struct RCVsys_{
             uint32_t varGain : 2;
             uint32_t clkDiv : 4;
             uint32_t fclk_delay : 3;
-            uint32_t sampling_mode : 4;
-           
-            uint32_t blnk : 19;
+            uint32_t sampling_mode : 3;
+			uint32_t compressor_mode : 2;
+            uint32_t blnk : 18;
         };
         uint32_t all;
     } pioSettings_ref;
@@ -169,7 +170,7 @@ typedef struct RCVsys_{
     void (*setLEDs)(RCVsys_t *,uint32_t);
     void (*setClkDivisor)(RCVsys_t *,uint32_t); 
     void (*setSamplingMode)(RCVsys_t *,uint32_t); 
-
+	void (*setCompressorMode)(RCVsys_t *,uint32_t); 
 } RCVsys_t;
 
 

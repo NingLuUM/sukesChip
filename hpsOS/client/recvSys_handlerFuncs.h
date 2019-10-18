@@ -30,6 +30,12 @@ void rcvSetSamplingMode(RCVsys_t *RCV, uint32_t val){
     usleep(5);
 }
 
+void rcvSetCompressorMode(RCVsys_t *RCV, uint32_t val){
+	RCV->pioSettings_ref.compressor_mode = val;
+	DREF32(RCV->pioSettings) = RCV->pioSettings_ref.all;//0x03
+    usleep(5);
+}
+
 void rcvSetLEDs(RCVsys_t *RCV, uint32_t val){
     LED_t led;
     led.vals = ( val & 0x1f );
@@ -326,6 +332,11 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, TXsys_t *TX, FMSG_t *msg
         
         case(CASE_SET_RCV_SAMPLING_MODE):{
             RCV->setSamplingMode(RCV,msg->u[1]);
+            break;
+        }
+        
+        case(CASE_SET_RCV_COMPRESSOR_MODE):{
+            RCV->setCompressorMode(RCV,msg->u[1]);
             break;
         }
         

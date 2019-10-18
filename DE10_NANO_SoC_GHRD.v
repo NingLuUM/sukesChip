@@ -238,7 +238,8 @@ ADC_Control_Module u2(
 	.oRcvInterrupt				(rcv_interrupt),
 	
 	.down_sample_clk_divisor (adc_pio_settings[5:2]),
-	.sampling_mode_opts		(adc_pio_settings[12:9]),
+	.sampling_mode_opts		(adc_pio_settings[11:9]),
+	.compressor_opts			(adc_pio_settings[13:12]),
 	
 	.oBYTEEN				(adc_byteen_bank),
 	.oADCData				(adc_writedata_bank),

@@ -197,10 +197,12 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
     RCV->setPioVarGain = &rcvSetPioVarGain; 
     RCV->setClkDivisor = &rcvSetClkDivisor;
     RCV->setSamplingMode = &rcvSetSamplingMode;
+    RCV->setCompressorMode = &rcvSetCompressorMode;
     RCV->setLEDs = &rcvSetLEDs; 
  
 	RCV->pioSettings_ref.all = 0;
 	RCV->pioSettings_ref.fclk_delay = 1;
+	RCV->pioSettings_ref.sampling_mode = 1;
 	
     DREF32(RCV->pioSettings) = RCV->pioSettings_ref.all;
 	DREF32(RCV->recLen) = 2048;

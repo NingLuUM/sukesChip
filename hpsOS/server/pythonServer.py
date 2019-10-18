@@ -50,9 +50,16 @@ class receiver():
 
 	def setSamplingMode(self,samplingMode):
 		# 0 -> sample every Nth
-		# 1 -> sample on rolling average
+		# 1 -> average of pulses [N:(N+clockDivisor-1)]
 		self.samplingMode = samplingMode
 		msg = struct.pack(self.cmsg,self.CASE_SET_RCV_SAMPLING_MODE, self.samplingMode ,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		
+	def setCompressorMode(self,compressorMode):
+		# 0 -> no compression (16bit)
+		# 1 -> compressed (12bit)
+		self.compressorMode = compressorMode
+		msg = struct.pack(self.cmsg,self.CASE_SET_RCV_COMPRESSOR_MODE, self.compressorMode ,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 
 	def setLeds(self,ledVal):
@@ -137,12 +144,40 @@ class receiver():
 		print len(bb)
 		
 		cmsg5 = '{}{}'.format(8*self.recLen*self.npulses,'H')
-		cc = np.array(struct.unpack(cmsg5,bb)).astype(np.uint16)
 		
-		dd = np.zeros((self.npulses*self.recLen,8))
-		
-		for n in range(0,8):
-			dd[:,n] = cc[n::8]&0xffff
+		if self.compressorMode == 0:
+			cc = np.array(struct.unpack(cmsg5,bb)).astype(np.uint16)
+			dd = np.zeros((self.npulses*self.recLen,8))
+			#~ print dd.shape,cc.shape
+			for n in range(0,8):
+				dd[:,n] = cc[n::8]&0xffff
+		else:
+			cc = np.array(struct.unpack(cmsg5,bb)).astype(np.uint32)
+			dd = np.zeros((self.npulses*self.recLen*5,8)).astype(np.uint16)
+			ch = 0
+			print dd.shape,cc.shape
+			r = 0
+			n=0
+			for n in range(0,len(cc)):
+				if (n%3) == 0:
+					dd[r,0] = 0x0fff & ( ( cc[n] & 0xfff00000 ) >> 20)
+					dd[r,1] = 0x0fff & ( ( cc[n] & 0x000fff00 ) >> 8 )
+					dd[r,2] = 0x0fff & ( (cc[n] & 0x000000ff) << 4 )
+				elif (n%3) == 1:
+					dd[r,2] |= (0x0fff & ( ( cc[n] & 0xf0000000 ) >> 28 ))
+					dd[r,3] = 0x0fff & ( ( cc[n] & 0x0fff0000 ) >> 16 )
+					dd[r,4] = 0x0fff & ( ( cc[n] & 0x0000fff0 ) >> 4 )
+					dd[r,5] = 0x0fff & ( ( cc[n] & 0x0000000f ) << 8 )
+				else:
+					dd[r,5] |= (0x0fff & ( ( cc[n] & 0xff000000) >> 24 ))
+					dd[r,6] = 0x0fff & ( ( cc[n] & 0x00fff000 ) >> 12 )
+					dd[r,7] = 0x0fff & (cc[n] & 0x00000fff)
+					r += 1
+					
+				if r==dd.shape[0]:
+					break
+			print r	
+			
 		
 		if pltr:	
 			self.plotDatas(dd)
@@ -194,7 +229,7 @@ class receiver():
 		if(self.realTime or self.transferData):
 			
 			if(self.is16bit):
-				#~ print 'helper'
+				print 'helper'
 				self.queryDataLocal16(pltr)
 			else:
 				#~ print 'helper'
@@ -334,6 +369,7 @@ class receiver():
 		self.CASE_SET_NPULSES = 16
 		self.CASE_SET_CLOCK_DIVISOR = 17
 		self.CASE_SET_RCV_SAMPLING_MODE = 18
+		self.CASE_SET_RCV_COMPRESSOR_MODE = 19
 		self.CASE_TX_SET_CHARGETIME = 50
 		self.CASE_TX_FIRE = 51
 		self.CASE_TX_SET_FCLOCK_DELAY = 52
@@ -362,7 +398,8 @@ class receiver():
 		self.saveData = 0
 		self.is16bit = 1
 		self.clockDiv = 0
-		self.samplingMode = 0
+		self.samplingMode = 1
+		self.compressorMode = 0
 
 		# variables to control size of plotted data
 		self.ylims = [-200,4300]
@@ -406,13 +443,15 @@ r.setAutoShutdown(0)
 r.toggleAdcChannelPower(0b10011111)
 
 r.setClockDivisor(1)
+r.setSamplingMode(1)
+r.setCompressorMode(1)
 
-r.setRecDuration(200.00) # us (max = 327.68)
+r.setRecDuration(20.00) # us (max = 327.68)
 
 r.setAdcGain(0)
 r.setPioVarAtten(2)
 
-r.setChargeTime_us(5.0,00,000)
+r.setChargeTime_us(0.0,1.0,000)
 
 #~ r.setNPulses(1)
 #~ r.setFclkDelay(1) # accepts values 0-5

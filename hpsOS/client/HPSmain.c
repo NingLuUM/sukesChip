@@ -125,6 +125,7 @@
 #define CASE_SET_NPULSES					( 16 )
 #define CASE_SET_CLOCK_DIVISOR				( 17 )
 #define CASE_SET_RCV_SAMPLING_MODE			( 18 )
+#define CASE_SET_RCV_COMPRESSOR_MODE		( 19 )
 // TODO: move to header containing handler(?) 
 #define CASE_TX_SET_CHARGETIME				( 50 )
 #define	CASE_TX_FIRE						( 51 )
