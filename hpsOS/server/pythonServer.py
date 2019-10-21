@@ -109,7 +109,7 @@ class receiver():
 			for nc in range(0,self.ncols):
 				for nr in range(0,self.nrows):	
 					for npls in range(0,self.npulses):
-						ax[nr,nc].plot(t+npls*t[-1],datas[npls*self.recLen:(npls+1)*self.recLen,n]/clockDiv)
+						ax[nr,nc].plot(t+npls*t[-1],datas[npls*self.recLen:(npls+1)*self.recLen,n]/clockDiv,'-o')
 						pk2pk = (np.max(datas[npls*self.recLen:(npls+1)*self.recLen,n])-np.min(datas[npls*self.recLen:(npls+1)*self.recLen,n]))/clockDiv
 					ax[nr,nc].set_title('{}{}{}{}'.format('Ch[',n,'], pk-pk ',pk2pk))
 					ax[nr,nc].set_ylim((self.ylims[0],self.ylims[1]))
@@ -141,43 +141,48 @@ class receiver():
 			if len(bb)-aa:
 				self.dsock.send(struct.pack('I',len(bb)-aa))
 			aa = len(bb)
-		print len(bb)
+		print 'len(bb):',len(bb)
 		
-		cmsg5 = '{}{}'.format(8*self.recLen*self.npulses,'H')
+		self.cmsg5 = '{}{}'.format(8*self.recLen*self.npulses,'H')
+		self.cmsg6 = '{}{}'.format(4*self.recLen*self.npulses,'I')
 		
 		if self.compressorMode == 0:
-			cc = np.array(struct.unpack(cmsg5,bb)).astype(np.uint16)
+			cc = np.array(struct.unpack(self.cmsg5,bb)).astype(np.uint16)
 			dd = np.zeros((self.npulses*self.recLen,8))
-			#~ print dd.shape,cc.shape
+			print 'dd:',dd.shape,'cc:',cc.shape
 			for n in range(0,8):
 				dd[:,n] = cc[n::8]&0xffff
 		else:
-			cc = np.array(struct.unpack(cmsg5,bb)).astype(np.uint32)
-			dd = np.zeros((self.npulses*self.recLen*5,8)).astype(np.uint16)
+			cc = np.array(struct.unpack(self.cmsg6,bb)).astype(np.uint32)
+			dd = np.zeros((self.npulses*self.recLen*4,8)).astype(np.uint16)
 			ch = 0
-			print dd.shape,cc.shape
+			print 'dd:',dd.shape,'cc:',cc.shape
 			r = 0
 			n=0
-			for n in range(0,len(cc)):
-				if (n%3) == 0:
-					dd[r,0] = 0x0fff & ( ( cc[n] & 0xfff00000 ) >> 20)
-					dd[r,1] = 0x0fff & ( ( cc[n] & 0x000fff00 ) >> 8 )
-					dd[r,2] = 0x0fff & ( (cc[n] & 0x000000ff) << 4 )
+
+			for ccn in cc:
+				if (n%3) == 0:	
+					dd[r,7] = (( ( ccn & 0xfff00000 ) >> 20 ))
+					dd[r,6] = (( ( ccn & 0x000fff00 ) >> 8 ))
+					dd[r,5] = (( ( ccn & 0x000000ff ) << 4 ))
 				elif (n%3) == 1:
-					dd[r,2] |= (0x0fff & ( ( cc[n] & 0xf0000000 ) >> 28 ))
-					dd[r,3] = 0x0fff & ( ( cc[n] & 0x0fff0000 ) >> 16 )
-					dd[r,4] = 0x0fff & ( ( cc[n] & 0x0000fff0 ) >> 4 )
-					dd[r,5] = 0x0fff & ( ( cc[n] & 0x0000000f ) << 8 )
+					dd[r,5] |= (( ( ccn & 0xf0000000 ) >> 28 ) )
+					dd[r,4] = (( ( ccn & 0x0fff0000 ) >> 16 ))
+					dd[r,3] = (( ( ccn & 0x0000fff0 ) >> 4 ))
+					dd[r,2] = (( ( ccn & 0x0000000f ) << 8 ))
 				else:
-					dd[r,5] |= (0x0fff & ( ( cc[n] & 0xff000000) >> 24 ))
-					dd[r,6] = 0x0fff & ( ( cc[n] & 0x00fff000 ) >> 12 )
-					dd[r,7] = 0x0fff & (cc[n] & 0x00000fff)
-					r += 1
+					dd[r,2] |= (( ( ccn & 0xff000000 ) >> 24 ))
+					dd[r,1] = (( ( ccn & 0x00fff000 ) >> 12))
+					dd[r,0] = (0xfff & ccn)
+					r+=1
 					
-				if r==dd.shape[0]:
-					break
-			print r	
-			
+				
+				n+=1	
+				#~ if r==dd.shape[0]:
+					#~ print 'breaker'
+					#~ break
+			print 'cntr:', r	
+		
 		
 		if pltr:	
 			self.plotDatas(dd)
@@ -425,7 +430,8 @@ class receiver():
 		self.cmsg2 = '1I1f8I'
 		self.cmsg3 = '2I1d6I'
 		self.cmsg4 = '2048Q2048I'
-		
+		self.cmsg5 = '{}{}'.format(8*self.recLen*self.npulses,'H')
+		self.cmsg6 = '{}{}'.format(4*self.recLen*self.npulses,'I')
 		''' character meanings in cmsg: 
 		#	(https://docs.python.org/2/library/struct.html)
 		#	'i','I' = signed,unsigned int (4 bytes)
@@ -446,12 +452,13 @@ r.setClockDivisor(1)
 r.setSamplingMode(1)
 r.setCompressorMode(1)
 
-r.setRecDuration(20.00) # us (max = 327.68)
+r.setRecLen(1000)
+#~ r.setRecDuration(20.00) # us (max = 327.68)
 
 r.setAdcGain(0)
-r.setPioVarAtten(2)
+r.setPioVarAtten(0)
 
-r.setChargeTime_us(0.0,1.0,000)
+r.setChargeTime_us(0.10,0.10,000)
 
 #~ r.setNPulses(1)
 #~ r.setFclkDelay(1) # accepts values 0-5
