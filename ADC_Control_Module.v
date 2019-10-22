@@ -63,9 +63,7 @@ reg first_pulse;
 reg first_write;
 reg [3:0] sample_cntr;
 
-
 reg [2:0] fclk_delay_cntr;
-
 
 reg [127:0] data_to_ram;
 reg [127:0] data_out;
@@ -73,8 +71,11 @@ wire [ 7: 0] data_out_h;
 wire [ 7: 0] data_out_l;
 
 reg [1:0] data_compressor_buff_cntr;
-reg [2:0][127:0] data_buffers;
 reg [95:0] data_buffer;
+
+reg [127:0] last_data_out;
+reg [63:0] data_diff_out;
+reg [7:0] bit8_cntr;
 
 initial
 begin
@@ -116,9 +117,10 @@ begin
 	data_to_ram = 128'b0;
 	data_out = 128'b0;
 	data_buffer = 96'b0;
-	data_buffers[0] = 128'b0;
-	data_buffers[1] = 128'b0;
-	data_buffers[2] = 128'b0;
+	
+	last_data_out = 128'b0;
+	data_diff_out = 64'b0;
+	bit8_cntr = 8'b0;
 end
 
 
@@ -145,6 +147,12 @@ begin
 			data_compressor_buff_cntr <= 2'b0;
 			sample_cntr <= 4'b0000;
 			data_to_ram <= 128'b0;
+			data_out = 128'b0;
+			data_buffer = 96'b0;
+			
+			last_data_out = 128'b0;
+			data_diff_out = 64'b0;
+			bit8_cntr = 8'b0;
 			oRcvInterrupt <= 8'b0;
 		end
 	
@@ -153,9 +161,12 @@ begin
 		begin
 			if ( !write_complete_flag )
 			begin
+			
+			
+			
 				if ( !oWREN && !down_sample_clk_divisor ) 
 				begin
-					oWREN <= 1'b1;
+					if( !compressor_opts ) oWREN <= 1'b1;
 					oCLKEN <= 1'b1;
 					oCHIPSEL <= 1'b1;
 					oBYTEEN <= 16'b1111111111111111;
@@ -170,6 +181,9 @@ begin
 					data_to_ram <= 128'b0;
 				end
 				
+				
+				
+				
 				if ( ( waddr_cntr < iRecLength ) && ( !waddr_overrun ) )
 				begin
 					
@@ -182,179 +196,180 @@ begin
 							oADCData <= data_out;
 							waddr_cntr <= waddr_cntr + 1'b1;
 						end
-						else
+						else if( compressor_opts == 2'b01 )
 						begin
+
 							if( data_compressor_buff_cntr == 2'b00 )
 							begin
-								oBYTEEN <= 16'b1111111111110000;
-								oADCData <= { 	data_out[123:112], 
-													data_out[107:96], 
-													data_out[91:80],
-													data_out[75:64],
-													data_out[59:48],
-													data_out[43:32],
-													data_out[27:16],
-													data_out[11:0],
-													32'b0
+								oWREN <= 1'b0;
+								data_buffer <= {
+									data_out[11:0],
+									data_out[27:16],
+									data_out[43:32],
+									data_out[59:48],
+									data_out[75:64],
+									data_out[91:80],
+									data_out[107:96],
+									data_out[123:112]			
 								};
-								data_compressor_buff_cntr <= data_compressor_buff_cntr + 1'b1;
-								
 								
 							end
 							else if( data_compressor_buff_cntr == 2'b01 )
 							begin
-								oBYTEEN <= 16'b0000000000001111;
-								oADCData <= { 	96'b0,
-													data_out[123:112], 
-													data_out[107:96], 
-													data_out[91:84]
-													
+								oWREN <= 1'b1;
+								oADCData <= { 	
+									data_out[87:80],
+									data_out[107:96],
+									data_out[123:112], 
+									data_buffer	
 								};
-								data_buffer[95:92] <= data_out[83:80];
-								data_buffer[91:80] <= data_out[75:64];
-								data_buffer[79:68] <= data_out[59:48];
-								data_buffer[67:56] <= data_out[43:32];
-								data_buffer[55:44] <= data_out[27:16];
-								data_buffer[43:32] <= data_out[11:0];
-								data_compressor_buff_cntr <= data_compressor_buff_cntr + 1'b1;
-								waddr_cntr <= waddr_cntr + 1'b1;
+								data_buffer[95:84] <= data_out[11:0];
+								data_buffer[83:72] <= data_out[27:16];
+								data_buffer[71:60] <= data_out[43:32];
+								data_buffer[59:48] <= data_out[59:48];
+								data_buffer[47:36] <= data_out[75:64];
+								data_buffer[35:32] <= data_out[91:88];
 								
 							end
 							else if( data_compressor_buff_cntr == 2'b10 )
 							begin
-								oBYTEEN <= 16'b1111111111111111;
-								oADCData <= { 	data_buffer[95:32],
-													data_out[123:112],
-													data_out[107:96],
-													data_out[91:80],
-													data_out[79:64],
-													data_out[59:48],
-													data_out[43:40]			
+								oADCData <= { 	
+									data_out[35:32],
+									data_out[59:48],
+									data_out[79:64],
+									data_out[91:80],
+									data_out[107:96],
+									data_out[123:112],
+									data_buffer[95:32]							
 								};
-								data_buffer[31:24] <= data_out[39:32];
-								data_buffer[23:12] <= data_out[27:16];
-								data_buffer[11:0] <= data_out[11:0];
-								data_compressor_buff_cntr <= data_compressor_buff_cntr + 1'b1;
-								waddr_cntr <= waddr_cntr + 1'b1;
-								
+								data_buffer[31:20]<=data_out[11:0];
+								data_buffer[19:8] <= data_out[27:16];
+								data_buffer[7:0] <= data_out[43:36];
 							end 
 							else 
 							begin
-								oBYTEEN <= 16'b1111111111111111;
-								oADCData <= { 	data_buffer[31:0],
-													data_out[123:112], 
-													data_out[107:96], 
-													data_out[91:80],
-													data_out[75:64],
-													data_out[59:48],
-													data_out[43:32],
-													data_out[27:16],
-													data_out[11:0]
+								oADCData <= { 	
+									data_out[11:0],
+									data_out[27:16],
+									data_out[43:32],
+									data_out[59:48],
+									data_out[75:64],
+									data_out[91:80],
+									data_out[107:96],
+									data_out[123:112],
+									data_buffer[31:0]				
 								};
-								data_compressor_buff_cntr <= data_compressor_buff_cntr + 1'b1;
-								waddr_cntr <= waddr_cntr + 1'b1;
-
-							end							
+							end
+							data_compressor_buff_cntr <= data_compressor_buff_cntr + 1'b1;
+							if ( data_compressor_buff_cntr ) waddr_cntr <= waddr_cntr + 1'b1;
+							
 						end
+						/*
+						else if( compressor_opts == 2'b10 )
+						begin
+							if( !bit8_cntr )
+							begin
+								oADCData <= data_out;
+								last_data_out <= data_out;
+								waddr_cntr <= waddr_cntr + 1'b1;
+								bit8_cntr <= 8'b00000010;
+							end
+							else
+							begin
+								data_diff_out[63:56] <= ( data_out[127:112] > last_data_out[127:112] )
+							
+							end
+						
+						end
+						*/
 					end
 					else
 					begin
 						if( ( sample_cntr == 4'b0 ) && ( first_pulse == 1'b0 ) )
 						begin
-							oWREN <= 1'b1;
 							oWAddr <= waddr_cntr;
-							//oADCData <= data_to_ram;
-							//data_to_ram <= data_out;
-							//waddr_cntr <= waddr_cntr + 1'b1;
+							data_to_ram <= data_out;
 							sample_cntr <=4'b0001;
-							
 							if( !compressor_opts )
 							begin
-								//oWREN <= 1'b1;
+								oWREN <= 1'b1;
+								oWAddr <= waddr_cntr;
 								oADCData <= data_to_ram;
-								data_to_ram <= data_out;
 								waddr_cntr <= waddr_cntr + 1'b1;
 							end
-							else
+							else if( compressor_opts == 2'b01 )
 							begin
 								if( data_compressor_buff_cntr == 2'b00 )
 								begin
-									data_buffers[0][127:116] <= data_to_ram[123:112];
-									data_buffers[0][115:104] <= data_to_ram[107:96];
-									data_buffers[0][103:92] <= data_to_ram[91:80];
-									data_buffers[0][91:80] <= data_to_ram[75:64];
-									data_buffers[0][79:68] <= data_to_ram[59:48];
-									data_buffers[0][67:56] <= data_to_ram[43:32];
-									data_buffers[0][55:44] <= data_to_ram[27:16];
-									data_buffers[0][43:32] <= data_to_ram[11:0];
-									data_compressor_buff_cntr <= data_compressor_buff_cntr + 1'b1;
+									oWREN <= 1'b0;
+									data_buffer <= {
+										data_to_ram[11:0],
+										data_to_ram[27:16],
+										data_to_ram[43:32],
+										data_to_ram[59:48],
+										data_to_ram[75:64],
+										data_to_ram[91:80],
+										data_to_ram[107:96],
+										data_to_ram[123:112]			
+									};
+									
 								end
 								else if( data_compressor_buff_cntr == 2'b01 )
 								begin
-									data_buffers[0][31:20] <= data_to_ram[123:112];
-									data_buffers[0][19:8] <= data_to_ram[107:96];
-									data_buffers[0][7:0] <= data_to_ram[91:84];
-									data_buffers[1][127:124] <= data_to_ram[83:80];
-									data_buffers[1][123:112] <= data_to_ram[75:64];
-									data_buffers[1][111:100] <= data_to_ram[59:48];
-									data_buffers[1][99:88] <= data_to_ram[43:32];
-									data_buffers[1][87:76] <= data_to_ram[27:16];
-									data_buffers[1][75:64] <= data_to_ram[11:0];
-									data_compressor_buff_cntr <= data_compressor_buff_cntr + 1'b1;
+									oWREN <= 1'b1;
+									oADCData <= { 	
+										data_to_ram[87:80],
+										data_to_ram[107:96],
+										data_to_ram[123:112], 
+										data_buffer	
+									};
+									data_buffer[95:84] <= data_to_ram[11:0];
+									data_buffer[83:72] <= data_to_ram[27:16];
+									data_buffer[71:60] <= data_to_ram[43:32];
+									data_buffer[59:48] <= data_to_ram[59:48];
+									data_buffer[47:36] <= data_to_ram[75:64];
+									data_buffer[35:32] <= data_to_ram[91:88];
+									
 								end
 								else if( data_compressor_buff_cntr == 2'b10 )
 								begin
-									data_buffers[1][63:52] <= data_to_ram[123:112];
-									data_buffers[1][51:40] <= data_to_ram[107:96];
-									data_buffers[1][39:28] <= data_to_ram[91:80];
-									data_buffers[1][27:16] <= data_to_ram[79:64];
-									data_buffers[1][15:4] <= data_to_ram[59:48];
-									data_buffers[1][3:0] <= data_to_ram[43:40];
-									data_buffers[2][127:120] <= data_to_ram[39:32];
-									data_buffers[2][119:108] <= data_to_ram[27:16];
-									data_buffers[2][107:96] <= data_to_ram[11:0];								
-									data_compressor_buff_cntr <= data_compressor_buff_cntr + 1'b1;
+									oWREN <= 1'b1;
+									oADCData <= { 	
+										data_to_ram[35:32],
+										data_to_ram[59:48],
+										data_to_ram[79:64],
+										data_to_ram[91:80],
+										data_to_ram[107:96],
+										data_to_ram[123:112],
+										data_buffer[95:32]							
+									};
+									data_buffer[31:20] <= data_to_ram[11:0];
+									data_buffer[19:8] <= data_to_ram[27:16];
+									data_buffer[7:0] <= data_to_ram[43:36];
 								end 
 								else 
 								begin
-									data_buffers[2][95:84] <= data_to_ram[123:112];
-									data_buffers[2][83:72] <= data_to_ram[107:96];
-									data_buffers[2][71:60] <= data_to_ram[91:80];
-									data_buffers[2][59:48] <= data_to_ram[79:64];
-									data_buffers[2][47:36] <= data_to_ram[59:48];
-									data_buffers[2][35:24] <= data_to_ram[39:32];
-									data_buffers[2][23:12] <= data_to_ram[27:16];
-									data_buffers[2][11:0] <= data_to_ram[11:0];								
-									data_compressor_buff_cntr <= 2'b0;
-								end 
-								
-								if( data_compressor_buff_cntr == 2'b00 )
-								begin
-									if(!first_write)
-									begin
-										oADCData <= data_buffers[2];
-										waddr_cntr <= waddr_cntr + 1'b1;
-									end
-									else
-									begin
-										//oWREN <= 1'b1;
-										first_write <= 1'b0;
-									end
+									oWREN <= 1'b1;
+									oADCData <= { 	
+										data_to_ram[11:0],
+										data_to_ram[27:16],
+										data_to_ram[43:32],
+										data_to_ram[59:48],
+										data_to_ram[75:64],
+										data_to_ram[91:80],
+										data_to_ram[107:96],
+										data_to_ram[123:112],
+										data_buffer[31:0]				
+									};
 								end
-								else if( data_compressor_buff_cntr == 2'b10 )
-								begin
-									
-									oADCData <= data_buffers[0];
-									waddr_cntr <= waddr_cntr + 1'b1;
-									
-								end
-								else if(data_compressor_buff_cntr == 2'b11 )
-								begin
-									oADCData <= data_buffers[1];
-									waddr_cntr <= waddr_cntr + 1'b1;
-								end
-								
+								data_compressor_buff_cntr <= data_compressor_buff_cntr + 1'b1;
+								if ( data_compressor_buff_cntr ) waddr_cntr <= waddr_cntr + 1'b1;
 							end
+							/*else if( compressor_opts == 2'b10 )
+							begin
+							
+							end
+							*/
 						end
 						else 
 						begin
@@ -362,14 +377,7 @@ begin
 							
 							if( !sampling_mode_opts ) // capture every Nth timepoint
 							begin
-								data_to_ram[15:0] <= data_out[15:0];
-								data_to_ram[31:16] <= data_out[31:16];
-								data_to_ram[47:32] <= data_out[47:32];
-								data_to_ram[63:48] <= data_out[63:48];
-								data_to_ram[79:64] <= data_out[79:64];
-								data_to_ram[95:80] <= data_out[95:80];
-								data_to_ram[111:96] <= data_out[111:96];
-								data_to_ram[127:112] <= data_out[127:112];
+								data_to_ram <= data_out;
 							end
 							else if( sampling_mode_opts == 3'b001 ) // temporal mean
 							begin
@@ -384,6 +392,7 @@ begin
 								data_to_ram[127:112] <= data_to_ram[127:112] + data_out[127:112];
 								
 							end
+							
 							
 							oWREN <= 1'b0;
 							if( sample_cntr == down_sample_clk_divisor )

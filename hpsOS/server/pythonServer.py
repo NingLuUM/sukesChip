@@ -146,43 +146,12 @@ class receiver():
 		self.cmsg5 = '{}{}'.format(8*self.recLen*self.npulses,'H')
 		self.cmsg6 = '{}{}'.format(4*self.recLen*self.npulses,'I')
 		
-		if self.compressorMode == 0:
-			cc = np.array(struct.unpack(self.cmsg5,bb)).astype(np.uint16)
-			dd = np.zeros((self.npulses*self.recLen,8))
-			print 'dd:',dd.shape,'cc:',cc.shape
-			for n in range(0,8):
-				dd[:,n] = cc[n::8]&0xffff
-		else:
-			cc = np.array(struct.unpack(self.cmsg6,bb)).astype(np.uint32)
-			dd = np.zeros((self.npulses*self.recLen*4,8)).astype(np.uint16)
-			ch = 0
-			print 'dd:',dd.shape,'cc:',cc.shape
-			r = 0
-			n=0
-
-			for ccn in cc:
-				if (n%3) == 0:	
-					dd[r,7] = (( ( ccn & 0xfff00000 ) >> 20 ))
-					dd[r,6] = (( ( ccn & 0x000fff00 ) >> 8 ))
-					dd[r,5] = (( ( ccn & 0x000000ff ) << 4 ))
-				elif (n%3) == 1:
-					dd[r,5] |= (( ( ccn & 0xf0000000 ) >> 28 ) )
-					dd[r,4] = (( ( ccn & 0x0fff0000 ) >> 16 ))
-					dd[r,3] = (( ( ccn & 0x0000fff0 ) >> 4 ))
-					dd[r,2] = (( ( ccn & 0x0000000f ) << 8 ))
-				else:
-					dd[r,2] |= (( ( ccn & 0xff000000 ) >> 24 ))
-					dd[r,1] = (( ( ccn & 0x00fff000 ) >> 12))
-					dd[r,0] = (0xfff & ccn)
-					r+=1
-					
-				
-				n+=1	
-				#~ if r==dd.shape[0]:
-					#~ print 'breaker'
-					#~ break
-			print 'cntr:', r	
 		
+		cc = np.array(struct.unpack(self.cmsg5,bb)).astype(np.uint16)
+		dd = np.zeros((self.npulses*self.recLen,8))
+		print 'dd:',dd.shape,'cc:',cc.shape
+		for n in range(0,8):
+			dd[:,n] = cc[n::8]&0xffff
 		
 		if pltr:	
 			self.plotDatas(dd)
@@ -448,8 +417,9 @@ r.setAutoShutdown(0)
 
 r.toggleAdcChannelPower(0b10011111)
 
-r.setClockDivisor(1)
-r.setSamplingMode(1)
+# can't do 'moving average' with compression. no FPGA-based division
+r.setClockDivisor(10)
+r.setSamplingMode(0)
 r.setCompressorMode(1)
 
 r.setRecLen(1000)
@@ -458,7 +428,7 @@ r.setRecLen(1000)
 r.setAdcGain(0)
 r.setPioVarAtten(0)
 
-r.setChargeTime_us(0.10,0.10,000)
+r.setChargeTime_us(0.00,5.00,000)
 
 #~ r.setNPulses(1)
 #~ r.setFclkDelay(1) # accepts values 0-5

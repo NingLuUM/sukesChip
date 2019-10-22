@@ -229,6 +229,21 @@ typedef union RAMBANK16_{
 } RAMBANK16_t;
 
 
+typedef struct RAMBANK12_{
+	
+	uint32_t c7 : 12;
+	uint32_t c6 : 12;
+	uint32_t c5l : 8;
+	uint32_t c5u : 4;
+	uint32_t c4 : 12;
+	uint32_t c3 : 12;
+	uint32_t c2l : 4;
+	uint32_t c2u : 8; 
+	uint32_t c1 : 12;
+	uint32_t c0 : 12;
+	
+} RAMBANK12_t;
+
 typedef union FMSG_{
     uint32_t u[10];
     float f[10];

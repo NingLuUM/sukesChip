@@ -10,6 +10,10 @@ void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen){
 		RCV->recLen_ref = 1;
 	}
 	usleep(5);
+	if(RCV->pioSettings_ref.compressor_mode && (RCV->recLen_ref>1) ){
+		DREF32(RCV->recLen)= (RCV->recLen_ref*3)/4;
+	} 
+	usleep(5);
 }
 
 void rcvSetPioVarGain(RCVsys_t *RCV, uint32_t val){
@@ -33,6 +37,12 @@ void rcvSetSamplingMode(RCVsys_t *RCV, uint32_t val){
 void rcvSetCompressorMode(RCVsys_t *RCV, uint32_t val){
 	RCV->pioSettings_ref.compressor_mode = val;
 	DREF32(RCV->pioSettings) = RCV->pioSettings_ref.all;//0x03
+	
+	if( RCV->pioSettings_ref.compressor_mode && (DREF32(RCV->recLen) == RCV->recLen_ref ) && ( RCV->recLen_ref>1 ) ){
+		DREF32(RCV->recLen)= (RCV->recLen_ref*3)/4;
+	} else if ( (RCV->pioSettings_ref.compressor_mode==0) && (DREF32(RCV->recLen) != RCV->recLen_ref ) ){
+		DREF32(RCV->recLen)= RCV->recLen_ref;
+	}
     usleep(5);
 }
 
@@ -141,6 +151,7 @@ int saveData(SOCK_t *enet, char *data, size_t dsize){
 }
 
 
+
 void queryData(RCVsys_t *RCV, TXsys_t*TX, SOCK_t *enet){
 	
     static int pulse_counter = 0;
@@ -166,7 +177,26 @@ void queryData(RCVsys_t *RCV, TXsys_t*TX, SOCK_t *enet){
             
 
 			if ( RCV->queryMode.transferData ){
-				dataStatus = sendData(enet,RCV->data[1],npulses*recLen*8*sizeof(uint16_t));
+				if( !RCV->pioSettings_ref.compressor_mode ){
+					dataStatus = sendData(enet,RCV->data[1],npulses*recLen*8*sizeof(uint16_t));
+				} else {
+					uint16_t *d16 = calloc(npulses*recLen*8,sizeof(uint16_t));
+					
+					RAMBANK12_t *d96;
+					d96 = (RAMBANK12_t *) RCV->ramBank;
+					for(int rl=0;rl<recLen;rl++){
+						d16[rl*8+0] = d96[rl].c0;
+						d16[rl*8+1] = d96[rl].c1;
+						d16[rl*8+2] = d96[rl].c2l | ( d96[rl].c2u << 4 );
+						d16[rl*8+3] = d96[rl].c3;
+						d16[rl*8+4] = d96[rl].c4;
+						d16[rl*8+5] = d96[rl].c5l | ( d96[rl].c5u << 8);
+						d16[rl*8+6] = d96[rl].c6;
+						d16[rl*8+7] = d96[rl].c7;
+					}
+					
+					dataStatus = sendData(enet,(char *)d16,npulses*recLen*8*sizeof(uint16_t));
+				}
 			}
 			
 			if ( RCV->queryMode.saveDataFile ){
