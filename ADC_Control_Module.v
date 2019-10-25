@@ -102,14 +102,14 @@ begin
 	
 	trig_received_flag = 2'b0;
 	write_complete_flag = 1'b0;
-	waddr_cntr = 16'b0;
+	waddr_cntr = 15'b0;
 	senCnt = 5'b0;
 	cmd_buff = 24'b0;
 	
 	adc_state = 8'b0;
 	last_adc_control_comm = 8'b0;
 	
-	oRcvInterrupt <= 8'b0;
+	oRcvInterrupt = 8'b0;
 	
 	data_sr[0] = 12'b0; data_sr[1] = 12'b0; data_sr[2] = 12'b0; data_sr[3] = 12'b0;
 	data_sr[4] = 12'b0; data_sr[5] = 12'b0; data_sr[6] = 12'b0; data_sr[7] = 12'b0;
@@ -147,12 +147,11 @@ begin
 			data_compressor_buff_cntr <= 2'b0;
 			sample_cntr <= 4'b0000;
 			data_to_ram <= 128'b0;
-			data_out = 128'b0;
-			data_buffer = 96'b0;
+			data_buffer <= 96'b0;
 			
-			last_data_out = 128'b0;
-			data_diff_out = 64'b0;
-			bit8_cntr = 8'b0;
+			last_data_out <= 128'b0;
+			data_diff_out <= 64'b0;
+			bit8_cntr <= 8'b0;
 			oRcvInterrupt <= 8'b0;
 		end
 	
@@ -162,27 +161,22 @@ begin
 			if ( !write_complete_flag )
 			begin
 			
-			
-			
 				if ( !oWREN && !down_sample_clk_divisor ) 
 				begin
 					if( !compressor_opts ) oWREN <= 1'b1;
 					oCLKEN <= 1'b1;
 					oCHIPSEL <= 1'b1;
-					oBYTEEN <= 16'b1111111111111111;
+					if( !compressor_opts[1] ) oBYTEEN <= 16'b1111111111111111;
 					otxTrigAck <= 1'b1;
 				end
 				else if ( down_sample_clk_divisor && first_pulse )
 				begin
 					oCLKEN <= 1'b1;
 					oCHIPSEL <= 1'b1;
-					oBYTEEN <= 16'b1111111111111111;
+					if( !compressor_opts[1] ) oBYTEEN <= 16'b1111111111111111;
 					sample_cntr <= 4'b0;
 					data_to_ram <= 128'b0;
 				end
-				
-				
-				
 				
 				if ( ( waddr_cntr < iRecLength ) && ( !waddr_overrun ) )
 				begin
@@ -196,7 +190,7 @@ begin
 							oADCData <= data_out;
 							waddr_cntr <= waddr_cntr + 1'b1;
 						end
-						else if( compressor_opts == 2'b01 )
+						else
 						begin
 
 							if( data_compressor_buff_cntr == 2'b00 )
@@ -264,24 +258,51 @@ begin
 							if ( data_compressor_buff_cntr ) waddr_cntr <= waddr_cntr + 1'b1;
 							
 						end
-						/*
-						else if( compressor_opts == 2'b10 )
+						
+						/*else if( compressor_opts == 2'b10 )
 						begin
+							last_data_out <= data_out;
+							data_diff_out[63:56] = (data_out[127:112] - last_data_out[127:112]);
+							data_diff_out[55:48] = (data_out[111:96] - last_data_out[111:96]);
+							data_diff_out[47:40] = (data_out[95:80] - last_data_out[95:80]);
+							data_diff_out[39:32] = (data_out[79:64] - last_data_out[79:64]);
+							data_diff_out[31:24] = (data_out[63:48] - last_data_out[64:48]);
+							data_diff_out[23:16] = (data_out[47:32] - last_data_out[47:32]);
+							data_diff_out[15:8] = (data_out[31:16] - last_data_out[31:16]);
+							data_diff_out[7:0] = (data_out[15:0] - last_data_out[15:0]);
+							
 							if( !bit8_cntr )
 							begin
+								oBYTEEN <= 16'b1111111111111111;
 								oADCData <= data_out;
-								last_data_out <= data_out;
 								waddr_cntr <= waddr_cntr + 1'b1;
-								bit8_cntr <= 8'b00000010;
+								bit8_cntr <= 8'b00000001;
 							end
 							else
 							begin
-								data_diff_out[63:56] <= ( data_out[127:112] > last_data_out[127:112] )
-							
+								if( ( bit8_cntr == 8'b00000001 ) && ( waddr_cntr == 15'b000000000000001 ) )
+								begin
+									oBYTEEN <= 16'b0;
+								end
+								else
+								begin
+									if( bit8_cntr[0] )
+									begin
+										oBYTEEN <= 16'b0000000011111111;
+										oADCData <= { 64'b0, data_diff_out };
+										waddr_cntr <= waddr_cntr + 1'b1;
+									end
+									else
+									begin
+										oBYTEEN <= 16'b1111111100000000;
+										oADCData <= { data_diff_out, 64'b0 };
+									end
+								end
+								bit8_cntr <= bit8_cntr + 1'b1;
+								
 							end
+						end*/
 						
-						end
-						*/
 					end
 					else
 					begin
@@ -297,7 +318,7 @@ begin
 								oADCData <= data_to_ram;
 								waddr_cntr <= waddr_cntr + 1'b1;
 							end
-							else if( compressor_opts == 2'b01 )
+							else
 							begin
 								if( data_compressor_buff_cntr == 2'b00 )
 								begin
@@ -365,11 +386,49 @@ begin
 								data_compressor_buff_cntr <= data_compressor_buff_cntr + 1'b1;
 								if ( data_compressor_buff_cntr ) waddr_cntr <= waddr_cntr + 1'b1;
 							end
+							
 							/*else if( compressor_opts == 2'b10 )
 							begin
-							
-							end
-							*/
+								last_data_out <= data_to_ram;
+								data_diff_out[63:56] = (data_to_ram[127:112] - last_data_out[127:112]);
+								data_diff_out[55:48] = (data_to_ram[111:96] - last_data_out[111:96]);
+								data_diff_out[47:40] = (data_to_ram[95:80] - last_data_out[95:80]);
+								data_diff_out[39:32] = (data_to_ram[79:64] - last_data_out[79:64]);
+								data_diff_out[31:24] = (data_to_ram[63:48] - last_data_out[64:48]);
+								data_diff_out[23:16] = (data_to_ram[47:32] - last_data_out[47:32]);
+								data_diff_out[15:8] = (data_to_ram[31:16] - last_data_out[31:16]);
+								data_diff_out[7:0] = (data_to_ram[15:0] - last_data_out[15:0]);
+								
+								if( !bit8_cntr )
+								begin
+									oBYTEEN <= 16'b1111111111111111;
+									oADCData <= data_to_ram;
+									waddr_cntr <= waddr_cntr + 1'b1;
+									bit8_cntr <= 8'b00000001;
+								end
+								else
+								begin
+									if( ( bit8_cntr == 8'b00000001 ) && ( waddr_cntr == 15'b000000000000001 ) )
+									begin
+										oBYTEEN <= 16'b0;
+									end
+									else
+									begin
+										if(bit8_cntr[0])
+										begin
+											oBYTEEN <= 16'b0000000011111111;
+											oADCData <= { 64'b0, data_diff_out };
+											waddr_cntr <= waddr_cntr + 1'b1;
+										end
+										else
+										begin
+											oBYTEEN <= 16'b1111111100000000;
+											oADCData <= { data_diff_out, 64'b0 };
+										end
+										bit8_cntr <= bit8_cntr + 1'b1;
+									end
+								end
+							end*/
 						end
 						else 
 						begin
@@ -418,6 +477,14 @@ begin
 					first_write <= 1'b1;
 					data_compressor_buff_cntr <= 2'b0;
 					sample_cntr <= 4'b0000;
+					
+					data_to_ram <= 128'b0;
+					data_buffer <= 96'b0;
+					
+					last_data_out <= 128'b0;
+					data_diff_out <= 64'b0;
+					bit8_cntr <= 8'b0;
+			
 					write_complete_flag <= 1'b1;
 					trig_received_flag[0] <= 1'b0;
 					oRcvInterrupt <= 8'b11111111;
@@ -436,6 +503,14 @@ begin
 		first_write <= 1'b1;
 		data_compressor_buff_cntr <= 2'b0;
 		sample_cntr <= 4'b0000;
+		
+		data_to_ram <= 128'b0;
+		data_buffer <= 96'b0;
+		
+		last_data_out <= 128'b0;
+		data_diff_out <= 64'b0;
+		bit8_cntr <= 8'b0;
+			
 		trig_received_flag <= 2'b00;
 		write_complete_flag <= 1'b0;
 		waddr_cntr <= 15'b0;
@@ -570,54 +645,6 @@ begin
 	end
 
 end
-
-
-// Shift register
-// Serializes the double data outputs
-/*
-always @ (posedge bit_clk)
-begin
-	if( frame_clk & !fclk_flag )
-	begin
-		fclk_flag <= 1'b1;
-		data_sr[0][11:10] <= {data_out_h[0], data_out_l[0]};
-		data_sr[1][11:10] <= {data_out_h[1], data_out_l[1]};
-		data_sr[2][11:10] <= {data_out_h[2], data_out_l[2]};
-		data_sr[3][11:10] <= {data_out_h[3], data_out_l[3]};
-		data_sr[4][11:10] <= {data_out_h[4], data_out_l[4]};
-		data_sr[5][11:10] <= {data_out_h[5], data_out_l[5]};
-		data_sr[6][11:10] <= {data_out_h[6], data_out_l[6]};
-		data_sr[7][11:10] <= {data_out_h[7], data_out_l[7]};
-	
-	end
-	else 
-	begin
-		if ( !frame_clk ) fclk_flag <= 1'b0;
-		
-		data_sr[0] <= {data_out_h[0], data_out_l[0], data_sr[0][11:2]};
-		data_sr[1] <= {data_out_h[1], data_out_l[1], data_sr[1][11:2]};
-		data_sr[2] <= {data_out_h[2], data_out_l[2], data_sr[2][11:2]};
-		data_sr[3] <= {data_out_h[3], data_out_l[3], data_sr[3][11:2]};
-		data_sr[4] <= {data_out_h[4], data_out_l[4], data_sr[4][11:2]};
-		data_sr[5] <= {data_out_h[5], data_out_l[5], data_sr[5][11:2]};
-		data_sr[6] <= {data_out_h[6], data_out_l[6], data_sr[6][11:2]};
-		data_sr[7] <= {data_out_h[7], data_out_l[7], data_sr[7][11:2]};
-	end
-	
-end
-
-always @ (posedge frame_clk)
-begin
-	data_out[127:112] <= {4'b0000,data_sr[7]};
-	data_out[111:96] <= {4'b0000,~data_sr[6]}; // wired backwards, bits need flipping
-	data_out[95:80] <= {4'b0000,data_sr[5]};
-	data_out[79:64] <= {4'b0000,data_sr[4]};
-	data_out[63:48] <= {4'b0000,data_sr[3]};
-	data_out[47:32] <= {4'b0000,data_sr[2]};
-	data_out[31:16] <= {4'b0000,data_sr[1]}; 
-	data_out[15:0] <= {4'b0000,data_sr[0]};
-end
-*/
 
 
 endmodule

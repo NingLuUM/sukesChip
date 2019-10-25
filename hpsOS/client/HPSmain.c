@@ -149,6 +149,18 @@ struct timespec gstart, gend, gdifftime;
 #include "subsys_setup_funcs.h"
 #include "recvSys_handlerFuncs.h"
 
+
+#define BYTE_TO_BINARY_PATTERN "%s%s%s%s%s%s%s%s"
+#define BYTE_TO_BINARY(byte)  \
+  (byte & 0x80 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x40 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x20 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x10 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x08 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x04 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x02 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x01 ? "\x1B[42;30m1\x1B[0;0m" : "\x1B[44;24m0\x1B[0;0m") 
+
 int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
 	
     POLLserver_t PS;
@@ -185,7 +197,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     int nrecv;
     int tmp = 0;
     int runner = 1;
-
+   
     while(runner==1){
         
         nfds = epoll_wait(PS.epfd,PS.events,MAX_POLL_EVENTS,timeout_ms);
@@ -201,6 +213,8 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                     acceptEnetClientSock(sock);
                 
                 } else if ( sock->is.rcv_interrupt ) {
+					printf("rcv interrupt flag: %u (%d)\n",*(uint8_t *)RCV.dataReadyFlag,*(int8_t *)RCV.dataReadyFlag);
+					
                     queryData(&RCV,&TX,&ENETclient[1]); 
                 
                 } else if ( PS.events[n].events & EPOLLIN ){

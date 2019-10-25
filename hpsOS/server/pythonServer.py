@@ -374,6 +374,15 @@ class receiver():
 		self.clockDiv = 0
 		self.samplingMode = 1
 		self.compressorMode = 0
+		
+		# sampling mode names
+		self.EVERY_NTH = 0
+		self.MOVING_SUM = 1
+		
+		# compressor mode names
+		self.RAW16 = 0
+		self.RAW12 = 1
+		self.DIFF_8BIT = 2
 
 		# variables to control size of plotted data
 		self.ylims = [-200,4300]
@@ -417,10 +426,10 @@ r.setAutoShutdown(0)
 
 r.toggleAdcChannelPower(0b10011111)
 
-# can't do 'moving average' with compression. no FPGA-based division
-r.setClockDivisor(10)
-r.setSamplingMode(0)
-r.setCompressorMode(1)
+# can't do 'moving sum' with compression. will corrupt data
+r.setClockDivisor(1)
+r.setSamplingMode(r.EVERY_NTH)
+r.setCompressorMode(r.RAW12)
 
 r.setRecLen(1000)
 #~ r.setRecDuration(20.00) # us (max = 327.68)
