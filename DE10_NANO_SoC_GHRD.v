@@ -165,14 +165,13 @@ wire	[7:0]			adc_control_comms;
 wire	[14:0]			adc_write_addr;
 wire					adc_state_reset;
 
-wire	[1:0]			adc_state;
 wire	[15:0]			adc_record_length;
 
 
-wire  	       	adc_wren_bank;
-wire  	       	adc_chipsel_bank;
-wire  	       	adc_clken_bank;
-wire		[15:0]		adc_byteen_bank;
+wire  	       		adc_wren_bank;
+wire  	       		adc_chipsel_bank;
+wire  	       		adc_clken_bank;
+wire	[15:0]		adc_byteen_bank;
 wire  	[127:0] 	adc_writedata_bank;
 
 wire [7:0]			rcv_interrupt;
@@ -210,7 +209,7 @@ ADCclock u4 (
 		
 ADC_Control_Module u2(
 
-	.adc_clkinp			(CLK50),
+	.adc_clkinp				(CLK50),
 	.frame_clk				(FRAME_CLK_SHIFT),
 	.bit_clk				(BIT_CLK_SHIFT),
 	
@@ -226,20 +225,20 @@ ADC_Control_Module u2(
 	.ADC_SCLK				(ADC_SCLK),
 	.ADC_INPUT_DATA_LINES	(ADC_DATA_LINES),
 	
-	.itxTrig			(trigLines_txAdc[0]),
-	.otxTrigAck		(trigLines_txAdc[1]),
+	.itxTrig				(trigLines_txAdc[0]),
+	.otxTrigAck				(trigLines_txAdc[1]),
 	
-	.fclk_delay		(adc_pio_settings[8:6]),
+	.fclk_delay				(adc_pio_settings[8:6]),
 	
 	
 	.iRecLength				(adc_record_length),
 	.iStateReset			(adc_state_reset),
 	
-	.oRcvInterrupt				(rcv_interrupt),
+	.oRcvInterrupt			(rcv_interrupt),
 	
 	.down_sample_clk_divisor (adc_pio_settings[5:2]),
 	.sampling_mode_opts		(adc_pio_settings[11:9]),
-	.compressor_opts			(adc_pio_settings[13:12]),
+	.compressor_opts		(adc_pio_settings[13:12]),
 	
 	.oBYTEEN				(adc_byteen_bank),
 	.oADCData				(adc_writedata_bank),
