@@ -175,18 +175,105 @@ typedef struct RCVsys_{
 
 
 typedef struct TXsys_{
-	uint32_t volatile *controlComms;
-	uint32_t volatile *chargeTime_reg;
+	uint32_t volatile *controlCommsReg;
+	uint32_t volatile *pioControlSettingsReg;
 	
-	union{
+	uint32_t volatile *phaseDelayReg_ch01;
+	uint32_t volatile *phaseDelayReg_ch23;
+	uint32_t volatile *phaseDelayReg_ch45;
+	uint32_t volatile *phaseDelayReg_ch67;
+	uint32_t volatile *chargeTimeReg;
+	
+	uint32_t volatile *restLevelAndMaskReg;
+	
+	union{ // controlComms
 		struct{
-			uint32_t ch1 : 9;
-			uint32_t ch2 : 9;
-			uint32_t fire_delay : 14;
+			uint32_t control_state : 2;
+			
+			// pio command set list
+			uint32_t idle : 1;
+			uint32_t fire : 1;
+			uint32_t set_amp : 1;
+			uint32_t set_trig_leds : 1;
+			uint32_t set_var_atten : 1;
+			uint32_t issue_rcv_trig : 1;
+			uint32_t async_rcv_trig : 1;
+			uint32_t reset_rcv_trig : 1;
+			uint32_t reset_interrupt : 1;
+			
+			// values of trig/led outputs
+			uint32_t trigVals : 8;
+			uint32_t ledVals : 7;
+			
+			uint32_t varAtten : 1;
+			
+			// select chargetime from one of the 4 bit sub-registers
+			uint32_t chargeSelector : 2;
+			
+			// issue adcTrigger
+			uint32_t adcTrigger : 1;
+			
+			// don't generate arm interrupt after command is issued
+			uint32_t noInterrupt : 1;
+			
+			// jump to control from ram instead of pio registers
+			uint32_t pioRamControlToggle : 1;
 		};
-		uint32_t chall;
+		uint32_t ccall;		
+	}controlComms;
+
+	struct{ // phaseDelays
+		union{
+			struct{
+				uint32_t ch0 : 16;
+				uint32_t ch1 : 16;
+			};
+			uint32_t ch01;
+		};
+		union{
+			struct{
+				uint32_t ch2 : 16;
+				uint32_t ch3 : 16;
+			};
+			uint32_t ch23;
+		};
+		union{
+			struct{
+				uint32_t ch4 : 16;
+				uint32_t ch5 : 16;
+			};
+			uint32_t ch45;
+		};
+		union{
+			struct{
+				uint32_t ch6 : 16;
+				uint32_t ch7 : 16;
+			};
+			uint32_t ch67;
+		};
+	}phaseDelays;
+	
+	union{ // chargetTimes
+		struct{
+			uint32_t ct1 : 8;
+			uint32_t ct2 : 8;
+			uint32_t ct3 : 8;
+			uint32_t ct4 : 8;
+		};
+		uint32_t ctall;
 	}chargeTimes;
 	
+	union{ // trig/led rest levels and transducer output mask
+		struct{ 
+			uint32_t triggers : 8;
+			uint32_t leds : 8;
+			uint32_t mask : 8;
+			uint32_t blnk : 8;
+		};
+		uint32_t all;
+	} trigLed_Mask;
+	
+		
     char volatile *instructions;
     char volatile *phaseDelays;
 
