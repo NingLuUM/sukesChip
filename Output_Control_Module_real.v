@@ -21,6 +21,7 @@ module Output_Control_Module(
 	input	[7:0]			itxPioTriggerRestLevels,	// pio_tx_reg7
 	input	[6:0]			itxPioLedRestLevels,		// pio_tx_reg7
 	input	[7:0]			itxTransducerOutputMask,	// pio_tx_reg7
+	input	[9:0]			itxBoardIdentifiers,		// pio_tx_reg7
 	
 	// input triggers and 'fast' comm lines
 	input					itxExternalTrigger,
@@ -64,7 +65,7 @@ parameter	[1:0]	CASE_PIO_CONTROL_RAM_SUBCALL = 2'b11;
 parameter	[8:0]	PIO_CMD_DISABLE				= 9'b000000000;
 parameter	[8:0]	PIO_CMD_IDLE				= 9'b000000001;
 parameter	[8:0]	PIO_CMD_FIRE 				= 9'b000000010;
-parameter	[8:0]	PIO_CMD_SET_AMP 			= 9'b000000100;
+parameter	[8:0]	PIO_CMD_SET_AMP_PHASE 		= 9'b000000100;
 parameter	[8:0]	PIO_CMD_SET_TRIG_LEDS		= 9'b000001000;
 parameter	[8:0]	PIO_CMD_ISSUE_RCV_TRIG		= 9'b000010000;
 parameter	[8:0]	PIO_CMD_ASYNC_RCV_TRIG		= 9'b000100000;
@@ -175,7 +176,17 @@ assign ramLoopCounter = itxInstruction[1][72:43];
 
 assign ramPioControlToggle = itxInstruction[0][73];
 
+// needs to know if its master so it doesn't issue 'otxWaitForMe'
+wire isMaster;
+wire isSolo;
+assign isMaster = itxBoardIdentifiers[0];
+assign isSolo = itxBoardIdentifiers[1];
 
+
+reg	internalTrigger;
+wor triggerSignal;
+assign triggerSignal = itxExternalTrigger;
+assign triggerSignal = internalTrigger;
 
 
 // PIO commands only get issued when the PIO state changes, need to store previous state
@@ -194,6 +205,9 @@ reg					fireReset;
 wire [7:0]			fireDanger;
 wire [7:0]			fireComplete;
 
+
+
+
 reg [31:0] sync_timer;
 reg [63:0] cmd_timer;
 
@@ -203,6 +217,17 @@ begin
 	otxPhaseChargeReadAddr = 13'b0;
 	otxTransducerOutput = 8'b0;
 	otxADCTriggerLine = 1'b0;
+	
+	transducer_chargetime = 9'b0;
+	transducer_phase[0] = 16'b0;
+	transducer_phase[1] = 16'b0;
+	transducer_phase[2] = 16'b0;
+	transducer_phase[3] = 16'b0;
+	transducer_phase[4] = 16'b0;
+	transducer_phase[5] = 16'b0;
+	transducer_phase[6] = 16'b0;
+	transducer_phase[7] = 16'b0;
+	
 	loopCounters[0] = 30'b0;
 	loopCounters[1] = 30'b0;
 	loopCounters[2] = 30'b0;
@@ -213,6 +238,7 @@ begin
 	loopCounters[7] = 30'b0;
 	sync_timer = 32'b0;
 	cmd_timer = 64'b0;
+	internalTrigger = 1'b0;
 end
 
 
@@ -227,6 +253,7 @@ begin
 				transducer_mask <= 8'b11111111;
 				otxTriggerOutputs <= itxPioTriggerRestLevels;
 				otxLedOutputs <= itxPioLedRestLevels;
+				internalTrigger <= 1'b0;
 			end
 		
 		CASE_PIO_CONTROL:
@@ -240,6 +267,7 @@ begin
 						pio_cmd_previous <= pio_output_commands;
 						
 						// all commands need to be synced
+						// since no trig lines on daughters, only fire needs wait for me. i think...
 						if( !( pio_output_commands & PIO_CMD_RESET_INTERRUPT ) )
 						begin
 							if( !otxWaitForMe ) otxWaitForMe <= 1'b1;
@@ -248,21 +276,13 @@ begin
 						
 						if( ( pio_output_commands & 9'b000111111 ) ) 
 						begin
+							if ( isMaster & !internalTrigger ) internalTrigger <= 1'b1;
 							
 							/******************************************************/
 							/*** FIRE FROM PIO COMMAND ****************************/
 							/******************************************************/
 							if( ( pio_output_commands & PIO_CMD_FIRE ) && !fireFlag )
 							begin
-								transducer_phase[0] <= itxPioPhaseDelay[0];
-								transducer_phase[1] <= itxPioPhaseDelay[1];
-								transducer_phase[2] <= itxPioPhaseDelay[2];
-								transducer_phase[3] <= itxPioPhaseDelay[3];
-								transducer_phase[4] <= itxPioPhaseDelay[4];
-								transducer_phase[5] <= itxPioPhaseDelay[5];
-								transducer_phase[6] <= itxPioPhaseDelay[6];
-								transducer_phase[7] <= itxPioPhaseDelay[7];
-								
 								fireFlag <= 1'b1;
 								if ( fireReset ) fireReset <= 1'b0;
 							end
@@ -273,9 +293,9 @@ begin
 							end
 							
 							/******************************************************/
-							/*** SET CHARGETIME/AMP OF PULSES *********************/
+							/*** SET CHARGETIME/AMP & PHASE DELAYS OF PULSES ******/
 							/******************************************************/
-							if( ( pio_output_commands & PIO_CMD_SET_AMP ) && !fireFlag )
+							if( ( pio_output_commands & PIO_CMD_SET_AMP_PHASE ) && !fireFlag )
 							begin
 								if( !pio_charge_selector )
 								begin
@@ -293,6 +313,15 @@ begin
 								begin
 									transducer_chargetime <= {itxPioChargetime[3],1'b1};
 								end
+								
+								transducer_phase[0] <= itxPioPhaseDelay[0];
+								transducer_phase[1] <= itxPioPhaseDelay[1];
+								transducer_phase[2] <= itxPioPhaseDelay[2];
+								transducer_phase[3] <= itxPioPhaseDelay[3];
+								transducer_phase[4] <= itxPioPhaseDelay[4];
+								transducer_phase[5] <= itxPioPhaseDelay[5];
+								transducer_phase[6] <= itxPioPhaseDelay[6];
+								transducer_phase[7] <= itxPioPhaseDelay[7];
 							end
 							
 							/******************************************************/
@@ -302,6 +331,7 @@ begin
 							begin
 								trig_output_buffer <= pio_trigger_outputs ^ itxPioTriggerRestLevels;
 								led_output_buffer <= pio_led_outputs ^ itxPioLedRestLevels;
+								
 							end
 							
 							/******************************************************/
@@ -356,7 +386,7 @@ begin
 						adcTrigFlag[1] <= 1'b1;
 					end
 					
-					if( otxWaitForMe & itxExternalTrigger )
+					if( otxWaitForMe & triggerSignal )
 					begin
 						if( otxTriggerOutputs ^ trig_output_buffer )
 						begin
@@ -374,6 +404,8 @@ begin
 						end
 						
 						otxWaitForMe <= 1'b0;
+						if ( isMaster & internalTrigger ) internalTrigger <= 1'b0;
+						
 					end
 
 					/******************************************************/
@@ -408,26 +440,25 @@ begin
 			end
 		
 		CASE_RAM_CONTROL:
-			begin	
-			if ( !halt && !otxEmergency && !fireDanger )
 			begin
-				if(transducer_mask ^ itxTransducerOutputMask) transducer_mask <= itxTransducerOutputMask;
-				
-				if( cmd_timer < itxTimeUntilNext[0] )
-				begin
-					cmd_timer <= cmd_timer + 1'b1;
-				end
-				else
-				begin
-				
-				end
-	
-			end
+				/******************************************************/
+				/*** PLACE HOLDER UNTIL THIS IS IMPLEMENTED ***********/
+				/******************************************************/
+				transducer_chargetime <= 9'b0;
+				fireFlag <= 2'b0;
+				transducer_mask <= 8'b0;
+				internalTrigger <= 1'b0;
 			end
 		
 		CASE_PIO_CONTROL_RAM_SUBCALL:
 			begin
-			
+				/******************************************************/
+				/*** PLACE HOLDER UNTIL THIS IS IMPLEMENTED ***********/
+				/******************************************************/
+				transducer_chargetime <= 9'b0;
+				fireFlag <= 2'b0;
+				transducer_mask <= 8'b0;
+				internalTrigger <= 1'b0;
 			end
 			
 		default:
@@ -435,6 +466,7 @@ begin
 				transducer_chargetime <= 9'b0;
 				fireFlag <= 2'b0;
 				transducer_mask <= 8'b0;
+				internalTrigger <= 1'b0;
 			
 			end
 
@@ -473,7 +505,7 @@ transducerOutput_Module c0(
 	.rst(fireReset),
 	.mask(transducer_mask[0]),
 	.onYourMark(fireFlag),
-	.GOGOGO_EXCLAMATION(itxExternalTrigger),
+	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
 	.phaseDelay(transducer_phase[0]),
 	.transducerOutput(otxTransducerOutput[0]),
@@ -486,7 +518,7 @@ transducerOutput_Module c1(
 	.rst(fireReset),
 	.mask(transducer_mask[1]),
 	.onYourMark(fireFlag),
-	.GOGOGO_EXCLAMATION(itxExternalTrigger),
+	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
 	.phaseDelay(transducer_phase[1]),
 	.transducerOutput(otxTransducerOutput[1]),
@@ -499,7 +531,7 @@ transducerOutput_Module c2(
 	.rst(fireReset),
 	.mask(transducer_mask[2]),
 	.onYourMark(fireFlag),
-	.GOGOGO_EXCLAMATION(itxExternalTrigger),
+	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
 	.phaseDelay(transducer_phase[2]),
 	.transducerOutput(otxTransducerOutput[2]),
@@ -512,7 +544,7 @@ transducerOutput_Module c3(
 	.rst(fireReset),
 	.mask(transducer_mask[3]),
 	.onYourMark(fireFlag),
-	.GOGOGO_EXCLAMATION(itxExternalTrigger),
+	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
 	.phaseDelay(transducer_phase[3]),
 	.transducerOutput(otxTransducerOutput[3]),
@@ -525,7 +557,7 @@ transducerOutput_Module c4(
 	.rst(fireReset),
 	.mask(transducer_mask[4]),
 	.onYourMark(fireFlag),
-	.GOGOGO_EXCLAMATION(itxExternalTrigger),
+	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
 	.phaseDelay(transducer_phase[4]),
 	.transducerOutput(otxTransducerOutput[4]),
@@ -538,7 +570,7 @@ transducerOutput_Module c5(
 	.rst(fireReset),
 	.mask(transducer_mask[5]),
 	.onYourMark(fireFlag),
-	.GOGOGO_EXCLAMATION(itxExternalTrigger),
+	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
 	.phaseDelay(transducer_phase[5]),
 	.transducerOutput(otxTransducerOutput[5]),
@@ -551,7 +583,7 @@ transducerOutput_Module c6(
 	.rst(fireReset),
 	.mask(transducer_mask[6]),
 	.onYourMark(fireFlag),
-	.GOGOGO_EXCLAMATION(itxExternalTrigger),
+	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
 	.phaseDelay(transducer_phase[6]),
 	.transducerOutput(otxTransducerOutput[6]),
@@ -564,7 +596,7 @@ transducerOutput_Module c7(
 	.rst(fireReset),
 	.mask(transducer_mask[7]),
 	.onYourMark(fireFlag),
-	.GOGOGO_EXCLAMATION(itxExternalTrigger),
+	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
 	.phaseDelay(transducer_phase[7]),
 	.transducerOutput(otxTransducerOutput[7]),

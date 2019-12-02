@@ -20,6 +20,7 @@ assign dangerValve = dangerCntr[9];
 reg	[1:0]	state;
 
 parameter [1:0] MARK = 2'b01;
+parameter [1:0] UNMARKED_GO = 2'b10;
 parameter [1:0] GOGOGO = 2'b11;
 
 initial
@@ -46,7 +47,7 @@ begin
 			if( dangerCntr ) dangerCntr <= 10'b0;
 		end
 		
-		if( onYourMark & !state[0] )
+		if( onYourMark & !GOGOGO_EXCLAMATION & !state[0] )
 		begin
 			state[0] <= 1'b1;
 		end
@@ -63,6 +64,15 @@ begin
 					ct <= chargeTime;
 					if( fireComplete ) fireComplete <= 1'b0;
 					if( transducerOutput ) transducerOutput <= 1'b0;
+				end
+				
+			UNMARKED_GO:
+				begin
+					pd <= phaseDelay;
+					ct <= chargeTime;
+					if( fireComplete ) fireComplete <= 1'b0;
+					if( transducerOutput ) transducerOutput <= 1'b0;
+					if( onYourMark ) state[0] <= 1'b1;
 				end
 				
 			GOGOGO:
