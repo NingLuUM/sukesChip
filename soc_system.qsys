@@ -13,7 +13,7 @@
    {
       datum _sortIndex
       {
-         value = "28";
+         value = "45";
          type = "int";
       }
    }
@@ -21,7 +21,7 @@
    {
       datum _sortIndex
       {
-         value = "24";
+         value = "41";
          type = "int";
       }
    }
@@ -45,7 +45,7 @@
    {
       datum _sortIndex
       {
-         value = "22";
+         value = "39";
          type = "int";
       }
    }
@@ -69,7 +69,7 @@
    {
       datum _sortIndex
       {
-         value = "19";
+         value = "36";
          type = "int";
       }
       datum sopceditor_expanded
@@ -82,7 +82,7 @@
    {
       datum _sortIndex
       {
-         value = "23";
+         value = "40";
          type = "int";
       }
    }
@@ -108,7 +108,7 @@
    {
       datum _sortIndex
       {
-         value = "21";
+         value = "38";
          type = "int";
       }
    }
@@ -129,7 +129,7 @@
    {
       datum _sortIndex
       {
-         value = "16";
+         value = "33";
          type = "int";
       }
    }
@@ -137,7 +137,7 @@
    {
       datum baseAddress
       {
-         value = "288";
+         value = "496";
          type = "String";
       }
    }
@@ -145,7 +145,7 @@
    {
       datum _sortIndex
       {
-         value = "17";
+         value = "34";
          type = "int";
       }
    }
@@ -153,7 +153,7 @@
    {
       datum baseAddress
       {
-         value = "304";
+         value = "512";
          type = "String";
       }
    }
@@ -161,7 +161,7 @@
    {
       datum _sortIndex
       {
-         value = "15";
+         value = "32";
          type = "int";
       }
    }
@@ -169,7 +169,7 @@
    {
       datum baseAddress
       {
-         value = "272";
+         value = "480";
          type = "String";
       }
    }
@@ -177,7 +177,7 @@
    {
       datum _sortIndex
       {
-         value = "14";
+         value = "31";
          type = "int";
       }
    }
@@ -185,7 +185,7 @@
    {
       datum baseAddress
       {
-         value = "256";
+         value = "464";
          type = "String";
       }
    }
@@ -193,7 +193,7 @@
    {
       datum _sortIndex
       {
-         value = "13";
+         value = "30";
          type = "int";
       }
    }
@@ -201,7 +201,7 @@
    {
       datum baseAddress
       {
-         value = "176";
+         value = "448";
          type = "String";
       }
    }
@@ -209,7 +209,7 @@
    {
       datum _sortIndex
       {
-         value = "18";
+         value = "35";
          type = "int";
       }
    }
@@ -217,7 +217,7 @@
    {
       datum baseAddress
       {
-         value = "320";
+         value = "528";
          type = "String";
       }
    }
@@ -225,7 +225,7 @@
    {
       datum _sortIndex
       {
-         value = "27";
+         value = "44";
          type = "int";
       }
    }
@@ -241,7 +241,7 @@
    {
       datum _sortIndex
       {
-         value = "20";
+         value = "37";
          type = "int";
       }
       datum sopceditor_expanded
@@ -267,7 +267,7 @@
    {
       datum _sortIndex
       {
-         value = "25";
+         value = "42";
          type = "int";
       }
    }
@@ -299,7 +299,7 @@
    {
       datum _sortIndex
       {
-         value = "26";
+         value = "43";
          type = "int";
       }
    }
@@ -343,6 +343,166 @@
          type = "String";
       }
    }
+   element tx_pio_reg10
+   {
+      datum _sortIndex
+      {
+         value = "14";
+         type = "int";
+      }
+   }
+   element tx_pio_reg10.s1
+   {
+      datum baseAddress
+      {
+         value = "192";
+         type = "String";
+      }
+   }
+   element tx_pio_reg11
+   {
+      datum _sortIndex
+      {
+         value = "15";
+         type = "int";
+      }
+   }
+   element tx_pio_reg11.s1
+   {
+      datum baseAddress
+      {
+         value = "208";
+         type = "String";
+      }
+   }
+   element tx_pio_reg12
+   {
+      datum _sortIndex
+      {
+         value = "16";
+         type = "int";
+      }
+   }
+   element tx_pio_reg12.s1
+   {
+      datum baseAddress
+      {
+         value = "224";
+         type = "String";
+      }
+   }
+   element tx_pio_reg13
+   {
+      datum _sortIndex
+      {
+         value = "17";
+         type = "int";
+      }
+   }
+   element tx_pio_reg13.s1
+   {
+      datum baseAddress
+      {
+         value = "240";
+         type = "String";
+      }
+   }
+   element tx_pio_reg14
+   {
+      datum _sortIndex
+      {
+         value = "18";
+         type = "int";
+      }
+   }
+   element tx_pio_reg14.s1
+   {
+      datum baseAddress
+      {
+         value = "256";
+         type = "String";
+      }
+   }
+   element tx_pio_reg15
+   {
+      datum _sortIndex
+      {
+         value = "19";
+         type = "int";
+      }
+   }
+   element tx_pio_reg15.s1
+   {
+      datum baseAddress
+      {
+         value = "272";
+         type = "String";
+      }
+   }
+   element tx_pio_reg16
+   {
+      datum _sortIndex
+      {
+         value = "20";
+         type = "int";
+      }
+   }
+   element tx_pio_reg16.s1
+   {
+      datum baseAddress
+      {
+         value = "288";
+         type = "String";
+      }
+   }
+   element tx_pio_reg17
+   {
+      datum _sortIndex
+      {
+         value = "21";
+         type = "int";
+      }
+   }
+   element tx_pio_reg17.s1
+   {
+      datum baseAddress
+      {
+         value = "304";
+         type = "String";
+      }
+   }
+   element tx_pio_reg18
+   {
+      datum _sortIndex
+      {
+         value = "22";
+         type = "int";
+      }
+   }
+   element tx_pio_reg18.s1
+   {
+      datum baseAddress
+      {
+         value = "320";
+         type = "String";
+      }
+   }
+   element tx_pio_reg19
+   {
+      datum _sortIndex
+      {
+         value = "23";
+         type = "int";
+      }
+   }
+   element tx_pio_reg19.s1
+   {
+      datum baseAddress
+      {
+         value = "336";
+         type = "String";
+      }
+   }
    element tx_pio_reg2
    {
       datum _sortIndex
@@ -356,6 +516,102 @@
       datum baseAddress
       {
          value = "64";
+         type = "String";
+      }
+   }
+   element tx_pio_reg20
+   {
+      datum _sortIndex
+      {
+         value = "24";
+         type = "int";
+      }
+   }
+   element tx_pio_reg20.s1
+   {
+      datum baseAddress
+      {
+         value = "352";
+         type = "String";
+      }
+   }
+   element tx_pio_reg21
+   {
+      datum _sortIndex
+      {
+         value = "25";
+         type = "int";
+      }
+   }
+   element tx_pio_reg21.s1
+   {
+      datum baseAddress
+      {
+         value = "368";
+         type = "String";
+      }
+   }
+   element tx_pio_reg22
+   {
+      datum _sortIndex
+      {
+         value = "26";
+         type = "int";
+      }
+   }
+   element tx_pio_reg22.s1
+   {
+      datum baseAddress
+      {
+         value = "384";
+         type = "String";
+      }
+   }
+   element tx_pio_reg23
+   {
+      datum _sortIndex
+      {
+         value = "27";
+         type = "int";
+      }
+   }
+   element tx_pio_reg23.s1
+   {
+      datum baseAddress
+      {
+         value = "400";
+         type = "String";
+      }
+   }
+   element tx_pio_reg24
+   {
+      datum _sortIndex
+      {
+         value = "28";
+         type = "int";
+      }
+   }
+   element tx_pio_reg24.s1
+   {
+      datum baseAddress
+      {
+         value = "416";
+         type = "String";
+      }
+   }
+   element tx_pio_reg25
+   {
+      datum _sortIndex
+      {
+         value = "29";
+         type = "int";
+      }
+   }
+   element tx_pio_reg25.s1
+   {
+      datum baseAddress
+      {
+         value = "432";
          type = "String";
       }
    }
@@ -452,6 +708,22 @@
       datum baseAddress
       {
          value = "160";
+         type = "String";
+      }
+   }
+   element tx_pio_reg9
+   {
+      datum _sortIndex
+      {
+         value = "13";
+         type = "int";
+      }
+   }
+   element tx_pio_reg9.s1
+   {
+      datum baseAddress
+      {
+         value = "176";
          type = "String";
       }
    }
@@ -576,8 +848,88 @@
    type="conduit"
    dir="end" />
  <interface
+   name="tx_pio_reg10"
+   internal="tx_pio_reg10.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg11"
+   internal="tx_pio_reg11.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg12"
+   internal="tx_pio_reg12.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg13"
+   internal="tx_pio_reg13.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg14"
+   internal="tx_pio_reg14.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg15"
+   internal="tx_pio_reg15.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg16"
+   internal="tx_pio_reg16.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg17"
+   internal="tx_pio_reg17.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg18"
+   internal="tx_pio_reg18.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg19"
+   internal="tx_pio_reg19.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
    name="tx_pio_reg2"
    internal="tx_pio_reg2.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg20"
+   internal="tx_pio_reg20.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg21"
+   internal="tx_pio_reg21.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg22"
+   internal="tx_pio_reg22.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg23"
+   internal="tx_pio_reg23.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg24"
+   internal="tx_pio_reg24.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg25"
+   internal="tx_pio_reg25.external_connection"
    type="conduit"
    dir="end" />
  <interface
@@ -608,6 +960,11 @@
  <interface
    name="tx_pio_reg8"
    internal="tx_pio_reg8.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg9"
+   internal="tx_pio_reg9.external_connection"
    type="conduit"
    dir="end" />
  <module
@@ -1371,7 +1728,7 @@
   <parameter name="resetValue" value="255" />
   <parameter name="simDoTestBenchWiring" value="false" />
   <parameter name="simDrivenValue" value="0" />
-  <parameter name="width" value="8" />
+  <parameter name="width" value="32" />
  </module>
  <module
    name="sysid_qsys"
@@ -1428,7 +1785,7 @@
   <parameter name="resetValue" value="255" />
   <parameter name="simDoTestBenchWiring" value="false" />
   <parameter name="simDrivenValue" value="0" />
-  <parameter name="width" value="8" />
+  <parameter name="width" value="32" />
  </module>
  <module
    name="tx_phaseDelayMem"
@@ -1499,7 +1856,295 @@
   <parameter name="width" value="32" />
  </module>
  <module
+   name="tx_pio_reg10"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg11"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg12"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg13"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg14"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg15"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg16"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg17"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg18"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg19"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
    name="tx_pio_reg2"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg20"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg21"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg22"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg23"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg24"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
+   name="tx_pio_reg25"
    kind="altera_avalon_pio"
    version="17.1"
    enabled="1">
@@ -1624,6 +2269,24 @@
   <parameter name="simDrivenValue" value="0" />
   <parameter name="width" value="32" />
  </module>
+ <module
+   name="tx_pio_reg9"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
  <connection
    kind="avalon"
    version="17.1"
@@ -1675,7 +2338,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="pio_set_adc_record_length.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x0140" />
+  <parameter name="baseAddress" value="0x0210" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -1684,7 +2347,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="pio_adc_fpga_state_reset.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x0130" />
+  <parameter name="baseAddress" value="0x0200" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -1693,7 +2356,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="pio_led.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x00b0" />
+  <parameter name="baseAddress" value="0x01c0" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -1702,7 +2365,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="pio_adc_control_comms.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x0120" />
+  <parameter name="baseAddress" value="0x01f0" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -1711,7 +2374,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="pio_adc_serial_command.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x0110" />
+  <parameter name="baseAddress" value="0x01e0" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -1720,7 +2383,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="pio_adc_settings.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x0100" />
+  <parameter name="baseAddress" value="0x01d0" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -1825,6 +2488,159 @@
  <connection
    kind="avalon"
    version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg9.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x00b0" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg10.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x00c0" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg11.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x00d0" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg12.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x00e0" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg13.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x00f0" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg14.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0100" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg15.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0110" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg16.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0120" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg17.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0130" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg18.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0140" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg19.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0150" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg20.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0160" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg21.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0170" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg22.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0180" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg23.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x0190" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg24.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x01a0" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg25.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x01b0" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
    start="fpga_only_master.master"
    end="jtag_uart.avalon_jtag_slave">
   <parameter name="arbitrationPriority" value="1" />
@@ -1907,6 +2723,23 @@
  <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg5.clk" />
  <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg7.clk" />
  <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg8.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg9.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg10.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg11.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg12.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg13.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg14.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg15.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg16.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg17.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg18.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg19.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg20.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg21.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg22.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg23.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg24.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg25.clk" />
  <connection kind="clock" version="17.1" start="clk_0.clk" end="adc_ramBank.clk1" />
  <connection
    kind="clock"
@@ -2100,6 +2933,91 @@
    version="17.1"
    start="clk_0.clk_reset"
    end="tx_pio_reg8.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg9.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg10.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg11.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg12.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg13.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg14.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg15.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg16.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg17.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg18.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg19.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg20.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg21.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg22.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg23.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg24.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg25.reset" />
  <connection
    kind="reset"
    version="17.1"

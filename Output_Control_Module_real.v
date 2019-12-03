@@ -64,13 +64,15 @@ parameter	[1:0]	CASE_PIO_CONTROL_RAM_SUBCALL = 2'b11;
 // COMMANDS THAT CAN BE ISSUED THROUGH PIOs
 parameter	[8:0]	PIO_CMD_DISABLE				= 9'b000000000;
 parameter	[8:0]	PIO_CMD_IDLE				= 9'b000000001;
-parameter	[8:0]	PIO_CMD_FIRE 				= 9'b000000010;
-parameter	[8:0]	PIO_CMD_SET_AMP_PHASE 		= 9'b000000100;
-parameter	[8:0]	PIO_CMD_SET_TRIG_LEDS		= 9'b000001000;
-parameter	[8:0]	PIO_CMD_ISSUE_RCV_TRIG		= 9'b000010000;
-parameter	[8:0]	PIO_CMD_ASYNC_RCV_TRIG		= 9'b000100000;
-parameter	[8:0]	PIO_CMD_SET_VAR_ATTEN		= 9'b001000000;
-parameter	[8:0]	PIO_CMD_RESET_RCV_TRIG		= 9'b010000000;
+parameter	[8:0]	PIO_CMD_SET_AMP_PHASE 		= 9'b000000010;
+parameter	[8:0]	PIO_CMD_SET_TRIG_LEDS		= 9'b000000100;
+parameter	[8:0]	PIO_CMD_ISSUE_RCV_TRIG		= 9'b000001000;
+parameter	[8:0]	PIO_CMD_ASYNC_RCV_TRIG		= 9'b000010000;
+
+parameter	[8:0]	PIO_CMD_FIRE 				= 9'b000100000;
+parameter	[8:0]	PIO_CMD_RESET_RCV_TRIG		= 9'b001000000;
+parameter	[8:0]	PIO_CMD_RESET_INTERRUPT		= 9'b010000000;
+
 parameter	[8:0]	PIO_CMD_RESET_INTERRUPT		= 9'b100000000;
 
 // COMMANDS THAT CAN BE ISSUED THROUGH RAM
@@ -259,29 +261,38 @@ begin
 		CASE_PIO_CONTROL:
 			begin
 				if ( pio_output_commands &&  !otxEmergency && !fireDanger )
-				begin			
-					if( ( transducer_mask ^ itxTransducerOutputMask ) ) transducer_mask <= itxTransducerOutputMask;
-					
+				begin
+							
+					if( ( transducer_mask ^ itxTransducerOutputMask ) )
+					begin
+						transducer_mask <= itxTransducerOutputMask;
+					end
+										
 					if ( pio_output_commands ^ pio_cmd_previous ) 
 					begin
 						pio_cmd_previous <= pio_output_commands;
 						
 						// all commands need to be synced
-						// since no trig lines on daughters, only fire needs wait for me. i think...
 						if( !( pio_output_commands & PIO_CMD_RESET_INTERRUPT ) )
 						begin
 							if( !otxWaitForMe ) otxWaitForMe <= 1'b1;
-							otxInterrupt[0] <= 1'b1;
+							if( !isSolo ) otxInterrupt[0] <= 1'b1;
 						end
 						
+						/******************************************************/
+						/*** INTERNAL TRIGGER FOR SOLO BOARDS *****************/
+						/******************************************************/
 						if( ( pio_output_commands & 9'b000111111 ) ) 
 						begin
-							if ( isMaster & !internalTrigger ) internalTrigger <= 1'b1;
+							if ( isSolo & !internalTrigger ) internalTrigger <= 1'b1;
+						end
 							
-							/******************************************************/
-							/*** FIRE FROM PIO COMMAND ****************************/
-							/******************************************************/
-							if( ( pio_output_commands & PIO_CMD_FIRE ) && !fireFlag )
+						/******************************************************/
+						/*** FIRE FROM PIO COMMAND ****************************/
+						/******************************************************/
+						if( ( pio_output_commands & PIO_CMD_FIRE ) && !fireFlag )
+						begin
+							if ( !fireFlag )
 							begin
 								fireFlag <= 1'b1;
 								if ( fireReset ) fireReset <= 1'b0;
@@ -291,58 +302,58 @@ begin
 								otxInterrupt[31] <= 1'b1;
 								otxEmergency <= 1'b1;
 							end
-							
-							/******************************************************/
-							/*** SET CHARGETIME/AMP & PHASE DELAYS OF PULSES ******/
-							/******************************************************/
-							if( ( pio_output_commands & PIO_CMD_SET_AMP_PHASE ) && !fireFlag )
-							begin
-								if( !pio_charge_selector )
-								begin
-									transducer_chargetime <= {itxPioChargetime[0],1'b1};
-								end
-								else if( pio_charge_selector == 2'b01 )
-								begin
-									transducer_chargetime <= {itxPioChargetime[1],1'b1};
-								end
-								else if( pio_charge_selector == 2'b10 )
-								begin
-									transducer_chargetime <= {itxPioChargetime[2],1'b1};
-								end
-								else
-								begin
-									transducer_chargetime <= {itxPioChargetime[3],1'b1};
-								end
-								
-								transducer_phase[0] <= itxPioPhaseDelay[0];
-								transducer_phase[1] <= itxPioPhaseDelay[1];
-								transducer_phase[2] <= itxPioPhaseDelay[2];
-								transducer_phase[3] <= itxPioPhaseDelay[3];
-								transducer_phase[4] <= itxPioPhaseDelay[4];
-								transducer_phase[5] <= itxPioPhaseDelay[5];
-								transducer_phase[6] <= itxPioPhaseDelay[6];
-								transducer_phase[7] <= itxPioPhaseDelay[7];
-							end
-							
-							/******************************************************/
-							/*** SET TRIGS AND FROM PIO COMMAND *******************/
-							/******************************************************/
-							if( pio_output_commands & PIO_CMD_SET_TRIG_LEDS )
-							begin
-								trig_output_buffer <= pio_trigger_outputs ^ itxPioTriggerRestLevels;
-								led_output_buffer <= pio_led_outputs ^ itxPioLedRestLevels;
-								
-							end
-							
-							/******************************************************/
-							/*** ISSUE RCV SYS TRIG FROM PIO COMMAND **************/
-							/******************************************************/
-							if( ( pio_output_commands & PIO_CMD_ISSUE_RCV_TRIG ) && !adcTrigFlag )
-							begin
-								adcTrigFlag[0] <= 1'b1;
-								if( !( pio_output_commands & PIO_CMD_ASYNC_RCV_TRIG ) ) otxInterrupt[3] <= 1'b1;
-							end
 						end
+						
+						/******************************************************/
+						/*** SET CHARGETIME/AMP & PHASE DELAYS OF PULSES ******/
+						/******************************************************/
+						if( ( pio_output_commands & PIO_CMD_SET_AMP_PHASE ) && !fireFlag )
+						begin
+							if( !pio_charge_selector )
+							begin
+								transducer_chargetime <= {itxPioChargetime[0],1'b1};
+							end
+							else if( pio_charge_selector == 2'b01 )
+							begin
+								transducer_chargetime <= {itxPioChargetime[1],1'b1};
+							end
+							else if( pio_charge_selector == 2'b10 )
+							begin
+								transducer_chargetime <= {itxPioChargetime[2],1'b1};
+							end
+							else
+							begin
+								transducer_chargetime <= {itxPioChargetime[3],1'b1};
+							end
+							
+							transducer_phase[0] <= itxPioPhaseDelay[0];
+							transducer_phase[1] <= itxPioPhaseDelay[1];
+							transducer_phase[2] <= itxPioPhaseDelay[2];
+							transducer_phase[3] <= itxPioPhaseDelay[3];
+							transducer_phase[4] <= itxPioPhaseDelay[4];
+							transducer_phase[5] <= itxPioPhaseDelay[5];
+							transducer_phase[6] <= itxPioPhaseDelay[6];
+							transducer_phase[7] <= itxPioPhaseDelay[7];
+						end
+						
+						/******************************************************/
+						/*** SET TRIGS AND FROM PIO COMMAND *******************/
+						/******************************************************/
+						if( pio_output_commands & PIO_CMD_SET_TRIG_LEDS )
+						begin
+							trig_output_buffer <= pio_trigger_outputs ^ itxPioTriggerRestLevels;
+							led_output_buffer <= pio_led_outputs ^ itxPioLedRestLevels;
+						end
+						
+						/******************************************************/
+						/*** ISSUE RCV SYS TRIG FROM PIO COMMAND **************/
+						/******************************************************/
+						if( ( pio_output_commands & PIO_CMD_ISSUE_RCV_TRIG ) && !adcTrigFlag )
+						begin
+							adcTrigFlag[0] <= 1'b1;
+							if( !( pio_output_commands & PIO_CMD_ASYNC_RCV_TRIG ) ) otxInterrupt[3] <= 1'b1;
+						end
+						
 					end
 					
 					/******************************************************/
@@ -386,7 +397,7 @@ begin
 						adcTrigFlag[1] <= 1'b1;
 					end
 					
-					if( otxWaitForMe & triggerSignal )
+					if( ( otxWaitForMe | isSolo ) & triggerSignal )
 					begin
 						if( otxTriggerOutputs ^ trig_output_buffer )
 						begin
@@ -404,7 +415,7 @@ begin
 						end
 						
 						otxWaitForMe <= 1'b0;
-						if ( isMaster & internalTrigger ) internalTrigger <= 1'b0;
+						if ( isSolo & internalTrigger ) internalTrigger <= 1'b0;
 						
 					end
 

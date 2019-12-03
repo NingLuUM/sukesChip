@@ -1,7 +1,7 @@
 module transducerOutput_Module (
 	input			clk,
 	input			rst,
-	input			mask,
+	input			isActive,
 	input			onYourMark,
 	input			GOGOGO_EXCLAMATION,
 	input [8:0]		chargeTime,
@@ -30,15 +30,16 @@ begin
 	ct = 9'b0;
 	pd = 16'b0;
 	dangerCntr = 10'b0;
+	fireComplete = 1'b1;
 end
 
 always @(posedge clk)
 begin
 
-	if( !rst & !dangerValve )
+	if( !rst & !dangerValve & isActive )
 	begin
 	
-		if( transducerOuput )
+		if( transducerOutput )
 		begin
 			dangerCntr <= dangerCntr + 1'b1;
 		end
@@ -83,7 +84,7 @@ begin
 					end
 					else if ( ct )
 					begin
-						if( !transducerOutput & !mask ) transducerOutput <= 1'b1;
+						if( !transducerOutput ) transducerOutput <= 1'b1;
 						ct <= ct - 1'b1;
 					end
 					else
@@ -105,14 +106,14 @@ begin
 	else
 	begin
 	
-		if( rst )
+		if( rst | !isActive )
 		begin
 			state <= 2'b0;
 			if( dangerCntr ) dangerCntr <= 10'b0;
 			if( warning ) warning <= 1'b0;
 			if( !fireComplete ) fireComplete <= 1'b1;
 		end
-		else if( !warning )
+		else if( !warning & isActive )
 		begin
 			warning <= 1'b1;
 			fireComplete <= 1'b0;

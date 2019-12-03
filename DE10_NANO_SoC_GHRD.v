@@ -82,8 +82,7 @@ module DE10_NANO_SoC_GHRD(
 	
 	
 	output				ADC_RESET,
-	output				ADC_CLKINP,
-	output				ADC_CLKINN,
+	output				ADC_CLKIN,
 	output				ADC_SCLK,
 	output				ADC_SDATA,
 	output				ADC_SEN,
@@ -93,7 +92,8 @@ module DE10_NANO_SoC_GHRD(
 	input					ADC_SDOUT,
 	
 	//output [4:0]		COMLED,
-	output [1:0]		TRANSDUCER_OUTPUTS,
+	output [7:0]		TRANSDUCER_OUTPUTS,
+	output [15:0]		TRIG_LED_OUTPUTS,
 	output [1:0]		VARGAIN
 
 );
@@ -137,13 +137,10 @@ wire [7:0] led_pins;
 //assign COMLED[4] = led_pins[4];
 
 wire [31:0] adc_pio_settings;
-assign VARGAIN[0] = adc_pio_settings[1];
-assign VARGAIN[1] = adc_pio_settings[0];
 
 wire CLK2, CLK50, CLK100, CLK200;
 assign ADC_SCLK = CLK2;
-assign ADC_CLKINP = CLK50;
-assign ADC_CLKINN = ~CLK50;
+assign ADC_CLKIN = CLK50;
 // wires and assignments for adc outputs
 wire adc_reset, adc_sen, adc_sdata, adc_sync, adc_pdn;
 
@@ -159,13 +156,13 @@ assign ADC_PDN		= adc_pdn;
 //=======================================================
 
 
-wire	[23:0]			adc_serial_command;
-wire	[7:0]			adc_control_comms;
+wire	[23:0]		adc_serial_command;
+wire	[7:0]		adc_control_comms;
 
-wire	[14:0]			adc_write_addr;
-wire					adc_state_reset;
+wire	[14:0]		adc_write_addr;
+wire				adc_state_reset;
 
-wire	[15:0]			adc_record_length;
+wire	[15:0]		adc_record_length;
 
 
 wire  	       		adc_wren_bank;
@@ -174,22 +171,21 @@ wire  	       		adc_clken_bank;
 wire	[15:0]		adc_byteen_bank;
 wire  	[127:0] 	adc_writedata_bank;
 
-wire [7:0]			rcv_interrupt;
-wire [7:0]			tx_interrupt;
+wire 	[31:0]		rcv_interrupt;
+wire 	[31:0]		tx_interrupt;
 
-wire [14:0]		tx_phasedelay_read_addr;
-wire [127:0]	tx_phasedelays;
+wire 	[14:0]		tx_phasedelay_read_addr;
+wire 	[127:0]		tx_phasedelays;
 
-wire	[31:0] txControlComms;
-wire	[31:0]	chargeTimes;
+wire 	[14:0]		tx_instruction_read_addr;
+wire 	[127:0]		tx_instruction;
 
-wire [14:0]		tx_instruction_read_addr;
-wire [127:0]		tx_instruction;
+wire 	[25:0][31:0]	tx_pio_reg;
 
-wire					FRAME_CLK_SHIFT;
-wire 					BIT_CLK_SHIFT;
+wire	[1:0] 		trigLines_txAdc;
 
-wire	[1:0] trigLines_txAdc;
+wire				FRAME_CLK_SHIFT;
+wire 				BIT_CLK_SHIFT;
 
 assign rst = 0;
 
@@ -204,7 +200,6 @@ ADCclock u4 (
 	.outclk_4			(FRAME_CLK_SHIFT),		// **50mhz - 1ns phase delay
 	.outclk_5			(BIT_CLK_SHIFT)		// **300mhz 0 phase delay
 );
-
 
 		
 ADC_Control_Module u2(
@@ -251,19 +246,38 @@ ADC_Control_Module u2(
 );
 
 
-Output_Control_Module u3(
-	.txCLK(CLK100),
-	.itxControlComms(txControlComms[7:0]),
+Output_Control_Module_PIO u3(
+	.txCLK						(CLK100),
 	
-	.iChargeTime1(chargeTimes[8:0]),
-	.iChargeTime2(chargeTimes[17:9]),	
+	.itxControlComms			(tx_pio_reg[0]), // tx_pio_reg0
+	.itxPioControlSettings		(tx_pio_reg[1]), // tx_pio_reg1
 	
-	.iFireDelay(chargeTimes[31:18]),
+
+	.itxPioPhaseDelay_ch0_ch1	(tx_pio_reg[2]), 	// tx_pio_reg2
+	.itxPioPhaseDelay_ch2_ch3	(tx_pio_reg[3]), 	// tx_pio_reg3
+	.itxPioPhaseDelay_ch4_ch5	(tx_pio_reg[4]), 	// tx_pio_reg4
+	.itxPioPhaseDelay_ch6_ch7	(tx_pio_reg[5]), 	// tx_pio_reg5
 	
-	.itxADCTriggerAck(trigLines_txAdc[1]),
-	.otxADCTriggerLine(trigLines_txAdc[0]),
+	.itxPioChargetime_reg		(tx_pio_reg[6]),	// tx_pio_reg6
 	
-	.otxTransducerOutput(TRANSDUCER_OUTPUTS)
+	.itxTrigLedDurationAndDelay	(tx_pio_reg[23:7]),	// tx_pio_reg7-23
+	
+	.itxPioTriggerLedRestLevels	(tx_pio_reg[24][31:16]),
+	.itxTransducerOutputIsActive(tx_pio_reg[24][15:8]),	// tx_pio_reg24
+	.itxBoardIdentifiers		(tx_pio_reg[24][7:0]),	// tx_pio_reg24
+	
+	.itxExternalTrigger			(EXTERNAL_TRIGGER_INPUT),
+	
+	.otxTransducerOutput		(TRANSDUCER_OUTPUTS),
+	
+	.otxTriggerLedOutput		(TRIG_LED_OUTPUTS),
+	.otxVarRxAtten				(VARGAIN),
+	
+	.itxADCTriggerAck			(trigLines_txAdc[1]),
+	.otxADCTriggerLine			(trigLines_txAdc[0]),
+	
+	.otxInterrupt				(tx_interrupt)
+
 	
 );
 
@@ -273,22 +287,45 @@ Output_Control_Module u3(
 soc_system u0(
 		
 		
-		.pio_led_external_connection_export			(led_pins),
+		.pio_led_external_connection_export		(led_pins),
 		.pio_adc_settings_export				(adc_pio_settings),
 		
-		.pio_adc_serial_command_export				(adc_serial_command),
-		.pio_adc_control_comms_export				(adc_control_comms),
+		.pio_adc_serial_command_export			(adc_serial_command),
+		.pio_adc_control_comms_export			(adc_control_comms),
 
-		.pio_adc_fpga_state_reset_export			(adc_state_reset),
+		.pio_adc_fpga_state_reset_export		(adc_state_reset),
 
-		.pio_set_adc_record_length_export			(adc_record_length),
+		.pio_set_adc_record_length_export		(adc_record_length),
 
-		.rcv_interrupt_export			(rcv_interrupt),
+		.rcv_interrupt_export					(rcv_interrupt),
+		.tx_interrupt_export					(tx_interrupt),
 		
-		.tx_interrupt_export			(tx_interrupt),
-		
-		.tx_control_comms_export			(txControlComms),
-		.pio_charge_times_export			(chargeTimes),
+		.tx_pio_reg0_export						(tx_pio_reg[0]),
+		.tx_pio_reg1_export						(tx_pio_reg[1]),
+		.tx_pio_reg2_export						(tx_pio_reg[2]),
+		.tx_pio_reg3_export						(tx_pio_reg[3]),
+		.tx_pio_reg4_export						(tx_pio_reg[4]),
+		.tx_pio_reg5_export						(tx_pio_reg[5]),
+		.tx_pio_reg6_export						(tx_pio_reg[6]),
+		.tx_pio_reg7_export						(tx_pio_reg[7]),
+		.tx_pio_reg8_export						(tx_pio_reg[8]),
+		.tx_pio_reg9_export						(tx_pio_reg[9]),
+		.tx_pio_reg10_export					(tx_pio_reg[10]),
+		.tx_pio_reg11_export					(tx_pio_reg[11]),
+		.tx_pio_reg12_export					(tx_pio_reg[12]),
+		.tx_pio_reg13_export					(tx_pio_reg[13]),
+		.tx_pio_reg14_export					(tx_pio_reg[14]),
+		.tx_pio_reg15_export					(tx_pio_reg[15]),
+		.tx_pio_reg16_export					(tx_pio_reg[16]),
+		.tx_pio_reg17_export					(tx_pio_reg[17]),
+		.tx_pio_reg18_export					(tx_pio_reg[18]),
+		.tx_pio_reg19_export					(tx_pio_reg[19]),
+		.tx_pio_reg20_export					(tx_pio_reg[20]),
+		.tx_pio_reg21_export					(tx_pio_reg[21]),
+		.tx_pio_reg22_export					(tx_pio_reg[22]),
+		.tx_pio_reg23_export					(tx_pio_reg[23]),
+		.tx_pio_reg24_export					(tx_pio_reg[24]),
+		.tx_pio_reg25_export					(tx_pio_reg[25]),
 		
 		
 		

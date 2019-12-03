@@ -6,12 +6,14 @@ struct POLLserver_;
 struct RCVsys_;
 struct ADCvars_;
 union FMSG_;
+union trigLedTimings_;
 typedef struct FPGAvars_ FPGAvars_t;
 typedef struct SOCK_ SOCK_t;
 typedef struct POLLserver_ POLLserver_t;
 typedef struct RCVsys_ RCVsys_t;
 typedef struct ADCvars_ ADCvars_t;
 typedef union FMSG_ FMSG_t;
+typedef union trigLedTimings_ trigLedTimings_t;
 
 // rcv system functions
 void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen);
@@ -174,6 +176,21 @@ typedef struct RCVsys_{
 } RCVsys_t;
 
 
+typedef union trigLedTimings_{
+    struct{
+        uint32_t delay : 16;
+        uint32_t duration : 15;
+        uint32_t isInf : 1;
+    };
+    struct{
+        uint32_t blnk0 : 30;
+        uint32_t infLvl : 1;
+        uint32_t blnk32 : 1;
+    };
+    uint32_t all;
+} trigLedTimings_t;
+
+
 typedef struct TXsys_{
 	uint32_t volatile *controlCommsReg;
 	uint32_t volatile *pioControlSettingsReg;
@@ -183,41 +200,35 @@ typedef struct TXsys_{
 	uint32_t volatile *phaseDelayReg_ch45;
 	uint32_t volatile *phaseDelayReg_ch67;
 	uint32_t volatile *chargeTimeReg;
+
+    uint32_t volatile **trigLedDurationDelay;
+    trigLedTimings_t *trigLedTimings;
 	
-	uint32_t volatile *restLevelAndMaskReg;
+    uint32_t volatile *restLevelAndMaskReg;
 	
 	union{ // controlComms
 		struct{
 			uint32_t control_state : 2;
 			
 			// pio command set list
-			uint32_t idle : 1;
+			uint32_t set_trig_leds : 1;
+			uint32_t issue_rcv_trig : 1;
 			uint32_t fire : 1;
 			uint32_t set_amp : 1;
-			uint32_t set_trig_leds : 1;
 			uint32_t set_var_atten : 1;
-			uint32_t issue_rcv_trig : 1;
-			uint32_t async_rcv_trig : 1;
 			uint32_t reset_rcv_trig : 1;
 			uint32_t reset_interrupt : 1;
+            uint32_t idle : 1;
+            uint32_t blnk : 1;
 			
 			// values of trig/led outputs
-			uint32_t trigVals : 8;
-			uint32_t ledVals : 7;
+			uint32_t trigLedVals : 16;
 			
 			uint32_t varAtten : 1;
 			
 			// select chargetime from one of the 4 bit sub-registers
 			uint32_t chargeSelector : 2;
 			
-			// issue adcTrigger
-			uint32_t adcTrigger : 1;
-			
-			// don't generate arm interrupt after command is issued
-			uint32_t noInterrupt : 1;
-			
-			// jump to control from ram instead of pio registers
-			uint32_t pioRamControlToggle : 1;
 		};
 		uint32_t ccall;		
 	}controlComms;
@@ -262,16 +273,17 @@ typedef struct TXsys_{
 		};
 		uint32_t ctall;
 	}chargeTimes;
-	
+
 	union{ // trig/led rest levels and transducer output mask
-		struct{ 
-			uint32_t triggers : 8;
-			uint32_t leds : 8;
-			uint32_t mask : 8;
-			uint32_t blnk : 8;
+		struct{
+            uint32_t isMaster : 1;
+            uint32_t isSolo : 1;
+			uint32_t blnk : 6;
+			uint32_t active_transducers : 8;
+			uint32_t trigLed_rest : 16;
 		};
 		uint32_t all;
-	} trigLed_Mask;
+	} pioReg24;
 	
 		
     char volatile *instructions;
