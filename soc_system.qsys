@@ -13,7 +13,7 @@
    {
       datum _sortIndex
       {
-         value = "45";
+         value = "46";
          type = "int";
       }
    }
@@ -21,7 +21,7 @@
    {
       datum _sortIndex
       {
-         value = "41";
+         value = "42";
          type = "int";
       }
    }
@@ -45,7 +45,7 @@
    {
       datum _sortIndex
       {
-         value = "39";
+         value = "40";
          type = "int";
       }
    }
@@ -69,7 +69,7 @@
    {
       datum _sortIndex
       {
-         value = "36";
+         value = "37";
          type = "int";
       }
       datum sopceditor_expanded
@@ -82,7 +82,7 @@
    {
       datum _sortIndex
       {
-         value = "40";
+         value = "41";
          type = "int";
       }
    }
@@ -108,7 +108,7 @@
    {
       datum _sortIndex
       {
-         value = "38";
+         value = "39";
          type = "int";
       }
    }
@@ -129,7 +129,7 @@
    {
       datum _sortIndex
       {
-         value = "33";
+         value = "34";
          type = "int";
       }
    }
@@ -137,7 +137,7 @@
    {
       datum baseAddress
       {
-         value = "496";
+         value = "512";
          type = "String";
       }
    }
@@ -145,7 +145,7 @@
    {
       datum _sortIndex
       {
-         value = "34";
+         value = "35";
          type = "int";
       }
    }
@@ -153,7 +153,7 @@
    {
       datum baseAddress
       {
-         value = "512";
+         value = "528";
          type = "String";
       }
    }
@@ -161,7 +161,7 @@
    {
       datum _sortIndex
       {
-         value = "32";
+         value = "33";
          type = "int";
       }
    }
@@ -169,7 +169,7 @@
    {
       datum baseAddress
       {
-         value = "480";
+         value = "496";
          type = "String";
       }
    }
@@ -177,7 +177,7 @@
    {
       datum _sortIndex
       {
-         value = "31";
+         value = "32";
          type = "int";
       }
    }
@@ -185,7 +185,7 @@
    {
       datum baseAddress
       {
-         value = "464";
+         value = "480";
          type = "String";
       }
    }
@@ -193,7 +193,7 @@
    {
       datum _sortIndex
       {
-         value = "30";
+         value = "31";
          type = "int";
       }
    }
@@ -201,7 +201,7 @@
    {
       datum baseAddress
       {
-         value = "448";
+         value = "464";
          type = "String";
       }
    }
@@ -209,7 +209,7 @@
    {
       datum _sortIndex
       {
-         value = "35";
+         value = "36";
          type = "int";
       }
    }
@@ -217,7 +217,7 @@
    {
       datum baseAddress
       {
-         value = "528";
+         value = "544";
          type = "String";
       }
    }
@@ -225,7 +225,7 @@
    {
       datum _sortIndex
       {
-         value = "44";
+         value = "45";
          type = "int";
       }
    }
@@ -241,7 +241,7 @@
    {
       datum _sortIndex
       {
-         value = "37";
+         value = "38";
          type = "int";
       }
       datum sopceditor_expanded
@@ -267,7 +267,7 @@
    {
       datum _sortIndex
       {
-         value = "42";
+         value = "43";
          type = "int";
       }
    }
@@ -299,7 +299,7 @@
    {
       datum _sortIndex
       {
-         value = "43";
+         value = "44";
          type = "int";
       }
    }
@@ -612,6 +612,22 @@
       datum baseAddress
       {
          value = "432";
+         type = "String";
+      }
+   }
+   element tx_pio_reg26
+   {
+      datum _sortIndex
+      {
+         value = "30";
+         type = "int";
+      }
+   }
+   element tx_pio_reg26.s1
+   {
+      datum baseAddress
+      {
+         value = "448";
          type = "String";
       }
    }
@@ -930,6 +946,11 @@
  <interface
    name="tx_pio_reg25"
    internal="tx_pio_reg25.external_connection"
+   type="conduit"
+   dir="end" />
+ <interface
+   name="tx_pio_reg26"
+   internal="tx_pio_reg26.external_connection"
    type="conduit"
    dir="end" />
  <interface
@@ -2162,6 +2183,24 @@
   <parameter name="width" value="32" />
  </module>
  <module
+   name="tx_pio_reg26"
+   kind="altera_avalon_pio"
+   version="17.1"
+   enabled="1">
+  <parameter name="bitClearingEdgeCapReg" value="false" />
+  <parameter name="bitModifyingOutReg" value="false" />
+  <parameter name="captureEdge" value="false" />
+  <parameter name="clockRate" value="50000000" />
+  <parameter name="direction" value="Output" />
+  <parameter name="edgeType" value="RISING" />
+  <parameter name="generateIRQ" value="false" />
+  <parameter name="irqType" value="LEVEL" />
+  <parameter name="resetValue" value="0" />
+  <parameter name="simDoTestBenchWiring" value="false" />
+  <parameter name="simDrivenValue" value="0" />
+  <parameter name="width" value="32" />
+ </module>
+ <module
    name="tx_pio_reg3"
    kind="altera_avalon_pio"
    version="17.1"
@@ -2338,7 +2377,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="pio_set_adc_record_length.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x0210" />
+  <parameter name="baseAddress" value="0x0220" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -2347,7 +2386,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="pio_adc_fpga_state_reset.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x0200" />
+  <parameter name="baseAddress" value="0x0210" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -2356,7 +2395,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="pio_led.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x01c0" />
+  <parameter name="baseAddress" value="0x01d0" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -2365,7 +2404,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="pio_adc_control_comms.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x01f0" />
+  <parameter name="baseAddress" value="0x0200" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -2374,7 +2413,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="pio_adc_serial_command.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x01e0" />
+  <parameter name="baseAddress" value="0x01f0" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -2383,7 +2422,7 @@
    start="hps_0.h2f_lw_axi_master"
    end="pio_adc_settings.s1">
   <parameter name="arbitrationPriority" value="1" />
-  <parameter name="baseAddress" value="0x01d0" />
+  <parameter name="baseAddress" value="0x01e0" />
   <parameter name="defaultConnection" value="false" />
  </connection>
  <connection
@@ -2641,6 +2680,15 @@
  <connection
    kind="avalon"
    version="17.1"
+   start="hps_0.h2f_lw_axi_master"
+   end="tx_pio_reg26.s1">
+  <parameter name="arbitrationPriority" value="1" />
+  <parameter name="baseAddress" value="0x01c0" />
+  <parameter name="defaultConnection" value="false" />
+ </connection>
+ <connection
+   kind="avalon"
+   version="17.1"
    start="fpga_only_master.master"
    end="jtag_uart.avalon_jtag_slave">
   <parameter name="arbitrationPriority" value="1" />
@@ -2740,6 +2788,7 @@
  <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg23.clk" />
  <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg24.clk" />
  <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg25.clk" />
+ <connection kind="clock" version="17.1" start="clk_0.clk" end="tx_pio_reg26.clk" />
  <connection kind="clock" version="17.1" start="clk_0.clk" end="adc_ramBank.clk1" />
  <connection
    kind="clock"
@@ -3018,6 +3067,11 @@
    version="17.1"
    start="clk_0.clk_reset"
    end="tx_pio_reg25.reset" />
+ <connection
+   kind="reset"
+   version="17.1"
+   start="clk_0.clk_reset"
+   end="tx_pio_reg26.reset" />
  <connection
    kind="reset"
    version="17.1"

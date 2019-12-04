@@ -77,10 +77,7 @@ module DE10_NANO_SoC_GHRD(
 	// TRIDENT ONLY I/Os //
 	input				EXTERNAL_TRIGGER_INPUT,				// external input trigger via SMA on each 8-channel board
 	input	[ 7: 0]		ADC_DATA_LINES, 	// Digial data from ADC for all 8 channels
-	//input				BIT_CLK,				// bit clock from ADC (= frame_clk * 6)
-	//input				FRAME_CLK,			// frame clock from ADC 
-	
-	
+
 	output				ADC_RESET,
 	output				ADC_CLKIN,
 	output				ADC_SCLK,
@@ -90,8 +87,7 @@ module DE10_NANO_SoC_GHRD(
 	output				ADC_SYNC,
 	
 	input					ADC_SDOUT,
-	
-	//output [4:0]		COMLED,
+
 	output [7:0]		TRANSDUCER_OUTPUTS,
 	output [15:0]		TRIG_LED_OUTPUTS,
 	output [1:0]		VARGAIN
@@ -111,13 +107,6 @@ wire			hps_debug_reset;
 wire	[27: 0]	stm_hw_events;
 wire			fpga_clk_50;
 
-//wire	[7:0]	ADC_data;
-
-//assign ADC_data[0] = ~ADC_DATA_LINES[5];
-//assign ADC_data[1] = ADC_DATA_LINES[6];
-//assign ADC_data[7:2] = ADC_DATA_LINES[6];
-
-//assign LED[7: 1] = fpga_led_internal;
 assign fpga_clk_50 = FPGA_CLK1_50;
 assign stm_hw_events = {{15{1'b0}}, SW, fpga_led_internal, fpga_debounced_buttons};
 
@@ -130,13 +119,7 @@ assign stm_hw_events = {{15{1'b0}}, SW, fpga_led_internal, fpga_debounced_button
 reg gnd = 1'b0;
 
 wire [7:0] led_pins;
-//assign COMLED[0] = led_pins[0];
-//assign COMLED[1] = led_pins[1];
-//assign COMLED[2] = led_pins[2];
-//assign COMLED[3] = led_pins[3];
-//assign COMLED[4] = led_pins[4];
 
-wire [31:0] adc_pio_settings;
 
 wire CLK2, CLK50, CLK100, CLK200;
 assign ADC_SCLK = CLK2;
@@ -147,7 +130,7 @@ wire adc_reset, adc_sen, adc_sdata, adc_sync, adc_pdn;
 assign ADC_RESET	= adc_reset; 
 assign ADC_SEN		= adc_sen;
 assign ADC_SDATA	= adc_sdata; 
-assign ADC_SYNC	= adc_sync;
+assign ADC_SYNC		= adc_sync;
 assign ADC_PDN		= adc_pdn;
 
 
@@ -155,6 +138,9 @@ assign ADC_PDN		= adc_pdn;
 //  Structural coding
 //=======================================================
 
+wire 	[31:0] 		adc_pio_settings;
+assign VARGAIN[0] = adc_pio_settings[0];
+assign VARGAIN[1] = adc_pio_settings[1];
 
 wire	[23:0]		adc_serial_command;
 wire	[7:0]		adc_control_comms;
@@ -180,7 +166,7 @@ wire 	[127:0]		tx_phasedelays;
 wire 	[14:0]		tx_instruction_read_addr;
 wire 	[127:0]		tx_instruction;
 
-wire 	[25:0][31:0]	tx_pio_reg;
+wire 	[26:0][31:0]	tx_pio_reg;
 
 wire	[1:0] 		trigLines_txAdc;
 
@@ -252,26 +238,31 @@ Output_Control_Module_PIO u3(
 	.itxControlComms			(tx_pio_reg[0]), // tx_pio_reg0
 	.itxPioControlSettings		(tx_pio_reg[1]), // tx_pio_reg1
 	
+	// static settings
+	.itxPioTriggerLedRestLevels	(tx_pio_reg[2][31:16]),
+	.itxTransducerOutputIsActive(tx_pio_reg[2][15:8]),	// tx_pio_reg2
+	.itxBoardIdentifiers		(tx_pio_reg[2][7:0]),	// tx_pio_reg2
+	
 
-	.itxPioPhaseDelay_ch0_ch1	(tx_pio_reg[2]), 	// tx_pio_reg2
-	.itxPioPhaseDelay_ch2_ch3	(tx_pio_reg[3]), 	// tx_pio_reg3
-	.itxPioPhaseDelay_ch4_ch5	(tx_pio_reg[4]), 	// tx_pio_reg4
-	.itxPioPhaseDelay_ch6_ch7	(tx_pio_reg[5]), 	// tx_pio_reg5
+	.itxPioPhaseDelay_ch0_ch1	(tx_pio_reg[3]), 	// tx_pio_reg3
+	.itxPioPhaseDelay_ch2_ch3	(tx_pio_reg[4]), 	// tx_pio_reg4
+	.itxPioPhaseDelay_ch4_ch5	(tx_pio_reg[5]), 	// tx_pio_reg5
+	.itxPioPhaseDelay_ch6_ch7	(tx_pio_reg[6]), 	// tx_pio_reg6
 	
-	.itxPioChargetime_reg		(tx_pio_reg[6]),	// tx_pio_reg6
+	.itxPioChargetime_reg		(tx_pio_reg[7][8:0]),	// tx_pio_reg7
+	.itxRecvTrigDelay			(tx_pio_reg[7][31:9]),
 	
-	.itxTrigLedDurationAndDelay	(tx_pio_reg[23:7]),	// tx_pio_reg7-23
+	.itxTrigLedDurationAndDelay	(tx_pio_reg[23:8]),	// tx_pio_reg8-24
 	
-	.itxPioTriggerLedRestLevels	(tx_pio_reg[24][31:16]),
-	.itxTransducerOutputIsActive(tx_pio_reg[24][15:8]),	// tx_pio_reg24
-	.itxBoardIdentifiers		(tx_pio_reg[24][7:0]),	// tx_pio_reg24
+	.itxRequestNextInstrTimer	(tx_pio_reg[25:24]),
+	
+	
 	
 	.itxExternalTrigger			(EXTERNAL_TRIGGER_INPUT),
 	
 	.otxTransducerOutput		(TRANSDUCER_OUTPUTS),
 	
 	.otxTriggerLedOutput		(TRIG_LED_OUTPUTS),
-	.otxVarRxAtten				(VARGAIN),
 	
 	.itxADCTriggerAck			(trigLines_txAdc[1]),
 	.otxADCTriggerLine			(trigLines_txAdc[0]),
@@ -326,7 +317,7 @@ soc_system u0(
 		.tx_pio_reg23_export					(tx_pio_reg[23]),
 		.tx_pio_reg24_export					(tx_pio_reg[24]),
 		.tx_pio_reg25_export					(tx_pio_reg[25]),
-		
+		.tx_pio_reg26_export					(tx_pio_reg[26]),
 		
 		
 		.adc_ram_bank_address						(adc_write_addr),

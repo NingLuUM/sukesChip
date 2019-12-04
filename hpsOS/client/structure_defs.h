@@ -6,14 +6,33 @@ struct POLLserver_;
 struct RCVsys_;
 struct ADCvars_;
 union FMSG_;
-union trigLedTimings_;
+union TXpioreg0_;
+union TXpioreg2_;
+union TXpioreg3_;
+union TXpioreg4_;
+union TXpioreg5_;
+union TXpioreg6_;
+union TXpioreg7_;
+union TXtrigtimings_;
+union TXpioreg2425_;
+struct TXpiocmdlist_;
+
 typedef struct FPGAvars_ FPGAvars_t;
 typedef struct SOCK_ SOCK_t;
 typedef struct POLLserver_ POLLserver_t;
 typedef struct RCVsys_ RCVsys_t;
 typedef struct ADCvars_ ADCvars_t;
 typedef union FMSG_ FMSG_t;
-typedef union trigLedTimings_ trigLedTimings_t;
+typedef union TXpioreg0_ TXpioreg0_t;
+typedef union TXpioreg2_ TXpioreg2_t;
+typedef union TXpioreg3_ TXpioreg3_t;
+typedef union TXpioreg4_ TXpioreg4_t;
+typedef union TXpioreg5_ TXpioreg5_t;
+typedef union TXpioreg6_ TXpioreg6_t;
+typedef union TXpioreg7_ TXpioreg7_t;
+typedef union TXtrigtimings_ TXtrigtimings_t;
+typedef union TXpioreg2425_ TXpioreg2425_t;
+typedef struct TXpiocmdlist_ TXpiocmdlist_t;
 
 // rcv system functions
 void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen);
@@ -176,121 +195,68 @@ typedef struct RCVsys_{
 } RCVsys_t;
 
 
-typedef union trigLedTimings_{
-    struct{
-        uint32_t delay : 16;
-        uint32_t duration : 15;
-        uint32_t isInf : 1;
-    };
-    struct{
-        uint32_t blnk0 : 30;
-        uint32_t infLvl : 1;
-        uint32_t blnk32 : 1;
-    };
-    uint32_t all;
-} trigLedTimings_t;
+typedef struct TXpiocmdlist_{
+    int cmdNumber;
+
+    TXpioreg0_t reg0;
+    uint32_t    reg1;
+    TXpioreg2_t reg2;
+    TXpioreg3_t reg3;
+    TXpioreg4_t reg4;
+    TXpioreg5_t reg5;
+    TXpioreg6_t reg6;
+    TXpioreg7_t reg7;
+
+    TXtrigtimings_t reg8_23[16];
+    TXpioreg2425_t reg24_25;
+    
+    TXpiocmdlist_t *top;
+    TXpiocmdlist_t *prev;
+    TXpiocmdlist_t *next;
+
+} TXpiocmdlist_t;
 
 
 typedef struct TXsys_{
-	uint32_t volatile *controlCommsReg;
-	uint32_t volatile *pioControlSettingsReg;
-	
-	uint32_t volatile *phaseDelayReg_ch01;
-	uint32_t volatile *phaseDelayReg_ch23;
-	uint32_t volatile *phaseDelayReg_ch45;
-	uint32_t volatile *phaseDelayReg_ch67;
-	uint32_t volatile *chargeTimeReg;
+    
+    TXpioreg0_t reg0;
+    uint32_t    reg1;
+    TXpioreg2_t reg2;
+    TXpioreg3_t reg3;
+    TXpioreg4_t reg4;
+    TXpioreg5_t reg5;
+    TXpioreg6_t reg6;
+    TXpioreg7_t reg7;
 
-    uint32_t volatile **trigLedDurationDelay;
-    trigLedTimings_t *trigLedTimings;
+    TXtrigtimings_t *reg8_23; // trig/led durations and delays
 	
-    uint32_t volatile *restLevelAndMaskReg;
-	
-	union{ // controlComms
-		struct{
-			uint32_t control_state : 2;
-			
-			// pio command set list
-			uint32_t set_trig_leds : 1;
-			uint32_t issue_rcv_trig : 1;
-			uint32_t fire : 1;
-			uint32_t set_amp : 1;
-			uint32_t set_var_atten : 1;
-			uint32_t reset_rcv_trig : 1;
-			uint32_t reset_interrupt : 1;
-            uint32_t idle : 1;
-            uint32_t blnk : 1;
-			
-			// values of trig/led outputs
-			uint32_t trigLedVals : 16;
-			
-			uint32_t varAtten : 1;
-			
-			// select chargetime from one of the 4 bit sub-registers
-			uint32_t chargeSelector : 2;
-			
-		};
-		uint32_t ccall;		
-	}controlComms;
-
-	struct{ // phaseDelays
-		union{
-			struct{
-				uint32_t ch0 : 16;
-				uint32_t ch1 : 16;
-			};
-			uint32_t ch01;
-		};
-		union{
-			struct{
-				uint32_t ch2 : 16;
-				uint32_t ch3 : 16;
-			};
-			uint32_t ch23;
-		};
-		union{
-			struct{
-				uint32_t ch4 : 16;
-				uint32_t ch5 : 16;
-			};
-			uint32_t ch45;
-		};
-		union{
-			struct{
-				uint32_t ch6 : 16;
-				uint32_t ch7 : 16;
-			};
-			uint32_t ch67;
-		};
-	}phaseDelays;
-	
-	union{ // chargetTimes
-		struct{
-			uint32_t ct1 : 8;
-			uint32_t ct2 : 8;
-			uint32_t ct3 : 8;
-			uint32_t ct4 : 8;
-		};
-		uint32_t ctall;
-	}chargeTimes;
-
-	union{ // trig/led rest levels and transducer output mask
-		struct{
-            uint32_t isMaster : 1;
-            uint32_t isSolo : 1;
-			uint32_t blnk : 6;
-			uint32_t active_transducers : 8;
-			uint32_t trigLed_rest : 16;
-		};
-		uint32_t all;
-	} pioReg24;
-	
+    TXpioreg2425_t reg24_25;
 		
+	uint32_t volatile **pio_reg;
+    
+    TXpiocmdlist_t **pio_cmd_list;
+
     char volatile *instructions;
     char volatile *phaseDelays;
 
     SOCK_t interrupt;
 
+    void (*setControlState)(TXsys_t *, uint32_t);
+    void (*setTrigRestLvls)(TXsys_t *, uint32_t);
+    void (*setActiveTransducers)(TXsys_t *, uint32_t);
+    
+    void (*setTrigs)(TXsys_t *, uint32_t *);
+    void (*setChargeTime)(TXsys_t *, uint32_t);
+    void (*setPhaseDelay)(TXsys_t *, uint32_t *);
+    void (*setRecvTrigDelay)(TXsys_t *, uint32_t);
+    void (*setRequestNextInstrTimer)(TXsys_t *, uint64_t);
+    void (*issuePioCommand)(TXsys_t *, uint32_t);
+
+    void (*modifyField_pioCmdList)(TXsys_t *, uint32_t);
+    void (*addItem_pioCmdList)(TXsys_t *, uint32_t);
+    void (*delItem_pioCmdList)(TXsys_t *, uint32_t);
+
+    void (*gotoIdx_pioCmdList)(TXsys_t *, uint32_t);
 } TXsys_t;
 
 
@@ -342,6 +308,7 @@ typedef struct RAMBANK12_{
 	uint32_t c0 : 12;
 	
 } RAMBANK12_t;
+
 
 typedef union FMSG_{
     uint32_t u[10];

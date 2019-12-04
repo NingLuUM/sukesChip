@@ -227,20 +227,110 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
 
 int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
 
-	TX->instructions = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_INSTRUCTIONMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+    TX->pio_reg = (uint32_t volatile **)malloc(27*sizeof(uint32_t volatile *));
+    TX->pio_reg[0] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[1] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG1_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[2] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG2_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[3] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG3_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[4] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG4_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[5] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG5_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[6] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG6_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[7] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG7_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[8] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG8_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[9] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG9_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[10] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG10_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[11] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG11_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[12] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG12_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[13] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG13_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[14] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG14_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[15] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG15_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[16] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG16_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[17] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG17_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[18] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG18_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[19] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG19_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[20] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG20_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[21] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG21_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[22] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG22_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[23] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG23_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[24] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG24_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[25] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG25_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+    TX->pio_reg[26] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG26_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
+	
+    TX->instructions = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_INSTRUCTIONMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 	TX->phaseDelays = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_PHASEDELAYMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 	
-    TX->controlComms = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_CONTROL_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-    TX->chargeTime_reg = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_CHARGE_TIMES_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-    TX->chargeTimes.ch1 = 0;
-    TX->chargeTimes.ch2 = 0;
-    
-    TX->chargeTimes.fire_delay = 0;
-    
-    DREF32(TX->controlComms) = 0;
-    DREF32(TX->chargeTime_reg) = TX->chargeTimes.chall;
-    
+    TX->reg8_23 = (trigLedTimings_t *)malloc(16*sizeof(trigLedTimings_t));
+
+    TX->pio_cmd_list = (TXpiocmdlist_t **)malloc(sizeof(TXpiocmdlist_t *));
+    *(TX->pio_cmd_list) = (TXpiocmdlist_t *)malloc(sizeof(TXpiocmdlist_t));
+
+    *(TX->pio_cmd_list)->cmdNumber = 0;
+    *(TX->pio_cmd_list)->reg0.all = 0;
+    *(TX->pio_cmd_list)->reg1 = 0;
+    *(TX->pio_cmd_list)->reg2.all = 0;
+    *(TX->pio_cmd_list)->reg3.all = 0;
+    *(TX->pio_cmd_list)->reg4.all = 0;
+    *(TX->pio_cmd_list)->reg5.all = 0;
+    *(TX->pio_cmd_list)->reg6.all = 0;
+    *(TX->pio_cmd_list)->reg7.all = 0;
+    for(int i=0;i<16;i++){
+        *(TX->pio_cmd_list)->reg8_23[i].all = 0;
+    }
+    *(TX->pio_cmd_list)->reg24_25.all = 0;
+    *(TX->pio_cmd_list)->top = *(TX->pio_cmd_list);
+    *(TX->pio_cmd_list)->prev = NULL;
+    *(TX->pio_cmd_list)->next = NULL;
+
     TX->interrupt.ps = NULL;
+    
+    
+    // control comms
+    TX->reg0.all = 0;
+    DREF32(TX->pio_reg[0]) = TX->reg0.all;
+
+    // pio_settings (unused)
+    DREF32(TX->pio_reg[1]) = 0;
+
+    // board identifiers, active transducers, trig/led rest lvls
+    TX->reg2.all = 0;
+    TX->reg2.isSolo = 1;
+    TX->reg2.isMaster = 1;
+    TX->reg2.activeTransducers = 0xff;
+    TX->reg2.trigRestLvls = 0;
+    DREF32(TX->pio_reg[2]) = TX->reg2.all;
+
+    // phase delays ch0 & ch1
+    TX->reg3.all = 0;
+    DREF32(TX->pio_reg[3]) = TX->reg3.all;
+    
+    // phase delays ch2 & ch3
+    TX->reg4.all = 0;
+    DREF32(TX->pio_reg[4]) = TX->reg4.all;
+
+    // phase delays ch4 & ch5
+    TX->reg5.all = 0;
+    DREF32(TX->pio_reg[5]) = TX->reg5.all;
+
+    // phase delays ch6 & ch7
+    TX->reg6.all = 0;
+    DREF32(TX->pio_reg[6]) = TX->reg6.all;
+
+    // transducer chargetime & recv trig delay
+    TX->reg7.all = 0;
+    DREF32(TX->pio_reg[7]) = TX->reg7.all;
+
+    // trig/led delays and durations
+    for(int i=0;i<16;i++){
+        TX->reg8_23[i].all = 0;
+        DREF32(TX->pio_reg[8+i]) = TX->reg8_23[i].all;
+    }
+
+    // instruction request timer
+    TX->reg24_25.all = 0;
+    DREF32(TX->pio_reg[24]) = TX->reg24_25.reg24;
+    DREF32(TX->pio_reg[25]) = TX->reg24_25.reg25;
+
+
 
     return(1);
 }
