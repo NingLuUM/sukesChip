@@ -259,45 +259,45 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
     TX->instructions = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_INSTRUCTIONMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 	TX->phaseDelays = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_PHASEDELAYMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 	
-    TX->reg8_23 = (trigLedTimings_t *)malloc(16*sizeof(trigLedTimings_t));
+    TX->reg9_24 = (trigLedTimings_t *)malloc(16*sizeof(trigLedTimings_t));
 
-    TX->pio_cmd_list = (TXpiocmdlist_t **)malloc(sizeof(TXpiocmdlist_t *));
-    *(TX->pio_cmd_list) = (TXpiocmdlist_t *)malloc(sizeof(TXpiocmdlist_t));
+    TX->pio_cmd_list = (TXpiocmd_t **)malloc(sizeof(TXpiocmd_t *));
+    *(TX->pio_cmd_list) = (TXpiocmd_t *)malloc(sizeof(TXpiocmd_t));
 
     *(TX->pio_cmd_list)->cmdNumber = 0;
-    *(TX->pio_cmd_list)->reg0.all = 0;
-    *(TX->pio_cmd_list)->reg1 = 0;
     *(TX->pio_cmd_list)->reg2.all = 0;
     *(TX->pio_cmd_list)->reg3.all = 0;
     *(TX->pio_cmd_list)->reg4.all = 0;
     *(TX->pio_cmd_list)->reg5.all = 0;
     *(TX->pio_cmd_list)->reg6.all = 0;
     *(TX->pio_cmd_list)->reg7.all = 0;
-    for(int i=0;i<16;i++){
-        *(TX->pio_cmd_list)->reg8_23[i].all = 0;
-    }
-    *(TX->pio_cmd_list)->reg24_25.all = 0;
+    *(TX->pio_cmd_list)->reg8.all = 0;
+    *(TX->pio_cmd_list)->flags.all = 0;
+    
+    *(TX->pio_cmd_list)->reg25_26.all = 0;
+    
+    *(TX->pio_cmd_list)->reg9_24 = NULL;
     *(TX->pio_cmd_list)->top = *(TX->pio_cmd_list);
     *(TX->pio_cmd_list)->prev = NULL;
     *(TX->pio_cmd_list)->next = NULL;
 
     TX->interrupt.ps = NULL;
     
-    
     // control comms
     TX->reg0.all = 0;
     DREF32(TX->pio_reg[0]) = TX->reg0.all;
 
-    // pio_settings (unused)
-    DREF32(TX->pio_reg[1]) = 0;
-
     // board identifiers, active transducers, trig/led rest lvls
+    TX->reg1.all = 0;
+    TX->reg1.isSolo = 1;
+    TX->reg1.isMaster = 1;
+    TX->reg1.activeTransducers = 0xff;
+    TX->reg1.trigRestLvls = 0;
+    DREF32(TX->pio_reg[1]) = TX->reg1.all;
+    
+    // pio commands
     TX->reg2.all = 0;
-    TX->reg2.isSolo = 1;
-    TX->reg2.isMaster = 1;
-    TX->reg2.activeTransducers = 0xff;
-    TX->reg2.trigRestLvls = 0;
-    DREF32(TX->pio_reg[2]) = TX->reg2.all;
+    DREF32(TX->pio_reg[2]) = 0;
 
     // phase delays ch0 & ch1
     TX->reg3.all = 0;
@@ -315,22 +315,55 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
     TX->reg6.all = 0;
     DREF32(TX->pio_reg[6]) = TX->reg6.all;
 
-    // transducer chargetime & recv trig delay
+    // transducer chargetime & fire cmd delay
     TX->reg7.all = 0;
     DREF32(TX->pio_reg[7]) = TX->reg7.all;
 
+    // recv trig delay
+    TX->reg8.all = 0;
+    DREF32(TX->pio_reg[8]) = TX->reg8.all;
+    
     // trig/led delays and durations
     for(int i=0;i<16;i++){
-        TX->reg8_23[i].all = 0;
-        DREF32(TX->pio_reg[8+i]) = TX->reg8_23[i].all;
+        TX->reg9_24[i].all = 0;
+        DREF32(TX->pio_reg[9+i]) = TX->reg9_24[i].all;
     }
 
     // instruction request timer
-    TX->reg24_25.all = 0;
-    DREF32(TX->pio_reg[24]) = TX->reg24_25.reg24;
-    DREF32(TX->pio_reg[25]) = TX->reg24_25.reg25;
+    TX->reg25_26.all = 0;
+    DREF32(TX->pio_reg[25]) = TX->reg25_26.reg25;
+    DREF32(TX->pio_reg[26]) = TX->reg25_26.reg26;
 
+    // setup function pointers
+    TX->setControlState = &txSetControlState;
+    TX->setTrigRestLvls = &txSetTrigRestLvls;
+    TX->setActiveTransducers = &txSetActiveTransducers;
+    
+    TX->setTrigs = &txSetTrigs;
+    TX->setChargeTime = &txSetChargeTime;
+    TX->setFireCmdDelay = &txSetFireCmdDelay;
+    TX->setPhaseDelay = &txSetPhaseDelay;
+    TX->setRecvTrigDelay = &txSetRecvTrigDelay;
+    TX->setRequestNextInstrTimer = &txSetRequestNextInstrTimer;
+    TX->issuePioCommand = &txIssuePioCommand;
 
+    TX->addCmd = &txAddPioCmd_f;
+    TX->delCmd = &txDelPioCmd_f;
+
+    TX->makeLoopStart = &txMakeLoopStart;
+    TX->makeLoopEnd = &txMakeLoopEnd;
+    TX->makeSteeringLoopStart = &txMakeSteeringLoopStart;
+    TX->makeSteeringLoopEnd = &txMakeSteeringLoopEnd;
+    TX->makePioCmd = &txMakePioCmd;
+
+    TX->bufferTrigTimings = &txBufferTrigTimingCmd;
+    TX->bufferChargeTime = &txBufferChargeTimeCmd;
+    TX->bufferFireCmd = &txBufferFireDelayCmd;
+    TX->bufferPhaseDelays = &txBufferPhaseDelayCmd;
+    TX->bufferRecvTrig = &txBufferRecvTrigDelayCmd;
+    TX->bufferInstructionTimeout = &txBufferSetRequestNextInstrTimerCmd;
+    TX->resetTxInterrupt = &txResetTxInterrupt;
+    TX->resetRcvTrig = &txResetRcvTrig;
 
     return(1);
 }

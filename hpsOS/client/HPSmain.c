@@ -78,15 +78,16 @@
 // ETHERNET SETUP
 #define INIT_PORT           ( 3400 )
 #define ADC_CONTROL_PORT    ( 3500 )
+#define TX_CONTROL_PORT     ( 3600 )
 
 #define MAX_RECLEN          ( 16384 )
 #define MAX_PACKETSIZE      ( 8192 )
 
 #define MAX_SOCKETS         ( 10 )
 #define ENET_MSG_SIZE       ( 10 )
-#define MAX_POLL_EVENTS     ( 5 )
-#define MAX_SERVER_PORTS    ( 3 )
-#define MAX_SERVER_QUEUE    ( 5 )
+#define MAX_POLL_EVENTS     ( 7 )
+#define MAX_SERVER_PORTS    ( 5 )
+#define MAX_SERVER_QUEUE    ( 7 )
 
 // UNUSED, but potentially useful (see 'cServer' for use examp) 
 #define ADC_CLK             ( 25 )	// MHz
@@ -126,6 +127,7 @@
 #define CASE_SET_CLOCK_DIVISOR				( 17 )
 #define CASE_SET_RCV_SAMPLING_MODE			( 18 )
 #define CASE_SET_RCV_COMPRESSOR_MODE		( 19 )
+
 // TODO: move to header containing handler(?) 
 #define CASE_TX_SET_CHARGETIME				( 50 )
 #define	CASE_TX_FIRE						( 51 )
@@ -178,10 +180,11 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     RCV_init(&FPGA,&ADC,&RCV);
     TX_init(&FPGA,&TX);
 
-    connectPollInterrupter(&PS,&(RCV.interrupt),"gpio@0x100000000");
-    connectPollInterrupter(&PS,&(TX.interrupt),"gpio@0x100000010");
+    connectPollInterrupter(&PS,&(RCV.interrupt),"gpio@0x100000000",1);
+    connectPollInterrupter(&PS,&(TX.interrupt),"gpio@0x100000010",0);
     addEnetServerSock(&PS,&ENETserver[0],INIT_PORT);
     addEnetServerSock(&PS,&ENETserver[1],ADC_CONTROL_PORT);
+    addEnetServerSock(&PS,&ENETserver[2],TX_CONTROL_PORT);
     
     for(int i=0;i<MAX_SERVER_PORTS;i++){
         ENETclient[i].ps = NULL;
@@ -216,7 +219,11 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
 					printf("rcv interrupt flag: %u (%d)\n",*(uint8_t *)RCV.dataReadyFlag,*(int8_t *)RCV.dataReadyFlag);
 					
                     queryData(&RCV,&TX,&ENETclient[1]); 
-                
+               
+                } else if ( sock->is.tx_interrupt ){
+                    txProgramExecutionHandler(&TX);
+
+
                 } else if ( PS.events[n].events & EPOLLIN ){
                     nrecv = recv(sock->fd,&msg,10*sizeof(uint32_t),0);
                     
@@ -230,6 +237,9 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                     
                     } else if ( sock->is.commsock ){
                         recvSysMsgHandler(&PS, &RCV, &TX, &msg, &runner);
+                    
+                    } else if ( sock->is.tx_control ){
+                        txSys_enetMsgHandler(&PS, &TX, &msg, &runner);
                     }
                 }
             }

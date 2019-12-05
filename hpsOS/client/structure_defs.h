@@ -7,15 +7,17 @@ struct RCVsys_;
 struct ADCvars_;
 union FMSG_;
 union TXpioreg0_;
+union TXpioreg1_;
 union TXpioreg2_;
 union TXpioreg3_;
 union TXpioreg4_;
 union TXpioreg5_;
 union TXpioreg6_;
 union TXpioreg7_;
+union TXpioreg8_;
 union TXtrigtimings_;
-union TXpioreg2425_;
-struct TXpiocmdlist_;
+union TXpioreg2526_;
+struct TXpiocmd_;
 
 typedef struct FPGAvars_ FPGAvars_t;
 typedef struct SOCK_ SOCK_t;
@@ -24,15 +26,17 @@ typedef struct RCVsys_ RCVsys_t;
 typedef struct ADCvars_ ADCvars_t;
 typedef union FMSG_ FMSG_t;
 typedef union TXpioreg0_ TXpioreg0_t;
+typedef union TXpioreg1_ TXpioreg1_t;
 typedef union TXpioreg2_ TXpioreg2_t;
 typedef union TXpioreg3_ TXpioreg3_t;
 typedef union TXpioreg4_ TXpioreg4_t;
 typedef union TXpioreg5_ TXpioreg5_t;
 typedef union TXpioreg6_ TXpioreg6_t;
 typedef union TXpioreg7_ TXpioreg7_t;
+typedef union TXpioreg8_ TXpioreg8_t;
 typedef union TXtrigtimings_ TXtrigtimings_t;
-typedef union TXpioreg2425_ TXpioreg2425_t;
-typedef struct TXpiocmdlist_ TXpiocmdlist_t;
+typedef union TXpioreg2526_ TXpioreg2526_t;
+typedef struct TXpiocmd_ TXpiocmd_t;
 
 // rcv system functions
 void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen);
@@ -54,6 +58,36 @@ void adcIssueDirectCmd(ADCvars_t *ADC, FMSG_t *msg);
 void adcSetDefaultSettings(ADCvars_t *ADC);
 void adcSync(ADCvars_t *ADC);
 
+// tx system function prototypes
+void txSetControlState(TXsys_t *TX, uint32_t control_state);
+void txSetTrigRestLvls(TXsys_t *TX, uint32_t trigRestLvls);
+void txSetActiveTransducers(TXsys_t *TX, uint32_t activeTransducers);
+
+void txSetTrigs(TXsys_t *TX);
+void txSetChargeTime(TXsys_t *TX);
+void txSetFireCmdDelay(TXsys_t *TX);
+void txSetPhaseDelay(TXsys_t *TX);
+void txSetRecvTrigDelay(TXsys_t *TX);
+void txSetRequestNextInstrTimer(TXsys_t *TX);
+void txIssuePioCommand(TXsys_t *TX);
+
+void txAddCmd_f(TXsys_t *TX);
+void txDelCmd_f(TXsys_t *TX, uint32_t cmdNum);
+
+void txMakeLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, uint32_t stepSize);
+void txMakeLoopEnd(TXsys_t *TX);
+void txMakeSteeringLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, uint32_t stepSize);
+void txMakeSteeringLoopEnd(TXsys_t *TX);
+void txMakePioCmd(TXsys_t *TX);
+void txBufferTrigTimingCmd(TXsys_t *TX, uint32_t *trigs);
+void txBufferChargeTimeCmd(TXsys_t *TX, uint32_t chargeTime);
+void txBufferFireDelayCmd(TXsys_t *TX, uint32_t fireDelay);
+void txBufferPhaseDelayCmd(TXsys_t *TX, uint32_t *phaseDelays);
+void txBufferRecvTrigDelayCmd(TXsys_t *TX, uint32_t recvTrigDelay);
+void txBufferSetRequestNextInstrTimerCmd(TXsys_t *TX, uint64_t timerVal);
+
+void txResetTxInterrupt(TXsys_t *TX);
+void txResetRcvTrig(TXsys_t *TX);
 
 typedef struct POLLserver_{
 	int epfd;
@@ -71,8 +105,10 @@ typedef struct SOCK_{
             uint8_t listener : 1;
             uint8_t commsock : 1;
             uint8_t adc_control : 1;
+            uint8_t tx_control : 1;
             uint8_t rcv_interrupt : 1;
-            uint8_t blnk : 4;
+            uint8_t tx_interrupt : 1;
+            uint8_t blnk : 2;
         };
         uint8_t flags;
     } is;
@@ -195,46 +231,95 @@ typedef struct RCVsys_{
 } RCVsys_t;
 
 
-typedef struct TXpiocmdlist_{
+typedef struct TXpiocmd_{
     int cmdNumber;
 
-    TXpioreg0_t reg0;
-    uint32_t    reg1;
     TXpioreg2_t reg2;
     TXpioreg3_t reg3;
     TXpioreg4_t reg4;
     TXpioreg5_t reg5;
     TXpioreg6_t reg6;
     TXpioreg7_t reg7;
-
-    TXtrigtimings_t reg8_23[16];
-    TXpioreg2425_t reg24_25;
+    TXpioreg8_t reg8;
     
-    TXpiocmdlist_t *top;
-    TXpiocmdlist_t *prev;
-    TXpiocmdlist_t *next;
+    uint32_t startIdx;
+    uint32_t endIdx;
+    uint32_t currentIdx;
+    uint32_t stepSize;
+    
+    union{
+        struct{
+            uint32_t isPioCmd : 1;
+            uint32_t isLoopStartCmd : 1;
+            uint32_t isLoopEndCmd : 1;
+            uint32_t isSteeringStartCmd : 1;
+            uint32_t isSteeringEndCmd : 1;
+            
+            uint32_t nextCmdIsPio : 1;
+            uint32_t nextCmdIsLoopStart : 1;
+            uint32_t nextCmdIsLoopEnd : 1;
+            uint32_t nextCmdIsSteeringStart : 1;
+            uint32_t nextCmdIsSteeringEnd : 1;
 
-} TXpiocmdlist_t;
+            uint32_t setTrig0 : 1;
+            uint32_t setTrig1 : 1;
+            uint32_t setTrig2 : 1;
+            uint32_t setTrig3 : 1;
+            uint32_t setTrig4 : 1;
+            uint32_t setTrig5 : 1;
+            uint32_t setTrig6 : 1;
+            uint32_t setTrig7 : 1;
+            uint32_t setTrig8 : 1;
+            uint32_t setTrig9 : 1;
+            uint32_t setTrig10 : 1;
+            uint32_t setTrig11 : 1;
+            uint32_t setTrig12 : 1;
+            uint32_t setTrig13 : 1;
+            uint32_t setTrig14 : 1;
+            uint32_t setTrig15 : 1;
+
+            uint32_t blnkFlags : 7;
+        };
+        struct{
+            uint32_t isFlags : 5;
+            uint32_t nextFlags : 5;
+            uint32_t trigFlags : 16;
+            uint32_t blnkFlags2 : 7;
+        };
+        uint32_t all;
+    } flags;
+    
+    TXpioreg2526_t reg25_26;
+    TXtrigtimings_t *reg9_24;
+    
+    TXpiocmd_t *top;
+    TXpiocmd_t *prev;
+    TXpiocmd_t *next;
+    TXpiocmd_t *loopHead;
+    TXpiocmd_t *loopTail;
+
+} TXpiocmd_t;
 
 
 typedef struct TXsys_{
     
     TXpioreg0_t reg0;
-    uint32_t    reg1;
+    TXpioreg1_t reg1;
     TXpioreg2_t reg2;
     TXpioreg3_t reg3;
     TXpioreg4_t reg4;
     TXpioreg5_t reg5;
     TXpioreg6_t reg6;
     TXpioreg7_t reg7;
+    TXpioreg8_t reg8;
 
-    TXtrigtimings_t *reg8_23; // trig/led durations and delays
+    TXtrigtimings_t *reg9_24; // trig/led durations and delays
 	
-    TXpioreg2425_t reg24_25;
+    TXpioreg2526_t reg25_26;
 		
 	uint32_t volatile **pio_reg;
     
-    TXpiocmdlist_t **pio_cmd_list;
+    TXpiocmd_t **pio_cmd_list;
 
     char volatile *instructions;
     char volatile *phaseDelays;
@@ -245,18 +330,32 @@ typedef struct TXsys_{
     void (*setTrigRestLvls)(TXsys_t *, uint32_t);
     void (*setActiveTransducers)(TXsys_t *, uint32_t);
     
-    void (*setTrigs)(TXsys_t *, uint32_t *);
-    void (*setChargeTime)(TXsys_t *, uint32_t);
-    void (*setPhaseDelay)(TXsys_t *, uint32_t *);
-    void (*setRecvTrigDelay)(TXsys_t *, uint32_t);
-    void (*setRequestNextInstrTimer)(TXsys_t *, uint64_t);
-    void (*issuePioCommand)(TXsys_t *, uint32_t);
+    void (*setTrigs)(TXsys_t *);
+    void (*setChargeTime)(TXsys_t *);
+    void (*setFireCmdDelay)(TXsys_t *);
+    void (*setPhaseDelay)(TXsys_t *);
+    void (*setRecvTrigDelay)(TXsys_t *);
+    void (*setRequestNextInstrTimer)(TXsys_t *);
+    void (*issuePioCommand)(TXsys_t *);
 
-    void (*modifyField_pioCmdList)(TXsys_t *, uint32_t);
-    void (*addItem_pioCmdList)(TXsys_t *, uint32_t);
-    void (*delItem_pioCmdList)(TXsys_t *, uint32_t);
+    void (*addCmd)(TXsys_t *);
+    void (*delCmd)(TXsys_t *, uint32_t);
 
-    void (*gotoIdx_pioCmdList)(TXsys_t *, uint32_t);
+    void (*makeLoopStart)(TXsys_t *, uint32_t, uint32_t, uint32_t);
+    void (*makeLoopEnd)(TXsys_t *);
+    void (*makeSteeringLoopStart)(TXsys_t *, uint32_t, uint32_t, uint32_t);
+    void (*makeSteeringLoopEnd)(TXsys_t *);
+    void (*makePioCmd)(TXsys_t *);
+
+    void (*bufferTrigTimings)(TXsys_t *, uint32_t *);
+    void (*bufferChargeTime)(TXsys_t *, uint32_t);
+    void (*bufferFireCmd)(TXsys_t *, uint32_t);
+    void (*bufferPhaseDelays)(TXsys_t *, uint32_t *);
+    void (*bufferRecvTrig)(TXsys_t *, uint32_t);
+    void (*bufferInstructionTimeout)(TXsys_t *, uint64_t);
+
+    void (*resetTxInterrupt)(TXsys_t *);
+    void (*resetRcvTrig)(TXsys_t *);
 } TXsys_t;
 
 

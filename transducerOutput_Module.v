@@ -48,6 +48,11 @@ begin
 			if( dangerCntr ) dangerCntr <= 10'b0;
 		end
 		
+		if( !state )
+		begin
+			if( fireComplete ) fireComplete <= 1'b0;
+		end
+		
 		if( onYourMark & !GOGOGO_EXCLAMATION & !state[0] )
 		begin
 			state[0] <= 1'b1;
@@ -63,7 +68,6 @@ begin
 				begin
 					pd <= phaseDelay;
 					ct <= chargeTime;
-					if( fireComplete ) fireComplete <= 1'b0;
 					if( transducerOutput ) transducerOutput <= 1'b0;
 				end
 				
@@ -71,7 +75,6 @@ begin
 				begin
 					pd <= phaseDelay;
 					ct <= chargeTime;
-					if( fireComplete ) fireComplete <= 1'b0;
 					if( transducerOutput ) transducerOutput <= 1'b0;
 					if( onYourMark ) state[0] <= 1'b1;
 				end

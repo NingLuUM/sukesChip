@@ -77,6 +77,8 @@ void acceptEnetClientSock(SOCK_t *servsock){
         clisock->is.commsock = 1;
     } else if (clisock->portNum == ADC_CONTROL_PORT){
         clisock->is.adc_control = 1;
+    } else if (clisock->portNum == TX_CONTROL_PORT){
+        clisock->is.tx_control = 1;
     }
 
     if(clisock->portNum != ADC_CONTROL_PORT){
@@ -101,7 +103,7 @@ void disconnectPollSock(SOCK_t *tmp){
     tmp->fd = 0;
 }
 
-void connectPollInterrupter(POLLserver_t *ps, SOCK_t *interrupt, char *gpio_lab){
+void connectPollInterrupter(POLLserver_t *ps, SOCK_t *interrupt, char *gpio_lab, int isRcvInterrupt){
 	 
 	// CHANGE THIS TO DESIRED LABEL
 	const char *gpio_label = gpio_lab;
@@ -287,7 +289,11 @@ void connectPollInterrupter(POLLserver_t *ps, SOCK_t *interrupt, char *gpio_lab)
 	interrupt->fd = file_fd;
     interrupt->ps = ps;
     interrupt->is.flags = 0;
-    interrupt->is.rcv_interrupt = 1;
+    if(isRecvInterrupt){
+        interrupt->is.rcv_interrupt = 1;
+    } else {
+        interrupt->is.tx_interrupt = 1;
+    }
     interrupt->portNum = 0;
 	
 	result = read(interrupt->fd, buffer, PATH_MAX);

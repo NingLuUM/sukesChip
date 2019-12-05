@@ -8,15 +8,16 @@ module Output_Control_Module_PIO (
 	
 	// PIO register for controlling module outputs
 	input	[31:0]			itxControlComms, 				// pio_tx_reg0
-	input	[31:0]			itxPioControlSettings, 			// pio_tx_reg1
 	
 	// static settings for outputs	
-	input	[7:0]			itxBoardIdentifiers,			// pio_tx_reg2
-	input	[7:0]			itxTransducerOutputIsActive,	// pio_tx_reg2
-	input	[15:0]			itxPioTriggerLedRestLevels,		// pio_tx_reg2
+	input	[7:0]			itxBoardIdentifiers,			// pio_tx_reg1
+	input	[7:0]			itxTransducerOutputIsActive,	// pio_tx_reg1
+	input	[15:0]			itxPioTriggerLedRestLevels,		// pio_tx_reg1
 	
 	
+	input	[31:0]			itxPioCommands, 				// pio_tx_reg2
 	
+
 	// PIO output control registers
 	input	[31:0]			itxPioPhaseDelay_ch0_ch1, 		// pio_tx_reg3
 	input	[31:0]			itxPioPhaseDelay_ch2_ch3, 		// pio_tx_reg4
@@ -24,10 +25,12 @@ module Output_Control_Module_PIO (
 	input	[31:0]			itxPioPhaseDelay_ch6_ch7, 		// pio_tx_reg6
 	
 	input	[8:0]			itxPioChargetime_reg,			// pio_tx_reg7
-	input	[22:0]			itxRecvTrigDelay,				// pio_tx_reg7
+	input	[22:0]			itxFireDelay,					// pio_tx_reg7
 	
-	input	[15:0][31:0]	itxTrigLedDurationAndDelay,		// pio_tx_reg8-23
-	input	[1:0][31:0]		itxRequestNextInstrTimer,		// pio_tx_reg24-25
+	input	[31:0]			itxRecvTrigDelay,				// pio_tx_reg8
+	
+	input	[15:0][31:0]	itxTrigLedDurationAndDelay,		// pio_tx_reg9-24
+	input	[1:0][31:0]		itxRequestNextInstrTimer,		// pio_tx_reg25-26
 	
 
 	// input triggers and 'fast' comm lines
@@ -57,9 +60,9 @@ parameter	[8:0]	PIO_CMD_IDLE				= 9'b000000000;
 parameter	[8:0]	PIO_CMD_SET_TRIG_LEDS		= 9'b000000001;
 parameter	[8:0]	PIO_CMD_ISSUE_RCV_TRIG		= 9'b000000010;
 parameter	[8:0]	PIO_CMD_FIRE 				= 9'b000000100;
-parameter	[8:0]	PIO_CMD_SET_AMP		 		= 9'b000001000;
-parameter	[8:0]	PIO_CMD_SET_PHASE	 		= 9'b000010000;
-parameter	[8:0]	PIO_CMD_INSTR_REQUEST_TIMER = 9'b000100000;
+parameter	[8:0]	PIO_CMD_INSTR_REQUEST_TIMER = 9'b000001000;
+parameter	[8:0]	PIO_CMD_SET_AMP		 		= 9'b000010000;
+parameter	[8:0]	PIO_CMD_SET_PHASE	 		= 9'b000100000;
 parameter	[8:0]	PIO_CMD_RESET_RCV_TRIG		= 9'b001000000;
 parameter	[8:0]	PIO_CMD_RESET_INTERRUPT		= 9'b010000000;
 
@@ -72,49 +75,46 @@ wire [1:0] control_state;
 assign control_state = itxControlComms[1:0];
 
 wire [8:0]	pio_output_commands;
-wire [15:0]	pio_trigger_led_output_is_active;
-
-assign pio_output_commands 				= itxControlComms[10:2];
-assign pio_trigger_led_output_is_active	= itxControlComms[26:11];
+assign pio_output_commands 				= itxPioCommands[8:0];
 
 /**********************************************************************/
 /*** PIO REGISTER ASSIGNMENTS *****************************************/
 /**********************************************************************/
 
-wire [15:0][15:0] itxTriggerLedDuration;
-wire [15:0][15:0] itxTriggerLedDelay;
-assign itxTriggerLedDuration[0] 	= itxTrigLedDurationAndDelay[0][15:0];
-assign itxTriggerLedDelay[0] 		= itxTrigLedDurationAndDelay[0][31:16];
-assign itxTriggerLedDuration[1] 	= itxTrigLedDurationAndDelay[1][15:0];
-assign itxTriggerLedDelay[1] 		= itxTrigLedDurationAndDelay[1][31:16];
-assign itxTriggerLedDuration[2] 	= itxTrigLedDurationAndDelay[2][15:0];
-assign itxTriggerLedDelay[2] 		= itxTrigLedDurationAndDelay[2][31:16];
-assign itxTriggerLedDuration[3] 	= itxTrigLedDurationAndDelay[3][15:0];
-assign itxTriggerLedDelay[3] 		= itxTrigLedDurationAndDelay[3][31:16];
-assign itxTriggerLedDuration[4] 	= itxTrigLedDurationAndDelay[4][15:0];
-assign itxTriggerLedDelay[4] 		= itxTrigLedDurationAndDelay[4][31:16];
-assign itxTriggerLedDuration[5] 	= itxTrigLedDurationAndDelay[5][15:0];
-assign itxTriggerLedDelay[5] 		= itxTrigLedDurationAndDelay[5][31:16];
-assign itxTriggerLedDuration[6] 	= itxTrigLedDurationAndDelay[6][15:0];
-assign itxTriggerLedDelay[6] 		= itxTrigLedDurationAndDelay[6][31:16];
-assign itxTriggerLedDuration[7] 	= itxTrigLedDurationAndDelay[7][15:0];
-assign itxTriggerLedDelay[7] 		= itxTrigLedDurationAndDelay[7][31:16];
-assign itxTriggerLedDuration[8] 	= itxTrigLedDurationAndDelay[8][15:0];
-assign itxTriggerLedDelay[8] 		= itxTrigLedDurationAndDelay[8][31:16];
-assign itxTriggerLedDuration[9] 	= itxTrigLedDurationAndDelay[9][15:0];
-assign itxTriggerLedDelay[9] 		= itxTrigLedDurationAndDelay[9][31:16];
-assign itxTriggerLedDuration[10] 	= itxTrigLedDurationAndDelay[10][15:0];
-assign itxTriggerLedDelay[10] 		= itxTrigLedDurationAndDelay[10][31:16];
-assign itxTriggerLedDuration[11] 	= itxTrigLedDurationAndDelay[11][15:0];
-assign itxTriggerLedDelay[11] 		= itxTrigLedDurationAndDelay[11][31:16];
-assign itxTriggerLedDuration[12] 	= itxTrigLedDurationAndDelay[12][15:0];
-assign itxTriggerLedDelay[12] 		= itxTrigLedDurationAndDelay[12][31:16];
-assign itxTriggerLedDuration[13] 	= itxTrigLedDurationAndDelay[13][15:0];
-assign itxTriggerLedDelay[13] 		= itxTrigLedDurationAndDelay[13][31:16];
-assign itxTriggerLedDuration[14] 	= itxTrigLedDurationAndDelay[14][15:0];
-assign itxTriggerLedDelay[14] 		= itxTrigLedDurationAndDelay[14][31:16];
-assign itxTriggerLedDuration[15] 	= itxTrigLedDurationAndDelay[15][15:0];
-assign itxTriggerLedDelay[15] 		= itxTrigLedDurationAndDelay[15][31:16];
+wire [15:0][10:0] itxTriggerLedDuration;
+wire [15:0][20:0] itxTriggerLedDelay;
+assign itxTriggerLedDuration[0] 	= itxTrigLedDurationAndDelay[0][10:0];
+assign itxTriggerLedDelay[0] 		= itxTrigLedDurationAndDelay[0][31:11];
+assign itxTriggerLedDuration[1] 	= itxTrigLedDurationAndDelay[1][10:0];
+assign itxTriggerLedDelay[1] 		= itxTrigLedDurationAndDelay[1][31:11];
+assign itxTriggerLedDuration[2] 	= itxTrigLedDurationAndDelay[2][10:0];
+assign itxTriggerLedDelay[2] 		= itxTrigLedDurationAndDelay[2][31:11];
+assign itxTriggerLedDuration[3] 	= itxTrigLedDurationAndDelay[3][10:0];
+assign itxTriggerLedDelay[3] 		= itxTrigLedDurationAndDelay[3][31:11];
+assign itxTriggerLedDuration[4] 	= itxTrigLedDurationAndDelay[4][10:0];
+assign itxTriggerLedDelay[4] 		= itxTrigLedDurationAndDelay[4][31:11];
+assign itxTriggerLedDuration[5] 	= itxTrigLedDurationAndDelay[5][10:0];
+assign itxTriggerLedDelay[5] 		= itxTrigLedDurationAndDelay[5][31:11];
+assign itxTriggerLedDuration[6] 	= itxTrigLedDurationAndDelay[6][10:0];
+assign itxTriggerLedDelay[6] 		= itxTrigLedDurationAndDelay[6][31:11];
+assign itxTriggerLedDuration[7] 	= itxTrigLedDurationAndDelay[7][10:0];
+assign itxTriggerLedDelay[7] 		= itxTrigLedDurationAndDelay[7][31:11];
+assign itxTriggerLedDuration[8] 	= itxTrigLedDurationAndDelay[8][10:0];
+assign itxTriggerLedDelay[8] 		= itxTrigLedDurationAndDelay[8][31:11];
+assign itxTriggerLedDuration[9] 	= itxTrigLedDurationAndDelay[9][10:0];
+assign itxTriggerLedDelay[9] 		= itxTrigLedDurationAndDelay[9][31:11];
+assign itxTriggerLedDuration[10] 	= itxTrigLedDurationAndDelay[10][10:0];
+assign itxTriggerLedDelay[10] 		= itxTrigLedDurationAndDelay[10][31:11];
+assign itxTriggerLedDuration[11] 	= itxTrigLedDurationAndDelay[11][10:0];
+assign itxTriggerLedDelay[11] 		= itxTrigLedDurationAndDelay[11][31:11];
+assign itxTriggerLedDuration[12] 	= itxTrigLedDurationAndDelay[12][10:0];
+assign itxTriggerLedDelay[12] 		= itxTrigLedDurationAndDelay[12][31:11];
+assign itxTriggerLedDuration[13] 	= itxTrigLedDurationAndDelay[13][10:0];
+assign itxTriggerLedDelay[13] 		= itxTrigLedDurationAndDelay[13][31:11];
+assign itxTriggerLedDuration[14] 	= itxTrigLedDurationAndDelay[14][10:0];
+assign itxTriggerLedDelay[14] 		= itxTrigLedDurationAndDelay[14][31:11];
+assign itxTriggerLedDuration[15] 	= itxTrigLedDurationAndDelay[15][10:0];
+assign itxTriggerLedDelay[15] 		= itxTrigLedDurationAndDelay[15][31:11];
 
 
 // needs to know if its master so it doesn't issue 'otxWaitForMe'
@@ -133,7 +133,8 @@ assign triggerSignal = internalTrigger;
 reg [8:0]			pio_cmd_previous;
 
 reg [63:0]			instruction_request_timer;
-reg	[22:0]			recv_trig_delay_timer;
+reg	[22:0]			fire_delay_timer;
+reg	[31:0]			recv_trig_delay_timer;
 
 reg [8:0]			transducer_chargetime;
 reg [7:0][15:0]		transducer_phasedelay;
@@ -148,6 +149,7 @@ reg					trigLedFlag;
 reg					trigLedReset;
 wire [15:0]			trigLedComplete;
 
+reg					fireDelayTimerFlag;
 reg					recvTrigTimerFlag;
 reg					requestTimerFlag;
 reg					txResetFlag;
@@ -175,8 +177,11 @@ begin
 	trigLedStop = 1'b0;
 	internalTrigger = 1'b0;
 	
+	fireDelayTimerFlag = 1'b0;
+	fire_delay_timer = 23'b0;
+	
 	recvTrigTimerFlag = 1'b0;
-	recv_trig_delay_timer = 23'b0;
+	recv_trig_delay_timer = 32'b0;
 	
 	requestTimerFlag = 1'b0;
 	instruction_request_timer = 64'b0;
@@ -208,8 +213,13 @@ begin
 				transducer_is_active <= 8'b0;
 				internalTrigger <= 1'b0;
 				trigLedStop <= 1'b1;
+				
+				fireDelayTimerFlag <= 1'b0;
+				fire_delay_timer <= 23'b0;
+				
 				recvTrigTimerFlag <= 1'b0;
-				recv_trig_delay_timer <= 23'b0;
+				recv_trig_delay_timer <= 32'b0;
+				
 				requestTimerFlag <= 1'b0;
 				instruction_request_timer <= 64'b0;
 			end
@@ -229,7 +239,7 @@ begin
 						/******************************************************/
 						/*** INTERNAL TRIGGER FOR SOLO BOARDS *****************/
 						/******************************************************/
-						if( ( pio_output_commands & 9'b000000111 ) ) 
+						if( ( pio_output_commands & 9'b000001111 ) ) 
 						begin
 							txResetFlag <= 1'b1;
 							if ( isSolo & !internalTrigger ) internalTrigger <= 1'b1;
@@ -240,8 +250,9 @@ begin
 						/******************************************************/
 						if( ( pio_output_commands & PIO_CMD_FIRE ) && !fireFlag )
 						begin
-							fireFlag <= 1'b1;
-							if ( fireReset ) fireReset <= 1'b0;
+							fireDelayTimerFlag <= 1'b1;
+							fire_delay_timer <= itxFireDelay;
+							fireReset <= 1'b0;
 						end
 
 						/******************************************************/
@@ -250,7 +261,7 @@ begin
 						if( ( pio_output_commands & PIO_CMD_SET_TRIG_LEDS ) & !trigLedFlag )
 						begin
 							trigLedFlag <= 1'b1;
-							if ( trigLedReset ) trigLedReset <= 1'b0;
+							trigLedReset <= 1'b0;
 						end
 						
 						/******************************************************/
@@ -298,7 +309,7 @@ begin
 						if( pio_output_commands & PIO_CMD_INSTR_REQUEST_TIMER & !requestTimerFlag )
 						begin
 							requestTimerFlag <= 1'b1;
-							instruction_request_timer <= {itxRequestNextInstrTimer[0],itxRequestNextInstrTimer[1]};
+							instruction_request_timer <= {itxRequestNextInstrTimer[1],itxRequestNextInstrTimer[0]};
 						end
 						
 						/******************************************************/
@@ -330,35 +341,35 @@ begin
 						otxADCTriggerLine <= 1'b0;
 						adcTrigFlag[1] <= 1'b1;
 					end
-						
+					
 					/******************************************************/
-					/*** NO NEW FIRE CMDS UNTIL PREVIOUS FIRE COMPLETE ****/
+					/*** FIRE DELAY COUNTDOWN TIMER ***********************/
 					/******************************************************/
-					if ( fireComplete == 8'b11111111 )
+					if ( fireDelayTimerFlag )
+					begin
+						if( fire_delay_timer )
+						begin
+							fire_delay_timer <= fire_delay_timer - 1'b1;
+						end
+						else
+						begin
+							fireFlag <= 1'b1;
+							fireDelayTimerFlag <= 1'b0;
+						end
+					end
+					else if ( ( fireComplete == 8'b11111111 ) && !fireReset )
 					begin
 						if ( fireFlag ) fireFlag <= 1'b0;
-						if ( !fireReset ) fireReset <= 1'b1;
+						fireReset <= 1'b1;
 					end
 					
 					/******************************************************/
 					/*** NO NEW FIRE CMDS UNTIL PREVIOUS FIRE COMPLETE ****/
 					/******************************************************/
-					if ( trigLedComplete == 16'b1111111111111111 )
+					if ( ( trigLedComplete == 16'b1111111111111111 ) && !trigLedReset )
 					begin
 						if ( trigLedFlag ) trigLedFlag <= 1'b0;
-						if ( !trigLedReset ) trigLedReset <= 1'b1;
-					end
-					
-					/******************************************************/
-					/*** SIGNAL ARM THAT SYNCHRONOUS COMMANDS FINISHED ****/
-					/******************************************************/
-					if ( ( trigLedReset & fireReset & txResetFlag ) && !instruction_request_timer )
-					begin
-						if( !otxInterrupt[0] ) otxInterrupt[0] <= 1'b1;
-					end
-					else if ( instruction_request_timer )
-					begin
-						instruction_request_timer <= instruction_request_timer - 1'b1;
+						trigLedReset <= 1'b1;
 					end
 					
 					/******************************************************/
@@ -376,6 +387,23 @@ begin
 							adcTrigFlag[0] <= 1'b1;
 						end
 					end
+					
+					/******************************************************/
+					/*** SIGNAL ARM THAT SYNCHRONOUS COMMANDS FINISHED ****/
+					/******************************************************/
+					if ( ( trigLedReset & fireReset & txResetFlag ) && !instruction_request_timer )
+					begin
+						if( !otxInterrupt[0] ) otxInterrupt[0] <= 1'b1;
+					end
+					else if ( instruction_request_timer )
+					begin
+						instruction_request_timer <= instruction_request_timer - 1'b1;
+					end
+					
+					
+					
+					
+					
 					
 				end
 				else if ( fireDanger ) 
@@ -397,8 +425,13 @@ begin
 					trigLedStop <= 1'b1;
 					pio_cmd_previous <= pio_output_commands;
 					otxInterrupt[15] <= 1'b1;
+					
+					fireDelayTimerFlag <= 1'b0;
+					fire_delay_timer <= 23'b0;
+					
 					recvTrigTimerFlag <= 1'b0;
-					recv_trig_delay_timer <= 23'b0;
+					recv_trig_delay_timer <= 32'b0;
+				
 					requestTimerFlag <= 1'b0;
 					instruction_request_timer <= 64'b0;
 				end
@@ -425,8 +458,13 @@ begin
 				transducer_is_active <= 8'b0;
 				internalTrigger <= 1'b0;
 				trigLedStop <= 1'b1;
+				
+				fireDelayTimerFlag <= 1'b0;
+				fire_delay_timer <= 23'b0;
+				
 				recvTrigTimerFlag <= 1'b0;
-				recv_trig_delay_timer <= 23'b0;
+				recv_trig_delay_timer <= 32'b0;
+				
 				requestTimerFlag <= 1'b0;
 				instruction_request_timer <= 64'b0;
 			end
@@ -451,8 +489,13 @@ begin
 				transducer_is_active <= 8'b0;
 				internalTrigger <= 1'b0;
 				trigLedStop <= 1'b1;
+				
+				fireDelayTimerFlag <= 1'b0;
+				fire_delay_timer <= 23'b0;
+				
 				recvTrigTimerFlag <= 1'b0;
-				recv_trig_delay_timer <= 23'b0;
+				recv_trig_delay_timer <= 32'b0;
+				
 				requestTimerFlag <= 1'b0;
 				instruction_request_timer <= 64'b0;
 			end
@@ -474,8 +517,13 @@ begin
 				transducer_is_active <= 8'b0;
 				internalTrigger <= 1'b0;
 				trigLedStop <= 1'b1;
+				
+				fireDelayTimerFlag <= 1'b0;
+				fire_delay_timer <= 23'b0;
+				
 				recvTrigTimerFlag <= 1'b0;
-				recv_trig_delay_timer <= 23'b0;
+				recv_trig_delay_timer <= 32'b0;
+				
 				requestTimerFlag <= 1'b0;
 				instruction_request_timer <= 64'b0;
 			end
@@ -595,7 +643,6 @@ triggerLedOutput_Module tl0(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[0]),
-	.isActive(pio_trigger_led_output_is_active[0]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -614,7 +661,6 @@ triggerLedOutput_Module tl1(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[1]),
-	.isActive(pio_trigger_led_output_is_active[1]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -633,7 +679,6 @@ triggerLedOutput_Module tl2(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[2]),
-	.isActive(pio_trigger_led_output_is_active[2]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -652,7 +697,6 @@ triggerLedOutput_Module tl3(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[3]),
-	.isActive(pio_trigger_led_output_is_active[3]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -671,7 +715,6 @@ triggerLedOutput_Module tl4(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[4]),
-	.isActive(pio_trigger_led_output_is_active[4]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -690,7 +733,6 @@ triggerLedOutput_Module tl5(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[5]),
-	.isActive(pio_trigger_led_output_is_active[5]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -709,7 +751,6 @@ triggerLedOutput_Module tl6(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[6]),
-	.isActive(pio_trigger_led_output_is_active[6]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -728,7 +769,6 @@ triggerLedOutput_Module tl7(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[7]),
-	.isActive(pio_trigger_led_output_is_active[7]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -747,7 +787,6 @@ triggerLedOutput_Module tl8(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[8]),
-	.isActive(pio_trigger_led_output_is_active[8]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -766,7 +805,6 @@ triggerLedOutput_Module tl9(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[9]),
-	.isActive(pio_trigger_led_output_is_active[9]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -785,7 +823,6 @@ triggerLedOutput_Module tl10(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[10]),
-	.isActive(pio_trigger_led_output_is_active[10]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -804,7 +841,6 @@ triggerLedOutput_Module tl11(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[11]),
-	.isActive(pio_trigger_led_output_is_active[11]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -823,7 +859,6 @@ triggerLedOutput_Module tl12(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[12]),
-	.isActive(pio_trigger_led_output_is_active[12]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -842,7 +877,6 @@ triggerLedOutput_Module tl13(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[13]),
-	.isActive(pio_trigger_led_output_is_active[13]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -861,7 +895,6 @@ triggerLedOutput_Module tl14(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[14]),
-	.isActive(pio_trigger_led_output_is_active[14]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -880,7 +913,6 @@ triggerLedOutput_Module tl15(
 	.rst(trigLedReset),
 	
 	.restLevel(itxPioTriggerLedRestLevels[15]),
-	.isActive(pio_trigger_led_output_is_active[15]),
 	
 	.onYourMark(trigLedFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
