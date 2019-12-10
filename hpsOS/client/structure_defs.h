@@ -5,6 +5,7 @@ struct SOCK_;
 struct POLLserver_;
 struct RCVsys_;
 struct ADCvars_;
+struct TXsys_;
 union FMSG_;
 union TXpioreg0_;
 union TXpioreg1_;
@@ -24,6 +25,7 @@ typedef struct SOCK_ SOCK_t;
 typedef struct POLLserver_ POLLserver_t;
 typedef struct RCVsys_ RCVsys_t;
 typedef struct ADCvars_ ADCvars_t;
+typedef struct TXsys_ TXsys_t;
 typedef union FMSG_ FMSG_t;
 typedef union TXpioreg0_ TXpioreg0_t;
 typedef union TXpioreg1_ TXpioreg1_t;
@@ -89,6 +91,9 @@ void txBufferSetRequestNextInstrTimerCmd(TXsys_t *TX, uint64_t timerVal);
 void txResetTxInterrupt(TXsys_t *TX);
 void txResetRcvTrig(TXsys_t *TX);
 
+void txSetNumSteeringLocs(TXsys_t *TX, uint32_t nSteeringLocs);
+void txStorePhaseDelays(TXsys_t *TX, int nrecv, FMSG_t *msg);
+
 typedef struct POLLserver_{
 	int epfd;
 	struct epoll_event ev;
@@ -106,9 +111,10 @@ typedef struct SOCK_{
             uint8_t commsock : 1;
             uint8_t adc_control : 1;
             uint8_t tx_control : 1;
+            uint8_t tx_incoming_data : 1;
             uint8_t rcv_interrupt : 1;
             uint8_t tx_interrupt : 1;
-            uint8_t blnk : 2;
+            uint8_t blnk : 1;
         };
         uint8_t flags;
     } is;
@@ -317,12 +323,12 @@ typedef struct TXsys_{
 	
     TXpioreg2526_t reg25_26;
 		
-	uint32_t volatile **pio_reg;
+	uint32_t **pio_reg;
     
     TXpiocmd_t **pio_cmd_list;
 
-    char volatile *instructions;
-    char volatile *phaseDelays;
+    uint32_t nSteeringLocs;
+    uint32_t **phaseDelays;
 
     SOCK_t interrupt;
 
@@ -356,6 +362,11 @@ typedef struct TXsys_{
 
     void (*resetTxInterrupt)(TXsys_t *);
     void (*resetRcvTrig)(TXsys_t *);
+
+    void (*setNumSteeringLocs)(TXsys_t *, uint32_t);
+    void (*storePhaseDelays)(TXsys_t *, int, FMSG_t *);
+
+
 } TXsys_t;
 
 
@@ -410,9 +421,10 @@ typedef struct RAMBANK12_{
 
 
 typedef union FMSG_{
-    uint32_t u[10];
-    float f[10];
-    double d[5];
+    uint16_t u16[128];
+    uint32_t u[64];
+    float f[64];
+    double d[32];
 } FMSG_t;
 
 

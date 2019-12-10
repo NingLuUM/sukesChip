@@ -42,7 +42,6 @@ typedef union TXpioreg2_{ // reg2: pioCommands
     uint32_t all;		
 } TXpioreg2_t;
 
-
 typedef union TXpioreg3_{ // reg3: phase delays ch0 & ch1
     struct{
         uint32_t ch0 : 16;
@@ -79,7 +78,7 @@ typedef union TXpioreg7_{ // reg7: tranducer chargetime & fire cmd delay
     struct{
         uint32_t chargeTime : 9;
         uint32_t fireDelay : 23;
-    }
+    };
     uint32_t all;
 } TXpioreg7_t;
 

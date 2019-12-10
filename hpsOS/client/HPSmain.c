@@ -61,7 +61,9 @@
 //~ #include "hps_0_ramclks.h"
 //~ #include "hps_0_16bitADCdata.h"
 //~ #include "hps_0_rambank128bit.h"
-#include "hps_0_txrx_test.h"
+// #include "hps_0_txrx_test.h"
+#include "hps_0_txPioReg.h"
+
 // macros to dereference memory-mapped variables from FPGA
 #define DREF8(X)	    ( *( uint8_t  *) X )
 #define DREF16(X)	    ( *( uint16_t *) X )
@@ -79,15 +81,16 @@
 #define INIT_PORT           ( 3400 )
 #define ADC_CONTROL_PORT    ( 3500 )
 #define TX_CONTROL_PORT     ( 3600 )
+#define TX_DATA_UPLOAD_PORT ( 3700 )
 
 #define MAX_RECLEN          ( 16384 )
 #define MAX_PACKETSIZE      ( 8192 )
 
 #define MAX_SOCKETS         ( 10 )
 #define ENET_MSG_SIZE       ( 10 )
-#define MAX_POLL_EVENTS     ( 7 )
-#define MAX_SERVER_PORTS    ( 5 )
-#define MAX_SERVER_QUEUE    ( 7 )
+#define MAX_POLL_EVENTS     ( 8 )
+#define MAX_SERVER_PORTS    ( 6 )
+#define MAX_SERVER_QUEUE    ( 8 )
 
 // UNUSED, but potentially useful (see 'cServer' for use examp) 
 #define ADC_CLK             ( 25 )	// MHz
@@ -102,15 +105,17 @@
 #define ADC_SYNC_COMMAND			( 0x04 )
 // TODO: make these into structs with initialized vars (like adc registers)?
 
+
+#define TX_INTERRUPT_ID             ( 0 )
+#define RCV_INTERRUPT_ID            ( 1 )
 // case defs for main controller
 #define CASE_ADD_DATA_SOCKET 0
 // TODO: separate recvSys and control handlers
 
 // case defs for recvSysMsgHandler
-#define CASE_SET_RECLEN                     ( 0 )
-#define CASE_SET_PIO_VAR_GAIN               ( 1 )
+#define CASE_RCV_SET_RECLEN                 ( 0 )
+#define CASE_RCV_SET_PIO_VAR_GAIN           ( 1 )
 #define CASE_SET_LEDS                       ( 2 )
-#define CASE_QUERY_DATA                     ( 3 )
 #define CASE_ADC_SET_GAIN                   ( 4 )
 #define CASE_ADC_SET_UNSIGNED               ( 5 )
 #define CASE_ADC_SET_LOW_NOISE_MODE         ( 6 )
@@ -118,20 +123,39 @@
 #define CASE_ADC_SET_FILTER_BW              ( 8 )
 #define CASE_ADC_SET_INTERNAL_AC_COUPLING   ( 9 )
 #define CASE_ADC_ISSUE_DIRECT_CMD           ( 10 )
-#define CASE_CONNECT_INTERRUPT              ( 11 )
-#define CASE_SETUP_LOCAL_STORAGE            ( 12 )
+#define CASE_RCV_CONNECT_INTERRUPT          ( 11 )
+#define CASE_RCV_SETUP_LOCAL_STORAGE        ( 12 )
 #define CASE_ADC_SET_DEFAULT_SETTINGS       ( 13 )
-#define CASE_SET_QUERY_MODE                 ( 14 )
+#define CASE_RCV_SET_QUERY_MODE             ( 14 )
 #define CASE_UPDATE_AUTO_SHUTDOWN_SETTING   ( 15 )
-#define CASE_SET_NPULSES					( 16 )
-#define CASE_SET_CLOCK_DIVISOR				( 17 )
-#define CASE_SET_RCV_SAMPLING_MODE			( 18 )
-#define CASE_SET_RCV_COMPRESSOR_MODE		( 19 )
+#define CASE_RCV_SET_NPULSES				( 16 )
+#define CASE_RCV_SET_CLOCK_DIVISOR			( 17 )
+#define CASE_RCV_SET_SAMPLING_MODE			( 18 )
+#define CASE_RCV_SET_COMPRESSOR_MODE		( 19 )
+
+// TODO: delete these from rcv sys handler
+#define	CASE_ADC_SET_FCLOCK_DELAY			( 52 )
 
 // TODO: move to header containing handler(?) 
-#define CASE_TX_SET_CHARGETIME				( 50 )
-#define	CASE_TX_FIRE						( 51 )
-#define	CASE_TX_SET_FCLOCK_DELAY			( 52 )
+#define CASE_TX_SET_CONTROL_STATE           ( 0 )
+#define CASE_TX_SET_TRIG_REST_LVLS          ( 1 )
+#define CASE_TX_SET_ACTIVE_TRANSDUCERS      ( 2 ) 
+#define CASE_TX_MAKE_PIO_CMD                ( 3 )
+#define CASE_TX_END_PIO_CMD                 ( 4 )
+#define CASE_TX_MAKE_LOOP_START             ( 5 )
+#define CASE_TX_MAKE_LOOP_END               ( 6 )
+#define CASE_TX_MAKE_STEERING_LOOP_START    ( 7 )
+#define CASE_TX_MAKE_STEERING_LOOP_END      ( 8 )
+#define CASE_TX_BUFFER_TRIG_TIMINGS         ( 10 )
+#define CASE_TX_BUFFER_CHARGE_TIME          ( 11 ) 
+#define CASE_TX_BUFFER_PHASE_DELAYS         ( 12 )
+#define CASE_TX_BUFFER_FIRE_CMD             ( 13 )
+#define CASE_TX_BUFFER_RECV_TRIG            ( 14 )
+#define CASE_TX_BUFFER_INSTRUCTION_TIMER    ( 15 )
+#define CASE_TX_WAIT_CMD                    ( 16 )
+#define CASE_TX_SET_NSTEERING_LOCS          ( 17 )
+#define CASE_TX_CONNECT_INTERRUPT           ( 18 )
+
 
 #define CASE_EXIT_PROGRAM 100
 
@@ -145,12 +169,15 @@ int g_auto_shutdown_enabled = 1;
 struct timespec gstart, gend, gdifftime;
 
 #include "adc_register_defs.h"
+#include "tx_pio_register_defs.h"
 #include "structure_defs.h"
 #include "adc_funcs.h"
+#include "tx_funcs.h"
 #include "epoll_server_funcs.h"
 #include "subsys_setup_funcs.h"
 #include "recvSys_handlerFuncs.h"
-
+#include "txProgramExecutionHandler.h"
+#include "txSys_enetMsgHandlerFuncs.h"
 
 #define BYTE_TO_BINARY_PATTERN "%s%s%s%s%s%s%s%s"
 #define BYTE_TO_BINARY(byte)  \
@@ -180,11 +207,12 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     RCV_init(&FPGA,&ADC,&RCV);
     TX_init(&FPGA,&TX);
 
-    connectPollInterrupter(&PS,&(RCV.interrupt),"gpio@0x100000000",1);
-    connectPollInterrupter(&PS,&(TX.interrupt),"gpio@0x100000010",0);
+    connectPollInterrupter(&PS,&(RCV.interrupt),"gpio@0x100000000",RCV_INTERRUPT_ID);
+    connectPollInterrupter(&PS,&(TX.interrupt),"gpio@0x100000010",TX_INTERRUPT_ID);
     addEnetServerSock(&PS,&ENETserver[0],INIT_PORT);
     addEnetServerSock(&PS,&ENETserver[1],ADC_CONTROL_PORT);
     addEnetServerSock(&PS,&ENETserver[2],TX_CONTROL_PORT);
+    addEnetServerSock(&PS,&ENETserver[3],TX_DATA_UPLOAD_PORT);
     
     for(int i=0;i<MAX_SERVER_PORTS;i++){
         ENETclient[i].ps = NULL;
@@ -217,15 +245,14 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                 
                 } else if ( sock->is.rcv_interrupt ) {
 					printf("rcv interrupt flag: %u (%d)\n",*(uint8_t *)RCV.dataReadyFlag,*(int8_t *)RCV.dataReadyFlag);
-					
-                    queryData(&RCV,&TX,&ENETclient[1]); 
+                    queryData(&RCV,&ENETclient[1]); 
                
                 } else if ( sock->is.tx_interrupt ){
                     txProgramExecutionHandler(&TX);
 
 
                 } else if ( PS.events[n].events & EPOLLIN ){
-                    nrecv = recv(sock->fd,&msg,10*sizeof(uint32_t),0);
+                    nrecv = recv(sock->fd,&msg,64*sizeof(uint32_t),0);
                     
                     if( nrecv < 0 ){
                         perror("RECV ERROR:");
@@ -236,10 +263,14 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                         disconnectPollSock(sock);
                     
                     } else if ( sock->is.commsock ){
-                        recvSysMsgHandler(&PS, &RCV, &TX, &msg, &runner);
+                        recvSysMsgHandler(&PS, &RCV, &msg, &runner);
                     
                     } else if ( sock->is.tx_control ){
-                        txSys_enetMsgHandler(&PS, &TX, &msg, &runner);
+                        txSys_enetMsgHandler(&PS, &TX, &msg, nrecv, &runner);
+                    
+                    } else if ( sock->is.tx_incoming_data ){
+                        TX.storePhaseDelays(&TX,nrecv,&msg);
+                    
                     }
                 }
             }
@@ -274,7 +305,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     if(TX.interrupt.ps!=NULL){
         disconnectPollSock(&TX.interrupt);
     }
-    
+     
     free(ADC.reg);
     free(ADC.reg_dict[0]);
     free(ADC.reg_dict[1]);
@@ -285,6 +316,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
         }
     }
     free(RCV.data);
+    // TODO: free all the TX stuff
 	FPGAclose(&FPGA);
 	return(0);
 }

@@ -24,7 +24,7 @@ module ADC_Control_Module(
 	
 	input [15:0]			iRecLength,
 	input					iStateReset,
-	output reg [7:0]	oRcvInterrupt,
+	output reg [31:0]	oRcvInterrupt,
 	
 	input	[3:0]				down_sample_clk_divisor,
 	input	[2:0]				sampling_mode_opts,
@@ -109,7 +109,7 @@ begin
 	adc_state = 8'b0;
 	last_adc_control_comm = 8'b0;
 	
-	oRcvInterrupt = 8'b0;
+	oRcvInterrupt = 32'b0;
 	
 	data_sr[0] = 12'b0; data_sr[1] = 12'b0; data_sr[2] = 12'b0; data_sr[3] = 12'b0;
 	data_sr[4] = 12'b0; data_sr[5] = 12'b0; data_sr[6] = 12'b0; data_sr[7] = 12'b0;
@@ -152,7 +152,7 @@ begin
 			last_data_out <= 128'b0;
 			data_diff_out <= 64'b0;
 			bit8_cntr <= 8'b0;
-			oRcvInterrupt <= 8'b0;
+			oRcvInterrupt <= 32'b0;
 		end
 	
 		
@@ -487,7 +487,7 @@ begin
 			
 					write_complete_flag <= 1'b1;
 					trig_received_flag[0] <= 1'b0;
-					oRcvInterrupt <= 8'b11111111;
+					oRcvInterrupt <= 32'h000000ff;
 					otxTrigAck <= 1'b0;
 				end
 			end
@@ -514,7 +514,7 @@ begin
 		trig_received_flag <= 2'b00;
 		write_complete_flag <= 1'b0;
 		waddr_cntr <= 15'b0;
-		oRcvInterrupt <= 8'b0;
+		oRcvInterrupt <= 32'b0;
 		otxTrigAck <= 1'b0;
 	end
 end

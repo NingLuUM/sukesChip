@@ -1,5 +1,5 @@
 #
-TARGET = txrx_Test
+TARGET = txrx_pio
 
 #
 CROSS_COMPILE = arm-linux-gnueabihf-

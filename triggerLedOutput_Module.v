@@ -53,7 +53,6 @@ begin
 			if( onYourMark & GOGOGO_EXCLAMATION & !state[1] )
 			begin
 				state[1] <= 1'b1;
-				if ( state[2] ) state[2] <= 1'b0;
 			end	
 
 			

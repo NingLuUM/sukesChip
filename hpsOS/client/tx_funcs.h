@@ -68,7 +68,7 @@ void txSetChargeTime(TXsys_t *TX){
     if( !(cmd->flags.isPioCmd) ){
         reg2tmp.all = 0;
         reg2tmp.set_amp = 1;
-        DREF32(pio_reg[2]) = TX->reg2tmp.all;
+        DREF32(pio_reg[2]) = reg2tmp.all;
         usleep(5);
         DREF32(pio_reg[2]) = 0;
     }
@@ -105,7 +105,7 @@ void txSetPhaseDelay(TXsys_t *TX){
     if( !(cmd->flags.isPioCmd) ){
         reg2tmp.all = 0;
         reg2tmp.set_phase = 1;
-        DREF32(pio_reg[2]) = TX->reg2tmp.all;
+        DREF32(pio_reg[2]) = reg2tmp.all;
         usleep(5);
         DREF32(pio_reg[2]) = 0;
     }
@@ -136,7 +136,7 @@ void txSetRequestNextInstrTimer(TXsys_t *TX){
     if( !(cmd->flags.isPioCmd) ){
         reg2tmp.all = 0;
         reg2tmp.set_instr_request_timer = 1;
-        DREF32(pio_reg[2]) = TX->reg2tmp.all;
+        DREF32(pio_reg[2]) = reg2tmp.all;
         usleep(5);
         DREF32(pio_reg[2]) = 0;
     }
@@ -234,7 +234,7 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
                 prev->flags.nextCmdIsSteeringEnd = 1;
             }
         }
-        if(tmp->reg2.set_trig_leds) free(tmp->reg9_24);
+        if(tmp->reg9_24 != NULL) free(tmp->reg9_24);
         free(tmp);
 
         if(loopCmdNum){
@@ -256,7 +256,7 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
                     prev->flags.nextCmdIsSteeringEnd = 1;
                 }
             }
-            if(loopCmd->reg2.set_trig_leds) free(loopCmd->reg9_24);
+            if( loopCmd->reg9_24 != NULL ) free(loopCmd->reg9_24);
             free(loopCmd);
         }
 
@@ -303,7 +303,7 @@ void txMakeLoopEnd(TXsys_t *TX){
     cmd->flags.isLoopEndCmd = 1;
     cmd->prev->flags.nextCmdIsLoopEnd = 1;
     
-    int loopTracker;
+    int loopTracker = 0;
     while(tmp->prev != NULL){
         tmp = tmp->prev;
         if( tmp->flags.isLoopEndCmd && ( tmp->loopHead != NULL ) ){
@@ -353,7 +353,7 @@ void txMakeSteeringLoopEnd(TXsys_t *TX){
     cmd->flags.isSteeringEndCmd = 1;
     cmd->prev->flags.nextCmdIsSteeringEnd = 1;
     
-    int loopTracker;
+    int loopTracker = 0;
     while(tmp->prev != NULL){
         tmp = tmp->prev;
         if( tmp->flags.isSteeringEndCmd && ( tmp->loopHead != NULL ) ){
@@ -389,8 +389,10 @@ void txBufferTrigTimingCmd(TXsys_t *TX, uint32_t *trigs){
         cmd = cmd->next;
     }
 
-    cmd->reg9_24 = (trigLedTimings_t *)malloc(16*sizeof(trigLedTimings_t));
-    
+    if(cmd->reg9_24 == NULL){
+        cmd->reg9_24 = (TXtrigtimings_t *)calloc(16,sizeof(TXtrigtimings_t));
+    }
+
     for(int i=0;i<16;i++){
         cmd->reg9_24[i].all = trigs[i];
     }
@@ -492,4 +494,40 @@ void txResetRcvTrig(TXsys_t *TX){
     DREF32(pio_reg[2]) = 0;
 }
 
+void txSetNumSteeringLocs(TXsys_t *TX, uint32_t nSteeringLocs){
+    
+    if(nSteeringLocs != TX->nSteeringLocs){
+        free(*(TX->phaseDelays));
+        *(TX->phaseDelays) = (uint32_t *)calloc(nSteeringLocs*4,sizeof(uint32_t));
+        TX->nSteeringLocs = nSteeringLocs;
+    } else if ( !nSteeringLocs ){
+        free(*(TX->phaseDelays));
+        *(TX->phaseDelays) = (uint32_t *)calloc(4,sizeof(uint32_t));
+        TX->nSteeringLocs = 1;
+    }
 
+}
+
+void txStorePhaseDelays(TXsys_t *TX, int nrecv, FMSG_t *msg){
+    static int nwritten = 0;
+    char *pdin;
+    char *pdtx;
+    uint32_t *pd32;
+    int i;
+
+    pd32 = *(TX->phaseDelays);
+
+    pdin = (char *)msg;
+    pdtx = (char *)pd32;
+    i=0;
+    while(i<nrecv){
+        pdtx[nwritten+i] = pdin[i];
+        nwritten++;
+        i++;
+    }
+
+    if( nwritten >= ( 4*TX->nSteeringLocs*sizeof(uint32_t) ) ){
+        nwritten=0;
+    }
+
+}

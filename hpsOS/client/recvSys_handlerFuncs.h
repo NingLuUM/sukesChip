@@ -152,7 +152,7 @@ int saveData(SOCK_t *enet, char *data, size_t dsize){
 
 
 
-void queryData(RCVsys_t *RCV, TXsys_t*TX, SOCK_t *enet){
+void queryData(RCVsys_t *RCV, SOCK_t *enet){
 	
     static int pulse_counter = 0;
     
@@ -161,7 +161,6 @@ void queryData(RCVsys_t *RCV, TXsys_t*TX, SOCK_t *enet){
     uint32_t npulses = RCV->npulses;
     
     DREF32(RCV->stateReset)=1;
-    DREF32(TX->controlComms)=0;
     usleep(5);
 	
     if( RCV->queryMode.realTime ){
@@ -208,6 +207,8 @@ void queryData(RCVsys_t *RCV, TXsys_t*TX, SOCK_t *enet){
             usleep(5);
         }
     }
+    DREF32(RCV->stateReset)=0;
+    usleep(5);
 }
 
 
@@ -221,10 +222,10 @@ void setupInternalStorage(RCVsys_t *RCV){
 }
 
 
-void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, TXsys_t *TX, FMSG_t *msg, int *runner){
+void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, FMSG_t *msg, int *runner){
 
     switch(msg->u[0]){
-        case(CASE_SET_RECLEN):{
+        case(CASE_RCV_SET_RECLEN):{
             RCV->setRecLen(RCV,msg->u[1]);
             if( msg->u[2] ){
 				setupInternalStorage(RCV);
@@ -232,21 +233,13 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, TXsys_t *TX, FMSG_t *msg
             break;
         }
         
-        case(CASE_SET_PIO_VAR_GAIN):{
+        case(CASE_RCV_SET_PIO_VAR_GAIN):{
             RCV->setPioVarGain(RCV,msg->u[1]);
             break;
         }
         
         case(CASE_SET_LEDS):{
             RCV->setLEDs(RCV,msg->u[1]);
-            break;
-        }
-        
-        case(CASE_QUERY_DATA):{
-			//~ DREF32(RCV->stateReset)=1;
-			//~ usleep(5);
-			//~ DREF32(RCV->stateReset)=0;
-			//~ usleep(5);
             break;
         }
         
@@ -285,16 +278,16 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, TXsys_t *TX, FMSG_t *msg
             break;
         }
         
-        case(CASE_CONNECT_INTERRUPT):{
+        case(CASE_RCV_CONNECT_INTERRUPT):{
             if(msg->u[1] && ( RCV->interrupt.ps == NULL ) ){
-                connectPollInterrupter(PS,&(RCV->interrupt),"gpio@0x100000000");
+                connectPollInterrupter(PS,&(RCV->interrupt),"gpio@0x100000000",RCV_INTERRUPT_ID);
             } else if ( !msg->u[1] && ( RCV->interrupt.ps != NULL ) ){
                 disconnectPollSock(&(RCV->interrupt));
             }
             break;
         }
         
-        case(CASE_SET_QUERY_MODE):{
+        case(CASE_RCV_SET_QUERY_MODE):{
             RCV->queryMode.all = 0;
             
             if(msg->u[1]){
@@ -324,7 +317,7 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, TXsys_t *TX, FMSG_t *msg
             break;
         }
         
-        case(CASE_SET_NPULSES):{
+        case(CASE_RCV_SET_NPULSES):{
             if( msg->u[1] ){
                 RCV->npulses = msg->u[1];
             } else {
@@ -336,7 +329,7 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, TXsys_t *TX, FMSG_t *msg
             break;
         }
         
-        case(CASE_SETUP_LOCAL_STORAGE):{
+        case(CASE_RCV_SETUP_LOCAL_STORAGE):{
             setupInternalStorage(RCV);
             break;
         }
@@ -355,17 +348,17 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, TXsys_t *TX, FMSG_t *msg
             break;
         }
         
-        case(CASE_SET_CLOCK_DIVISOR):{
+        case(CASE_RCV_SET_CLOCK_DIVISOR):{
             RCV->setClkDivisor(RCV,msg->u[1]);
             break;
         }
         
-        case(CASE_SET_RCV_SAMPLING_MODE):{
+        case(CASE_RCV_SET_SAMPLING_MODE):{
             RCV->setSamplingMode(RCV,msg->u[1]);
             break;
         }
         
-        case(CASE_SET_RCV_COMPRESSOR_MODE):{
+        case(CASE_RCV_SET_COMPRESSOR_MODE):{
             RCV->setCompressorMode(RCV,msg->u[1]);
             break;
         }
@@ -374,25 +367,8 @@ void recvSysMsgHandler(POLLserver_t *PS, RCVsys_t *RCV, TXsys_t *TX, FMSG_t *msg
             *runner=0;
             break;
         }
-        
-        case(CASE_TX_SET_CHARGETIME):{
-			TX->chargeTimes.ch1 = msg->u[1];
-			TX->chargeTimes.ch2 = msg->u[2];
-			TX->chargeTimes.fire_delay = msg->u[3];
-			DREF32(TX->chargeTime_reg) = TX->chargeTimes.chall;
-			break;
-		}
-			
-		case(CASE_TX_FIRE):{
-			DREF32(RCV->stateReset)=1;
-			usleep(5);
-			DREF32(RCV->stateReset)=0;
-            usleep(5);
-			DREF32(TX->controlComms) = 1;
-			break;
-		}
-		
-		case(CASE_TX_SET_FCLOCK_DELAY):{
+       
+		case(CASE_ADC_SET_FCLOCK_DELAY):{
 			RCV->pioSettings_ref.fclk_delay = msg->u[1];
 			DREF32(RCV->pioSettings) = RCV->pioSettings_ref.all;
 			break;

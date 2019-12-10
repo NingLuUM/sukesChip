@@ -180,6 +180,7 @@ begin
 	fireDelayTimerFlag = 1'b0;
 	fire_delay_timer = 23'b0;
 	
+	otxADCTriggerLine = 1'b0;
 	recvTrigTimerFlag = 1'b0;
 	recv_trig_delay_timer = 32'b0;
 	
@@ -217,6 +218,7 @@ begin
 				fireDelayTimerFlag <= 1'b0;
 				fire_delay_timer <= 23'b0;
 				
+				otxADCTriggerLine <= 1'b0;
 				recvTrigTimerFlag <= 1'b0;
 				recv_trig_delay_timer <= 32'b0;
 				
@@ -271,11 +273,13 @@ begin
 						begin
 							if ( itxRecvTrigDelay )
 							begin
+								otxADCTriggerLine <= 1'b0;
 								recvTrigTimerFlag <= 1'b1;
 								recv_trig_delay_timer <= itxRecvTrigDelay;
 							end
 							else
 							begin
+								otxADCTriggerLine <= 1'b1;
 								adcTrigFlag[0] <= 1'b1;
 							end
 						end
@@ -317,6 +321,7 @@ begin
 						/******************************************************/
 						if( ( pio_output_commands & PIO_CMD_RESET_RCV_TRIG ) && adcTrigFlag )
 						begin
+							otxADCTriggerLine <= 1'b0;
 							adcTrigFlag <= 2'b00;
 						end
 						
@@ -379,10 +384,12 @@ begin
 					begin
 						if( recv_trig_delay_timer )
 						begin
+							if ( otxADCTriggerLine ) otxADCTriggerLine <= 1'b0;
 							recv_trig_delay_timer <= recv_trig_delay_timer - 1'b1;
 						end
 						else
 						begin
+							otxADCTriggerLine <= 1'b1;
 							recvTrigTimerFlag <= 1'b0;
 							adcTrigFlag[0] <= 1'b1;
 						end
@@ -429,6 +436,7 @@ begin
 					fireDelayTimerFlag <= 1'b0;
 					fire_delay_timer <= 23'b0;
 					
+					otxADCTriggerLine <= 1'b0;
 					recvTrigTimerFlag <= 1'b0;
 					recv_trig_delay_timer <= 32'b0;
 				
@@ -462,6 +470,7 @@ begin
 				fireDelayTimerFlag <= 1'b0;
 				fire_delay_timer <= 23'b0;
 				
+				otxADCTriggerLine <= 1'b0;
 				recvTrigTimerFlag <= 1'b0;
 				recv_trig_delay_timer <= 32'b0;
 				
@@ -493,6 +502,7 @@ begin
 				fireDelayTimerFlag <= 1'b0;
 				fire_delay_timer <= 23'b0;
 				
+				otxADCTriggerLine <= 1'b0;
 				recvTrigTimerFlag <= 1'b0;
 				recv_trig_delay_timer <= 32'b0;
 				
@@ -521,6 +531,7 @@ begin
 				fireDelayTimerFlag <= 1'b0;
 				fire_delay_timer <= 23'b0;
 				
+				otxADCTriggerLine <= 1'b0;
 				recvTrigTimerFlag <= 1'b0;
 				recv_trig_delay_timer <= 32'b0;
 				

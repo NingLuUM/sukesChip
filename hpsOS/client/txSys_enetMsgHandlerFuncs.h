@@ -1,10 +1,8 @@
 
-void txSys_enetMsgHandler(POLLserver_t *PS, TXsys_t *TX, FMSG_t *msg, int *runner){
+void txSys_enetMsgHandler(POLLserver_t *PS, TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
 
-    static int instrCnt = 0;
     static uint32_t currentTimer = 0;
-    static trigLedTimings_t trigs[16];
-    static int nTrigsRecvd = 0;
+    static TXtrigtimings_t trigs[16];
     static int cmdCntr;
     static uint32_t lastCmd = 0;
     TXpioreg2526_t timerVal;
@@ -12,6 +10,8 @@ void txSys_enetMsgHandler(POLLserver_t *PS, TXsys_t *TX, FMSG_t *msg, int *runne
     uint64_t timeOutVal = 0;
     TXpiocmd_t *cmd;
     int stepSize;
+    int ncmds;
+    ncmds = nrecvd/sizeof(uint32_t)-1;
 
     switch(msg->u[0]){
         case(CASE_TX_SET_CONTROL_STATE):{
@@ -33,12 +33,7 @@ void txSys_enetMsgHandler(POLLserver_t *PS, TXsys_t *TX, FMSG_t *msg, int *runne
         }
 
         case(CASE_TX_MAKE_PIO_CMD):{
-            if(nTrigsRecvd){
-                TX->bufferTrigTimings(TX,&(trigs[0].all));
-            }
-            instrCnt = 0;
             currentTimer = 0;
-            nTrigsRecvd = 0;
             for(int i=0;i<16;i++){
                 trigs[i].all = 0;
             }
@@ -64,27 +59,17 @@ void txSys_enetMsgHandler(POLLserver_t *PS, TXsys_t *TX, FMSG_t *msg, int *runne
         }
 
         case(CASE_TX_MAKE_LOOP_START):{
-            if(nTrigsRecvd){
-                TX->bufferTrigTimings(TX,&(trigs[0].all));
-            }
-            instrCnt = 0;
             currentTimer = 0;
-            nTrigsRecvd = 0;
             for(int i=0;i<16;i++){
                 trigs[i].all = 0;
             }
-            TX->makeLoopStart(TX,msg->u[1],msg->u[2],msg->u[4]);
+            TX->makeLoopStart(TX,msg->u[1],msg->u[2],msg->u[3]);
             cmdCntr++;
             break;
         }
 
         case(CASE_TX_MAKE_LOOP_END):{
-            if(nTrigsRecvd){
-                TX->bufferTrigTimings(TX,&(trigs[0].all));
-            }
-            instrCnt = 0;
             currentTimer = 0;
-            nTrigsRecvd = 0;
             for(int i=0;i<16;i++){
                 trigs[i].all = 0;
             }
@@ -94,28 +79,18 @@ void txSys_enetMsgHandler(POLLserver_t *PS, TXsys_t *TX, FMSG_t *msg, int *runne
         }
 
         case(CASE_TX_MAKE_STEERING_LOOP_START):{
-            if(nTrigsRecvd){
-                TX->bufferTrigTimings(TX,&(trigs[0].all));
-            }
-            instrCnt = 0;
             currentTimer = 0;
-            nTrigsRecvd = 0;
             for(int i=0;i<16;i++){
                 trigs[i].all = 0;
             }
-            stepSize = (msg->u[4]) ? msg->u[4] : 1;
+            stepSize = (msg->u[3]) ? msg->u[3] : 1;
             TX->makeSteeringLoopStart(TX,msg->u[1],msg->u[2],stepSize);
             cmdCntr++;
             break;
         }
 
         case(CASE_TX_MAKE_STEERING_LOOP_END):{
-            if(nTrigsRecvd){
-                TX->bufferTrigTimings(TX,&(trigs[0].all));
-            }
-            instrCnt = 0;
             currentTimer = 0;
-            nTrigsRecvd = 0;
             for(int i=0;i<16;i++){
                 trigs[i].all = 0;
             }
@@ -125,23 +100,13 @@ void txSys_enetMsgHandler(POLLserver_t *PS, TXsys_t *TX, FMSG_t *msg, int *runne
         }
 
         case(CASE_TX_BUFFER_TRIG_TIMINGS):{
-            if((msg->u[1])<16){
-                trigs[msg->u[1]].duration = msg->u[2];
-                trigs[msg->u[1]].delay = currentTimer;
+            for(int i=1; i<ncmds; i+=2){
+                if( ( msg->u[i] ) && ( (msg->u[i])<16 ) ){
+                    trigs[msg->u[i]].duration = msg->u[i+1];
+                    trigs[msg->u[i]].delay = currentTimer;
+                }
             }
-            if((msg->u[3])<16){
-                trigs[msg->u[3]].duration = msg->u[4];
-                trigs[msg->u[3]].delay = currentTimer;
-            }
-            if((msg->u[5])<16){
-                trigs[msg->u[5]].duration = msg->u[6];
-                trigs[msg->u[5]].delay = currentTimer;
-            }
-            if((msg->u[7])<16){
-                trigs[msg->u[7]].duration = msg->u[8];
-                trigs[msg->u[7]].delay = currentTimer;
-            }
-            nTrigsRecvd++;
+            TX->bufferTrigTimings(TX,&(trigs[0].all));
             break;
         }
 
@@ -178,6 +143,25 @@ void txSys_enetMsgHandler(POLLserver_t *PS, TXsys_t *TX, FMSG_t *msg, int *runne
             break;
         }
 
+        case(CASE_TX_SET_NSTEERING_LOCS):{
+            TX->setNumSteeringLocs(TX,msg->u[1]);
+            break;
+        }
+        
+        case(CASE_TX_CONNECT_INTERRUPT):{
+            if(msg->u[1] && ( TX->interrupt.ps == NULL ) ){
+                connectPollInterrupter(PS,&(TX->interrupt),"gpio@0x100000010",TX_INTERRUPT_ID);
+            } else if ( !msg->u[1] && ( TX->interrupt.ps != NULL ) ){
+                disconnectPollSock(&(TX->interrupt));
+            }
+            break;
+        }
+        
+        case(CASE_EXIT_PROGRAM):{
+            *runner=0;
+            break;
+        }
+
         default:{
             *runner=0;
             break;
@@ -188,16 +172,4 @@ void txSys_enetMsgHandler(POLLserver_t *PS, TXsys_t *TX, FMSG_t *msg, int *runne
 }
 
 
-void controlMsgHandler(POLLserver_t *PS, FMSG_t *msg, int *runner){
-
-    switch(msg->u[0]){
-        case(CASE_ADD_DATA_SOCKET):{
-            break;
-        }
-        
-        default:{
-            break;
-        }
-    }
-}
 

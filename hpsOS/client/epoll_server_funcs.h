@@ -79,6 +79,8 @@ void acceptEnetClientSock(SOCK_t *servsock){
         clisock->is.adc_control = 1;
     } else if (clisock->portNum == TX_CONTROL_PORT){
         clisock->is.tx_control = 1;
+    } else if (clisock->portNum == TX_DATA_UPLOAD_PORT){
+        clisock->is.tx_incoming_data = 1;
     }
 
     if(clisock->portNum != ADC_CONTROL_PORT){
@@ -289,7 +291,7 @@ void connectPollInterrupter(POLLserver_t *ps, SOCK_t *interrupt, char *gpio_lab,
 	interrupt->fd = file_fd;
     interrupt->ps = ps;
     interrupt->is.flags = 0;
-    if(isRecvInterrupt){
+    if(isRcvInterrupt){
         interrupt->is.rcv_interrupt = 1;
     } else {
         interrupt->is.tx_interrupt = 1;

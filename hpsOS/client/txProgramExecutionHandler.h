@@ -2,6 +2,8 @@
 int txProgramExecutionHandler(TXsys_t *TX){
     TXpiocmd_t *cmd;
     TXpiocmd_t *loopHead;
+    uint32_t *phaseDelays;
+    phaseDelays = *(TX->phaseDelays);
     cmd = *(TX->pio_cmd_list);
 
     // reset the interrupt and rcv trig BEFORE updating command
@@ -11,7 +13,7 @@ int txProgramExecutionHandler(TXsys_t *TX){
     // increment to next command
     if( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ){
         loopHead = cmd->loopHead;
-        if(loopHead.currentIdx < loopHead.endIdx){
+        if( ( loopHead->currentIdx ) < ( loopHead->endIdx ) ){
             
             *(TX->pio_cmd_list) = loopHead;
             TX->setRequestNextInstrTimer(TX);
@@ -48,10 +50,10 @@ int txProgramExecutionHandler(TXsys_t *TX){
     
     if ( cmd->flags.isLoopStartCmd | cmd->flags.isSteeringStartCmd ) {
         if(cmd->flags.isSteeringStartCmd){
-            cmd->reg3.all = TX->phaseDelays[cmd->currentIdx].reg3;
-            cmd->reg4.all = TX->phaseDelays[cmd->currentIdx].reg4;
-            cmd->reg5.all = TX->phaseDelays[cmd->currentIdx].reg5;
-            cmd->reg6.all = TX->phaseDelays[cmd->currentIdx].reg6;
+            cmd->reg3.all = phaseDelays[cmd->currentIdx*4];
+            cmd->reg4.all = phaseDelays[cmd->currentIdx*4+1];
+            cmd->reg5.all = phaseDelays[cmd->currentIdx*4+2];
+            cmd->reg6.all = phaseDelays[cmd->currentIdx*4+3];
         }
         cmd->currentIdx += cmd->stepSize;
         

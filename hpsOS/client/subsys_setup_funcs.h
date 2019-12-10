@@ -227,7 +227,7 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
 
 int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
 
-    TX->pio_reg = (uint32_t volatile **)malloc(27*sizeof(uint32_t volatile *));
+    TX->pio_reg = (uint32_t **)malloc(27*sizeof(uint32_t *));
     TX->pio_reg[0] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
     TX->pio_reg[1] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG1_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
     TX->pio_reg[2] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG2_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
@@ -256,30 +256,38 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
     TX->pio_reg[25] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG25_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
     TX->pio_reg[26] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG26_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	
-    TX->instructions = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_INSTRUCTIONMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-	TX->phaseDelays = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_PHASEDELAYMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+    //TX->instructions = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_INSTRUCTIONMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
+	//TX->phaseDelays = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_PHASEDELAYMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 	
-    TX->reg9_24 = (trigLedTimings_t *)malloc(16*sizeof(trigLedTimings_t));
+    TX->reg9_24 = (TXtrigtimings_t *)malloc(16*sizeof(TXtrigtimings_t));
 
     TX->pio_cmd_list = (TXpiocmd_t **)malloc(sizeof(TXpiocmd_t *));
     *(TX->pio_cmd_list) = (TXpiocmd_t *)malloc(sizeof(TXpiocmd_t));
 
-    *(TX->pio_cmd_list)->cmdNumber = 0;
-    *(TX->pio_cmd_list)->reg2.all = 0;
-    *(TX->pio_cmd_list)->reg3.all = 0;
-    *(TX->pio_cmd_list)->reg4.all = 0;
-    *(TX->pio_cmd_list)->reg5.all = 0;
-    *(TX->pio_cmd_list)->reg6.all = 0;
-    *(TX->pio_cmd_list)->reg7.all = 0;
-    *(TX->pio_cmd_list)->reg8.all = 0;
-    *(TX->pio_cmd_list)->flags.all = 0;
+    TXpiocmd_t *pio_cmd;
+    pio_cmd = *(TX->pio_cmd_list);
+
+    pio_cmd->cmdNumber = 0;
+    pio_cmd->reg2.all = 0;
+    pio_cmd->reg2.set_instr_request_timer = 1;
+    pio_cmd->reg3.all = 0;
+    pio_cmd->reg4.all = 0;
+    pio_cmd->reg5.all = 0;
+    pio_cmd->reg6.all = 0;
+    pio_cmd->reg7.all = 0;
+    pio_cmd->reg8.all = 0;
+    pio_cmd->flags.all = 0;
     
-    *(TX->pio_cmd_list)->reg25_26.all = 0;
+    pio_cmd->reg25_26.all = 100000; // wait 1ms from when program begins before issuing commands
     
-    *(TX->pio_cmd_list)->reg9_24 = NULL;
-    *(TX->pio_cmd_list)->top = *(TX->pio_cmd_list);
-    *(TX->pio_cmd_list)->prev = NULL;
-    *(TX->pio_cmd_list)->next = NULL;
+    pio_cmd->reg9_24 = NULL;
+    pio_cmd->top = *(TX->pio_cmd_list);
+    pio_cmd->prev = NULL;
+    pio_cmd->next = NULL;
+
+    TX->nSteeringLocs = 1;
+    TX->phaseDelays = (uint32_t **)malloc(sizeof(uint32_t *));
+    *(TX->phaseDelays) = (uint32_t *)calloc(4,sizeof(uint32_t));
 
     TX->interrupt.ps = NULL;
     
@@ -364,6 +372,9 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
     TX->bufferInstructionTimeout = &txBufferSetRequestNextInstrTimerCmd;
     TX->resetTxInterrupt = &txResetTxInterrupt;
     TX->resetRcvTrig = &txResetRcvTrig;
+
+    TX->setNumSteeringLocs = &txSetNumSteeringLocs;
+    TX->storePhaseDelays = &txStorePhaseDelays;
 
     return(1);
 }

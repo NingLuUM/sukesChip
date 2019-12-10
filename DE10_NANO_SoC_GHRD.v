@@ -236,26 +236,27 @@ Output_Control_Module_PIO u3(
 	.txCLK						(CLK100),
 	
 	.itxControlComms			(tx_pio_reg[0]), // tx_pio_reg0
-	.itxPioControlSettings		(tx_pio_reg[1]), // tx_pio_reg1
+	
 	
 	// static settings
-	.itxPioTriggerLedRestLevels	(tx_pio_reg[2][31:16]),
-	.itxTransducerOutputIsActive(tx_pio_reg[2][15:8]),	// tx_pio_reg2
-	.itxBoardIdentifiers		(tx_pio_reg[2][7:0]),	// tx_pio_reg2
+	.itxPioTriggerLedRestLevels	(tx_pio_reg[1][31:16]),
+	.itxTransducerOutputIsActive(tx_pio_reg[1][15:8]),	// tx_pio_reg1
+	.itxBoardIdentifiers		(tx_pio_reg[1][7:0]),	// tx_pio_reg1
 	
-
+	.itxPioCommands				(tx_pio_reg[2]), // tx_pio_reg2
+	
 	.itxPioPhaseDelay_ch0_ch1	(tx_pio_reg[3]), 	// tx_pio_reg3
 	.itxPioPhaseDelay_ch2_ch3	(tx_pio_reg[4]), 	// tx_pio_reg4
 	.itxPioPhaseDelay_ch4_ch5	(tx_pio_reg[5]), 	// tx_pio_reg5
 	.itxPioPhaseDelay_ch6_ch7	(tx_pio_reg[6]), 	// tx_pio_reg6
 	
-	.itxPioChargetime_reg		(tx_pio_reg[7][8:0]),	// tx_pio_reg7
-	.itxRecvTrigDelay			(tx_pio_reg[7][31:9]),
+	.itxPioChargetime_reg		(tx_pio_reg[7][8:0]),// tx_pio_reg7
+	.itxFireDelay				(tx_pio_reg[7][31:9]),
 	
-	.itxTrigLedDurationAndDelay	(tx_pio_reg[23:8]),	// tx_pio_reg8-24
+	.itxRecvTrigDelay			(tx_pio_reg[8]),
 	
-	.itxRequestNextInstrTimer	(tx_pio_reg[25:24]),
-	
+	.itxTrigLedDurationAndDelay	(tx_pio_reg[24:9]),	// tx_pio_reg9-24	
+	.itxRequestNextInstrTimer	(tx_pio_reg[26:25]),
 	
 	
 	.itxExternalTrigger			(EXTERNAL_TRIGGER_INPUT),
