@@ -237,7 +237,6 @@ Output_Control_Module_PIO u3(
 	
 	.itxControlComms			(tx_pio_reg[0]), // tx_pio_reg0
 	
-	
 	// static settings
 	.itxPioTriggerLedRestLevels	(tx_pio_reg[1][31:16]),
 	.itxTransducerOutputIsActive(tx_pio_reg[1][15:8]),	// tx_pio_reg1
@@ -270,7 +269,6 @@ Output_Control_Module_PIO u3(
 	
 	.otxInterrupt				(tx_interrupt)
 
-	
 );
 
 //=======================================================

@@ -14,95 +14,124 @@ class transmitter():
 	def executeProgram(self):
 		msg = struct.pack(self.cmsg,self.CASE_TX_SET_CONTROL_STATE,1,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 	
 	def terminateProgram(self):
 		msg = struct.pack(self.cmsg,self.CASE_TX_SET_CONTROL_STATE,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def setTrigRestLvls(self,rstLvls = 0):
 		msg = struct.pack(self.cmsg,self.CASE_TX_SET_TRIG_REST_LVLS,rstLvls,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def setActiveTransducers(self,activeTrans = 0):
 		msg = struct.pack(self.cmsg,self.CASE_TX_SET_ACTIVE_TRANSDUCERS,activeTrans,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def beginSyncCmd(self):
 		msg = struct.pack(self.cmsg,self.CASE_TX_MAKE_PIO_CMD,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def endSyncCmd(self):
 		msg = struct.pack(self.cmsg,self.CASE_TX_END_PIO_CMD,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def startLoop(self,loopNum=0,startIdx=0,endIdx=1,stepSize=1):
 		msg = struct.pack(self.cmsg,self.CASE_TX_MAKE_LOOP_START,startIdx,endIdx,stepSize,0,0,0,0,0,0)
 		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def endLoop(self,loopNum=0):
 		msg = struct.pack(self.cmsg,self.CASE_TX_MAKE_LOOP_END,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def startSteeringLoop(self,loopNum=0,startIdx=0,endIdx=1,stepSize=1):
 		msg = struct.pack(self.cmsg,self.CASE_TX_MAKE_STEERING_LOOP_START,startIdx,endIdx,stepSize,0,0,0,0,0,0)
 		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def endSteeringLoop(self,loopNum=0):
 		msg = struct.pack(self.cmsg,self.CASE_TX_MAKE_STEERING_LOOP_END,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def setTrig(self,trigN=0,duration_us=0):
 		duration = np.uint32(duration_us*100)
 		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_TRIG_TIMINGS,trigN,duration,0,0,0,0,0,0,0)
 		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def setChargeTime(self,chargeTime_us=0):
 		chargeTime = np.uint32(chargeTime_us*100)
 		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_CHARGE_TIME,chargeTime,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def setPhaseDelays(self,pd = np.zeros(8)):	
 		pd = (pd_us*100).astype(np.uint16)	
-		msg = struct.pack(self.pd_msg1,self.CASE_TX_BUFFER_PHASE_DELAYS,pd[0],pd[1],pd[2],pd[3],pd[4],pd[5],pd[6],pd[7],0)
+		msg = struct.pack(self.pd_msg1,self.CASE_TX_BUFFER_PHASE_DELAYS,pd[0],pd[1],pd[2],pd[3],pd[4],pd[5],pd[6],pd[7],0,0,0)
 		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def fire(self):		
 		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_FIRE_CMD,0,0,0,0,0,0,0,0,0)
-		self.sock.send(msg)	
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def rcvData(self):		
 		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_RECV_TRIG,0,0,0,0,0,0,0,0,0)
-		self.sock.send(msg)	
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
-	def longWait_us(self,waitVal_us=0):
+	def async_wait_us(self,waitVal_us=0):
 		wv = np.uint64(waitVal_us*100)
-		t_upper = np.uint32( ( wv & 0xffffffff00000000 ) >> 32 )
-		t_lower = np.uint32( ( wv & 0xffffffff ) )
-		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_INSTRUCTION_TIMER,t_lower,t_upper,0,0,0,0,0,0,0)
-		self.sock.send(msg)	
+		msg = struct.pack(self.async_msg,self.CASE_TX_BUFFER_ASYNC_WAIT,0,wv,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 	
 	def wait_us(self,waitVal=0):
 		wv = np.uint32(waitVal*100)
 		msg = struct.pack(self.cmsg,self.CASE_TX_WAIT_CMD,wv,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)	
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def setNumSteeringLocs(self,numLocs=1):
-		msg = struct.pack(self.cmsg,self.CASE_TX_SET_NSTEERING_LOCS,wv,0,0,0,0,0,0,0,0)
-		self.sock.send(msg)	
+		print 'numlocs', numLocs
+		msg = struct.pack(self.cmsg,self.CASE_TX_SET_NSTEERING_LOCS,numLocs,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+		print 'numlocs len(bb)',len(bb)
 		
-	def uploadPhaseDelays(self,pd = np.zeros((1,8))):
+	def uploadPhaseDelays(self,pd=np.zeros((1,8))):
 		a = np.shape(pd)
 		nlocs = a[0]
 		self.setNumSteeringLocs(nlocs)
-		nloops = (a[0]-1)/16 + 1
+		nloops = a[0]/16 
 		pd_array = np.zeros(nlocs*8).astype(np.uint16)
 		
 		for nl in range(0,nlocs):
 			pd_array[8*nl:(8*(nl+1))] = pd[nl,:]
-			
+		
 		for nl in range(0,nloops):
-			msg = struct.pack(self.pd_cmsg,pd_array[128*nl:(128*nl+1)])
+			print nl
+			msg = struct.pack(self.pd_msg,*pd_array[128*nl:(128*(nl+1))])
 			self.pd_sock.send(msg)	
+			
+		if (nlocs%16):
+			print 'nlocs%16', nlocs%16
+			npds = (nlocs%16)*8
+			pd_msg_tmp = '{}{}'.format(npds,'H')
+			msg = struct.pack(pd_msg_tmp,*pd_array[128*nl:(128*nl+npds)])
+			self.pd_sock.send(msg)
+			
+		bb = self.pd_sock.recv(4,socket.MSG_WAITALL)
 			
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3600))
@@ -124,7 +153,7 @@ class transmitter():
 		self.CASE_TX_BUFFER_PHASE_DELAYS = 12
 		self.CASE_TX_BUFFER_FIRE_CMD = 13
 		self.CASE_TX_BUFFER_RECV_TRIG = 14
-		self.CASE_TX_BUFFER_INSTRUCTION_TIMER = 15
+		self.CASE_TX_BUFFER_ASYNC_WAIT= 15
 		self.CASE_TX_WAIT_CMD = 16
 		self.CASE_TX_SET_NSTEERING_LOCS = 17
 		self.CASE_TX_CONNECT_INTERRUPT = 18
@@ -139,10 +168,11 @@ class transmitter():
 		
 		# for for converting enet msg's into c-readable form
 		self.cmsg = '10I'
-		self.pd_msg1 = '1I8H1I'
+		self.pd_msg1 = '1I8H1I2Q'
 		self.cmsg2 = '1I1f8I'
 		self.cmsg3 = '2I1d6I'
 		self.pd_msg = '128H'
+		self.async_msg = '2I1Q6I'
 		''' character meanings in cmsg: 
 		#	(https://docs.python.org/2/library/struct.html)
 		#	'i','I' = signed,unsigned int (4 bytes)
@@ -186,7 +216,7 @@ class receiver():
 		
 	def setClockDivisor(self,clockDiv):
 		self.clockDiv = clockDiv-1
-		msg = struct.pack(self.cmsg,self.CASE_SET_CLOCK_DIVISOR, ( np.uint32(clockDiv-1) & 0xf ) ,0,0,0,0,0,0,0,0)
+		msg = struct.pack(self.cmsg,self.CASE_RCV_SET_CLOCK_DIVISOR, ( np.uint32(clockDiv-1) & 0xf ) ,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 
 	def setSamplingMode(self,samplingMode):
@@ -555,20 +585,16 @@ r = receiver()
 r.connectToFpga()
 r.resetToDefaultAdcSettings()
 r.setAutoShutdown(0)
-
 r.toggleAdcChannelPower(0b10011111)
-
 # can't do 'moving sum' with compression. will corrupt data
 r.setClockDivisor(1)
 r.setSamplingMode(r.EVERY_NTH)
 r.setCompressorMode(r.RAW12)
-
 r.setRecLen(1000)
 #~ r.setRecDuration(20.00) # us (max = 327.68)
 
 r.setAdcGain(0)
 r.setPioVarAtten(0)
-
 #~ r.setNPulses(1)
 #~ r.setFclkDelay(1) # accepts values 0-5
 #~ r.setRecLen(17000) # npoints (max = 16384)
@@ -584,30 +610,32 @@ r.setQueryMode(realTime=0,transferData=1,saveData=0)
 
 t.setTrigRestLvls(0x0000)
 t.setActiveTransducers(0xff)
-
 phaseDelays = np.zeros((100,8)).astype(np.uint16)
 t.uploadPhaseDelays(phaseDelays)
 
 t.startLoop(0,0,100)
-t.startSteeringLoop(0,0,100)
+if 1:
+	t.startSteeringLoop(0,0,100)
+	if 1:
+		t.beginSyncCmd()
 
-t.beginSyncCmd()
+		t.setChargeTime(5)
+		t.setTrig(1,10)
+		t.setTrig(2,5)
+		t.wait_us(5)
+		t.rcvData()
+		t.fire()
+		t.wait_us(5)
 
-t.setChargeTime(5)
-t.setTrig(1,10)
-t.setTrig(2,5)
-t.wait_us(5)
-t.rcvData()
-t.fire()
-t.longWait_us(1e6)
+		t.endSyncCmd()
+		
+		t.async_wait_us(1000000)
 
-t.endSyncCmd()
-
-t.endSteeringLoop(0)
+	t.endSteeringLoop(0)
 t.endLoop(0)
 
 
-r.activateRcvSystem()
+#~ r.activateRcvSystem()
 t.executeProgram()
 
 

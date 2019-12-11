@@ -70,7 +70,7 @@ void txSetChargeTime(TXsys_t *TX);
 void txSetFireCmdDelay(TXsys_t *TX);
 void txSetPhaseDelay(TXsys_t *TX);
 void txSetRecvTrigDelay(TXsys_t *TX);
-void txSetRequestNextInstrTimer(TXsys_t *TX);
+void txSetAsyncWait(TXsys_t *TX);
 void txIssuePioCommand(TXsys_t *TX);
 
 void txAddCmd_f(TXsys_t *TX);
@@ -84,9 +84,9 @@ void txMakePioCmd(TXsys_t *TX);
 void txBufferTrigTimingCmd(TXsys_t *TX, uint32_t *trigs);
 void txBufferChargeTimeCmd(TXsys_t *TX, uint32_t chargeTime);
 void txBufferFireDelayCmd(TXsys_t *TX, uint32_t fireDelay);
-void txBufferPhaseDelayCmd(TXsys_t *TX, uint32_t *phaseDelays);
+void txBufferPhaseDelayCmd(TXsys_t *TX, uint16_t *phaseDelays);
 void txBufferRecvTrigDelayCmd(TXsys_t *TX, uint32_t recvTrigDelay);
-void txBufferSetRequestNextInstrTimerCmd(TXsys_t *TX, uint64_t timerVal);
+void txBufferAsyncWaitCmd(TXsys_t *TX, uint64_t timerVal);
 
 void txResetTxInterrupt(TXsys_t *TX);
 void txResetRcvTrig(TXsys_t *TX);
@@ -255,17 +255,21 @@ typedef struct TXpiocmd_{
     
     union{
         struct{
+            uint32_t isCmd0 : 1;
             uint32_t isPioCmd : 1;
             uint32_t isLoopStartCmd : 1;
             uint32_t isLoopEndCmd : 1;
             uint32_t isSteeringStartCmd : 1;
             uint32_t isSteeringEndCmd : 1;
-            
+            uint32_t isAsyncWait : 1;
+
+            uint32_t nextCmdIsCmd0 : 1;
             uint32_t nextCmdIsPio : 1;
             uint32_t nextCmdIsLoopStart : 1;
             uint32_t nextCmdIsLoopEnd : 1;
             uint32_t nextCmdIsSteeringStart : 1;
             uint32_t nextCmdIsSteeringEnd : 1;
+            uint32_t nextCmdIsAsyncWait : 1;
 
             uint32_t setTrig0 : 1;
             uint32_t setTrig1 : 1;
@@ -284,13 +288,13 @@ typedef struct TXpiocmd_{
             uint32_t setTrig14 : 1;
             uint32_t setTrig15 : 1;
 
-            uint32_t blnkFlags : 7;
+            uint32_t blnkFlags : 2;
         };
         struct{
-            uint32_t isFlags : 5;
-            uint32_t nextFlags : 5;
+            uint32_t isFlags : 7;
+            uint32_t nextFlags : 7;
             uint32_t trigFlags : 16;
-            uint32_t blnkFlags2 : 7;
+            uint32_t blnkFlags2 : 2;
         };
         uint32_t all;
     } flags;
@@ -308,7 +312,8 @@ typedef struct TXpiocmd_{
 
 
 typedef struct TXsys_{
-    
+    uint32_t volatile *interrupt_reg;
+
     TXpioreg0_t reg0;
     TXpioreg1_t reg1;
     TXpioreg2_t reg2;
@@ -328,8 +333,11 @@ typedef struct TXsys_{
     TXpiocmd_t **pio_cmd_list;
 
     uint32_t nSteeringLocs;
-    uint32_t **phaseDelays;
+    uint32_t nPhaseDelaysWritten;
+    uint16_t **phaseDelays;
 
+    SOCK_t *comm_sock;
+    SOCK_t *pd_data_sock;
     SOCK_t interrupt;
 
     void (*setControlState)(TXsys_t *, uint32_t);
@@ -341,7 +349,7 @@ typedef struct TXsys_{
     void (*setFireCmdDelay)(TXsys_t *);
     void (*setPhaseDelay)(TXsys_t *);
     void (*setRecvTrigDelay)(TXsys_t *);
-    void (*setRequestNextInstrTimer)(TXsys_t *);
+    void (*setAsyncWait)(TXsys_t *);
     void (*issuePioCommand)(TXsys_t *);
 
     void (*addCmd)(TXsys_t *);
@@ -356,9 +364,9 @@ typedef struct TXsys_{
     void (*bufferTrigTimings)(TXsys_t *, uint32_t *);
     void (*bufferChargeTime)(TXsys_t *, uint32_t);
     void (*bufferFireCmd)(TXsys_t *, uint32_t);
-    void (*bufferPhaseDelays)(TXsys_t *, uint32_t *);
+    void (*bufferPhaseDelays)(TXsys_t *, uint16_t *);
     void (*bufferRecvTrig)(TXsys_t *, uint32_t);
-    void (*bufferInstructionTimeout)(TXsys_t *, uint64_t);
+    void (*bufferAsyncWait)(TXsys_t *, uint64_t);
 
     void (*resetTxInterrupt)(TXsys_t *);
     void (*resetRcvTrig)(TXsys_t *);
@@ -421,8 +429,10 @@ typedef struct RAMBANK12_{
 
 
 typedef union FMSG_{
+    uint8_t u8[256];
     uint16_t u16[128];
     uint32_t u[64];
+    uint64_t u64[32];
     float f[64];
     double d[32];
 } FMSG_t;

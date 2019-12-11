@@ -213,12 +213,19 @@ void queryData(RCVsys_t *RCV, SOCK_t *enet){
 
 
 
-void setupInternalStorage(RCVsys_t *RCV){        
+void setupInternalStorage(RCVsys_t *RCV){  
+	printf("internal storage1\n");
+	char *tmp;    
+	
+	tmp = (char *)malloc(RCV->recLen_ref*RCV->npulses*8*sizeof(uint16_t));
+	printf("internal storage2\n");
 	if( RCV->data[1] != NULL ){
 		free( RCV->data[1] );
-		RCV->data[1] = NULL;
-	}
-	RCV->data[1] = (char *)malloc(RCV->recLen_ref*RCV->npulses*8*sizeof(uint16_t));           
+		printf("internal storage3\n");
+	} 
+	
+	printf("internal storage4\n"); 
+	RCV->data[1] = tmp;
 }
 
 

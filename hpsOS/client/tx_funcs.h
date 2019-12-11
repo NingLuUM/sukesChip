@@ -1,31 +1,76 @@
 
 void txSetControlState(TXsys_t *TX, uint32_t control_state){
-    uint32_t *pio_reg;
-    pio_reg = *(TX->pio_reg);
+    TXpiocmd_t *cmd_list;
+    cmd_list = *(TX->pio_cmd_list);
+    while( cmd_list->next != NULL ){
+        cmd_list = cmd_list->next;
+    }
+    if(control_state == 1){
+        if(cmd_list->flags.all){
+            TX->addCmd(TX);
+        }
+        *(TX->pio_cmd_list) = cmd_list->top;
+
+    } else {
+        while(cmd_list->next != NULL){
+            TX->delCmd(TX,0);
+        }
+    }
+    uint32_t **pio_reg;
+    pio_reg = TX->pio_reg;
 
     TX->reg0.control_state = control_state;
     DREF32(pio_reg[0]) = TX->reg0.all;
+
+    if(control_state == 1){
+        TX->resetTxInterrupt(TX);
+        TX->resetRcvTrig(TX);
+        printf("aloha\n");
+        cmd_list = cmd_list->top;
+        printf("%llu\n",cmd_list->reg25_26.all);
+        DREF32(pio_reg[25]) = cmd_list->reg25_26.reg25;
+        DREF32(pio_reg[26]) = cmd_list->reg25_26.reg26;
+        DREF32(pio_reg[2]) = cmd_list->reg2.all;
+        usleep(5);
+        DREF32(pio_reg[2]) = 0;
+    }
+
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("change control state cmd issued successfully\n");
+    } else {
+        printf("change control state cmd not issued successfully\n");
+    }
 }
 
 void txSetTrigRestLvls(TXsys_t *TX, uint32_t trigRestLvls){
-    uint32_t *pio_reg;
-    pio_reg = *(TX->pio_reg);
+    uint32_t **pio_reg;
+    pio_reg = TX->pio_reg;
 
     TX->reg1.trigRestLvls = trigRestLvls;
     DREF32(pio_reg[1]) = TX->reg1.all;
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("trig rest lvls set successfully\n");
+    } else {
+        printf("trig rest lvls not set successfully\n");
+    }
 }
 
 void txSetActiveTransducers(TXsys_t *TX, uint32_t activeTransducers){
-    uint32_t *pio_reg;
-    pio_reg = *(TX->pio_reg);
+    uint32_t **pio_reg;
+    pio_reg = TX->pio_reg;
 
     TX->reg1.activeTransducers = activeTransducers;
     DREF32(pio_reg[1]) = TX->reg1.all;
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("transducers activated successfully\n");
+    } else {
+        printf("transducers not activated successfully\n");
+    }
 }
 
 void txSetTrigs(TXsys_t *TX){
-    uint32_t *pio_reg;
-    pio_reg = *(TX->pio_reg);
+    uint32_t **pio_reg;
+    pio_reg = TX->pio_reg;
 
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
@@ -53,8 +98,8 @@ void txSetTrigs(TXsys_t *TX){
 }
 
 void txSetChargeTime(TXsys_t *TX){
-    uint32_t *pio_reg;
-    pio_reg = *(TX->pio_reg);
+    uint32_t **pio_reg;
+    pio_reg = TX->pio_reg;
 
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
@@ -75,8 +120,8 @@ void txSetChargeTime(TXsys_t *TX){
 }
 
 void txSetFireCmdDelay(TXsys_t *TX){
-    uint32_t *pio_reg;
-    pio_reg = *(TX->pio_reg);
+    uint32_t **pio_reg;
+    pio_reg = TX->pio_reg;
     
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
@@ -86,8 +131,8 @@ void txSetFireCmdDelay(TXsys_t *TX){
 }
 
 void txSetPhaseDelay(TXsys_t *TX){
-    uint32_t *pio_reg;
-    pio_reg = *(TX->pio_reg);
+    uint32_t **pio_reg;
+    pio_reg = TX->pio_reg;
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
@@ -112,8 +157,8 @@ void txSetPhaseDelay(TXsys_t *TX){
 }
 
 void txSetRecvTrigDelay(TXsys_t *TX){
-    uint32_t *pio_reg;
-    pio_reg = *(TX->pio_reg);
+    uint32_t **pio_reg;
+    pio_reg = TX->pio_reg;
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
@@ -121,9 +166,9 @@ void txSetRecvTrigDelay(TXsys_t *TX){
     DREF32(pio_reg[8]) = TX->reg8.all;
 }
 
-void txSetRequestNextInstrTimer(TXsys_t *TX){
-    uint32_t *pio_reg;
-    pio_reg = *(TX->pio_reg);
+void txSetAsyncWait(TXsys_t *TX){
+    uint32_t **pio_reg;
+    pio_reg = TX->pio_reg;
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
@@ -133,9 +178,9 @@ void txSetRequestNextInstrTimer(TXsys_t *TX){
 
     // only do this if the amp gets set from outside of sync block
     TXpioreg2_t reg2tmp;
-    if( !(cmd->flags.isPioCmd) ){
+    if( !(cmd->flags.isPioCmd) & !(cmd->flags.isAsyncWait) ){
         reg2tmp.all = 0;
-        reg2tmp.set_instr_request_timer = 1;
+        reg2tmp.set_async_wait = 1;
         DREF32(pio_reg[2]) = reg2tmp.all;
         usleep(5);
         DREF32(pio_reg[2]) = 0;
@@ -143,8 +188,8 @@ void txSetRequestNextInstrTimer(TXsys_t *TX){
 }
 
 void txIssuePioCommand(TXsys_t *TX){
-    uint32_t *pio_reg;
-    pio_reg = *(TX->pio_reg);
+    uint32_t **pio_reg;
+    pio_reg = TX->pio_reg;
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
@@ -199,84 +244,77 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
 
     cmd_list = *(TX->pio_cmd_list);
     cmd_list = cmd_list->top;
-    while( ( cmd_list->cmdNumber != cmdNum ) && ( cmd_list->next != NULL ) ){
-        cmd_list = cmd_list->next;
-    }
 
-    if( ( cmd_list->cmdNumber == cmdNum ) && ( cmdNum != 0 ) ){
-        tmp = cmd_list;
-        
-        if(tmp->flags.isLoopStartCmd | tmp->flags.isSteeringStartCmd ){
-            loopCmd = tmp->loopTail;
-        } else if ( tmp->flags.isLoopEndCmd | tmp->flags.isSteeringEndCmd ){
-            loopCmd = tmp->loopHead;
+    if ( cmdNum ){
+        while( ( cmd_list->cmdNumber != cmdNum ) && ( cmd_list->next != NULL ) ){
+            cmd_list = cmd_list->next;
         }
-        if(loopCmd != NULL){
-            loopCmdNum = loopCmd->cmdNumber;
-        }
-
-        cmd_list = cmd_list->top;
-        prev = tmp->prev;
-        next = tmp->next;
-        prev->next = next;
-        prev->flags.nextFlags = 0;
-        if( next != NULL ){
-            next->prev = prev;
-            if( next->flags.isPioCmd ){
-                prev->flags.nextCmdIsPio = 1;
-            } else if ( next->flags.isLoopStartCmd ){
-                prev->flags.nextCmdIsLoopStart = 1;
-            } else if ( next->flags.isLoopEndCmd ){
-                prev->flags.nextCmdIsLoopEnd = 1;
-            } else if ( next->flags.isSteeringStartCmd ){
-                prev->flags.nextCmdIsSteeringStart = 1;
-            } else if ( next->flags.isSteeringEndCmd ){
-                prev->flags.nextCmdIsSteeringEnd = 1;
+        if( ( cmd_list->cmdNumber == cmdNum ) ){
+            tmp = cmd_list;
+            
+            if(tmp->flags.isLoopStartCmd | tmp->flags.isSteeringStartCmd ){
+                loopCmd = tmp->loopTail;
+            } else if ( tmp->flags.isLoopEndCmd | tmp->flags.isSteeringEndCmd ){
+                loopCmd = tmp->loopHead;
             }
-        }
-        if(tmp->reg9_24 != NULL) free(tmp->reg9_24);
-        free(tmp);
+            if(loopCmd != NULL){
+                loopCmdNum = loopCmd->cmdNumber;
+            }
 
-        if(loopCmdNum){
-            prev = loopCmd->prev;
-            next = loopCmd->next;
+            cmd_list = cmd_list->top;
+            prev = tmp->prev;
+            next = tmp->next;
             prev->next = next;
             prev->flags.nextFlags = 0;
             if( next != NULL ){
                 next->prev = prev;
-                if( next->flags.isPioCmd ){
-                    prev->flags.nextCmdIsPio = 1;
-                } else if ( next->flags.isLoopStartCmd ){
-                    prev->flags.nextCmdIsLoopStart = 1;
-                } else if ( next->flags.isLoopEndCmd ){
-                    prev->flags.nextCmdIsLoopEnd = 1;
-                } else if ( next->flags.isSteeringStartCmd ){
-                    prev->flags.nextCmdIsSteeringStart = 1;
-                } else if ( next->flags.isSteeringEndCmd ){
-                    prev->flags.nextCmdIsSteeringEnd = 1;
-                }
+                prev->flags.nextFlags = next->flags.isFlags;
             }
-            if( loopCmd->reg9_24 != NULL ) free(loopCmd->reg9_24);
-            free(loopCmd);
-        }
+            if(tmp->reg9_24 != NULL) free(tmp->reg9_24);
+            free(tmp);
 
-        cmd_list = cmd_list->top;
-        do {
-            cmd_list = cmd_list->next;
-            cmdCntr++;
-            cmd_list->cmdNumber = cmdCntr;
-        } while( cmd_list->next != NULL );
+            if(loopCmdNum){
+                prev = loopCmd->prev;
+                next = loopCmd->next;
+                prev->next = next;
+                prev->flags.nextFlags = 0;
+                if( next != NULL ){
+                    next->prev = prev;
+                    prev->flags.nextFlags = next->flags.isFlags;
+                }
+                if( loopCmd->reg9_24 != NULL ) free(loopCmd->reg9_24);
+                free(loopCmd);
+            }
+
+            cmd_list = cmd_list->top;
+            do {
+                cmd_list = cmd_list->next;
+                cmdCntr++;
+                cmd_list->cmdNumber = cmdCntr;
+            } while( cmd_list->next != NULL );
+        } 
+
+    } else {
+        next = cmd_list->next;
+        if(next != NULL){
+            cmd_list->next = next->next;
+            next->next->prev = cmd_list;
+            free(next);
+        }
     }
 
-    cmd_list = cmd_list->top;
-    *(TX->pio_cmd_list) = cmd_list;
+    *(TX->pio_cmd_list) = cmd_list->top;
 }
 
 void txMakeLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, uint32_t stepSize){
-    txAddPioCmd_f(TX);
-    
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
+    
+    if( cmd->flags.all ){ 
+        txAddPioCmd_f(TX);
+        cmd = *(TX->pio_cmd_list);
+    }
+
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
@@ -288,13 +326,22 @@ void txMakeLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, uint32_t s
     cmd->endIdx = endIdx;
     cmd->stepSize = stepSize;
     cmd->currentIdx = startIdx;
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("loop started successfully\n");
+    } else {
+        printf("loop not started successfully\n");
+    }
 }
 
 void txMakeLoopEnd(TXsys_t *TX){
-    txAddPioCmd_f(TX);
-    
-    TXpiocmd_t *cmd, *tmp;
+    TXpiocmd_t *cmd,*tmp;
     cmd = *(TX->pio_cmd_list);
+    
+    if( cmd->flags.all ){ 
+        txAddPioCmd_f(TX);
+        cmd = *(TX->pio_cmd_list);
+    }
+    
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
@@ -318,13 +365,20 @@ void txMakeLoopEnd(TXsys_t *TX){
             }
         }
     }
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("loop ended successfully\n");
+    } else {
+        printf("loop not ended successfully\n");
+    }
 }
 
 void txMakeSteeringLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, uint32_t stepSize){
-    txAddPioCmd_f(TX);
-    
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
+    if( cmd->flags.all ){ 
+        txAddPioCmd_f(TX);
+        cmd = *(TX->pio_cmd_list);
+    }
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
@@ -338,13 +392,20 @@ void txMakeSteeringLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, ui
     cmd->endIdx = endIdx;
     cmd->stepSize = stepSize;
     cmd->currentIdx = startIdx;
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("steering loop started successfully\n");
+    } else {
+        printf("steering loop not started successfully\n");
+    }
 }
 
 void txMakeSteeringLoopEnd(TXsys_t *TX){
-    txAddPioCmd_f(TX);
-    
-    TXpiocmd_t *cmd, *tmp;
+    TXpiocmd_t *cmd,*tmp;
     cmd = *(TX->pio_cmd_list);
+    if( cmd->flags.all ){ 
+        txAddPioCmd_f(TX);
+        cmd = *(TX->pio_cmd_list);
+    }
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
@@ -368,18 +429,30 @@ void txMakeSteeringLoopEnd(TXsys_t *TX){
             }
         }
     }
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("steering loop ended successfully\n");
+    } else {
+        printf("steering loop not ended successfully\n");
+    }
 }
 
 void txMakePioCmd(TXsys_t *TX){
-    txAddPioCmd_f(TX);
-    
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
+    if( cmd->flags.all ){ 
+        txAddPioCmd_f(TX);
+        cmd = *(TX->pio_cmd_list);
+    }
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
     cmd->flags.isPioCmd = 1;
     cmd->prev->flags.nextCmdIsPio = 1;
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("pio cmd made successfully\n");
+    } else {
+        printf("pio cmd not made successfully\n");
+    }
 }
 
 void txBufferTrigTimingCmd(TXsys_t *TX, uint32_t *trigs){
@@ -415,6 +488,11 @@ void txBufferTrigTimingCmd(TXsys_t *TX, uint32_t *trigs){
     cmd->flags.setTrig15 = ( cmd->reg9_24[15].duration ) ? 1 : 0;
     
     cmd->reg2.set_trig_leds = 1;
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("trigs set successfully\n");
+    } else {
+        printf("trigs not set successfully\n");
+    }
 }
 
 void txBufferChargeTimeCmd(TXsys_t *TX, uint32_t chargeTime){
@@ -425,6 +503,11 @@ void txBufferChargeTimeCmd(TXsys_t *TX, uint32_t chargeTime){
     }
     cmd->reg7.chargeTime = chargeTime;
     cmd->reg2.set_amp = 1;
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("charge time set successfully\n");
+    } else {
+        printf("charge time not set successfully\n");
+    }
 }
 
 void txBufferFireDelayCmd(TXsys_t *TX, uint32_t fireDelay){
@@ -435,19 +518,33 @@ void txBufferFireDelayCmd(TXsys_t *TX, uint32_t fireDelay){
     }
     cmd->reg7.fireDelay = fireDelay;
     cmd->reg2.fire = 1;
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("fire cmd set successfully\n");
+    } else {
+        printf("fire cmd not set successfully\n");
+    }
 }
 
-void txBufferPhaseDelayCmd(TXsys_t *TX, uint32_t *phaseDelays){
+void txBufferPhaseDelayCmd(TXsys_t *TX, uint16_t *phaseDelays){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
-    cmd->reg3.all = phaseDelays[0];
-    cmd->reg4.all = phaseDelays[1];
-    cmd->reg5.all = phaseDelays[2];
-    cmd->reg6.all = phaseDelays[3];
+    cmd->reg3.ch0 = phaseDelays[0];
+    cmd->reg3.ch1 = phaseDelays[1];
+    cmd->reg4.ch2 = phaseDelays[2];
+    cmd->reg4.ch3 = phaseDelays[3];
+    cmd->reg5.ch4 = phaseDelays[4];
+    cmd->reg5.ch5 = phaseDelays[5];
+    cmd->reg6.ch6 = phaseDelays[6];
+    cmd->reg6.ch7 = phaseDelays[7];
     cmd->reg2.set_phase = 1;
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("phase delays set successfully\n");
+    } else {
+        printf("phase delays not set successfully\n");
+    }
 }
 
 void txBufferRecvTrigDelayCmd(TXsys_t *TX, uint32_t recvTrigDelay){
@@ -458,22 +555,38 @@ void txBufferRecvTrigDelayCmd(TXsys_t *TX, uint32_t recvTrigDelay){
     }
     cmd->reg8.recvTrigDelay = recvTrigDelay;
     cmd->reg2.issue_rcv_trig = 1;
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("recv trig set successfully\n");
+    } else {
+        printf("recv trig not set successfully\n");
+    }
 }
 
-void txBufferSetRequestNextInstrTimerCmd(TXsys_t *TX, uint64_t timerVal){
+void txBufferAsyncWaitCmd(TXsys_t *TX, uint64_t timerVal){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
+    if( (cmd->flags.isAsyncWait) | (cmd->flags.isCmd0) | (cmd->flags.isLoopEndCmd) | (cmd->flags.isSteeringEndCmd) ){ 
+        txAddPioCmd_f(TX);
+        cmd = *(TX->pio_cmd_list);
+    }
+    cmd->flags.isAsyncWait = 1;
+    cmd->prev->flags.nextCmdIsAsyncWait = 1;
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
     cmd->reg25_26.all = timerVal;
-    cmd->reg2.set_instr_request_timer = 1;
+    cmd->reg2.set_async_wait = 1;
+    if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("async wait set successfully\n");
+    } else {
+        printf("async wait not set successfully\n");
+    }
 }
 
 void txResetTxInterrupt(TXsys_t *TX){
     TXpioreg2_t intr_reset;
-    uint32_t *pio_reg;
-    pio_reg = *(TX->pio_reg);
+    uint32_t **pio_reg;
+    pio_reg = TX->pio_reg;
 
     intr_reset.all = 0;
     intr_reset.reset_interrupt = 1;
@@ -484,8 +597,8 @@ void txResetTxInterrupt(TXsys_t *TX){
 
 void txResetRcvTrig(TXsys_t *TX){
     TXpioreg2_t rcv_trig_reset;
-    uint32_t *pio_reg;
-    pio_reg = *(TX->pio_reg);
+    uint32_t **pio_reg;
+    pio_reg = TX->pio_reg;
 
     rcv_trig_reset.all = 0;
     rcv_trig_reset.reset_rcv_trig = 1;
@@ -495,39 +608,48 @@ void txResetRcvTrig(TXsys_t *TX){
 }
 
 void txSetNumSteeringLocs(TXsys_t *TX, uint32_t nSteeringLocs){
+    uint16_t *tmp;
+    uint32_t ns;
     
-    if(nSteeringLocs != TX->nSteeringLocs){
-        free(*(TX->phaseDelays));
-        *(TX->phaseDelays) = (uint32_t *)calloc(nSteeringLocs*4,sizeof(uint32_t));
-        TX->nSteeringLocs = nSteeringLocs;
-    } else if ( !nSteeringLocs ){
-        free(*(TX->phaseDelays));
-        *(TX->phaseDelays) = (uint32_t *)calloc(4,sizeof(uint32_t));
-        TX->nSteeringLocs = 1;
-    }
+    ns = ( nSteeringLocs ) ? nSteeringLocs : 1;
 
+    if( ns != TX->nSteeringLocs ){
+        tmp = (uint16_t *)calloc(8*ns,sizeof(uint16_t));
+        free(*(TX->phaseDelays));
+        *(TX->phaseDelays) = tmp;
+        TX->nSteeringLocs = ns;
+    }
+    TX->nPhaseDelaysWritten = 0;
+    if ( send(TX->comm_sock->fd,&ns,sizeof(uint32_t),MSG_CONFIRM) ){
+        printf("num steering locations set successfully\n");
+    } else {
+        printf("num steering locations not set successfully\n");
+    }
 }
 
 void txStorePhaseDelays(TXsys_t *TX, int nrecv, FMSG_t *msg){
-    static int nwritten = 0;
+    printf("tx store phase delays\n");
     char *pdin;
     char *pdtx;
-    uint32_t *pd32;
+    uint16_t *pd16;
     int i;
 
-    pd32 = *(TX->phaseDelays);
+    pd16 = *(TX->phaseDelays);
 
     pdin = (char *)msg;
-    pdtx = (char *)pd32;
+    pdtx = (char *)pd16;
     i=0;
     while(i<nrecv){
-        pdtx[nwritten+i] = pdin[i];
-        nwritten++;
+        pdtx[TX->nPhaseDelaysWritten+i] = pdin[i];
+        TX->nPhaseDelaysWritten++;
         i++;
     }
-
-    if( nwritten >= ( 4*TX->nSteeringLocs*sizeof(uint32_t) ) ){
-        nwritten=0;
+    if ( TX->nPhaseDelaysWritten == TX->nSteeringLocs*8*sizeof(uint16_t) ){
+        if ( send(TX->pd_data_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            printf("phase delays stored successfully\n");
+        } else {
+            printf("phase delays not stored successfully\n");
+        }
+        TX->nPhaseDelaysWritten = 0;
     }
-
 }

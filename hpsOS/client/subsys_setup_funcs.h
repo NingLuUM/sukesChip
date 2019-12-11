@@ -226,7 +226,7 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
 }
 
 int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
-
+    TX->interrupt_reg = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_INTERRUPT_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
     TX->pio_reg = (uint32_t **)malloc(27*sizeof(uint32_t *));
     TX->pio_reg[0] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
     TX->pio_reg[1] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG1_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
@@ -269,7 +269,7 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
 
     pio_cmd->cmdNumber = 0;
     pio_cmd->reg2.all = 0;
-    pio_cmd->reg2.set_instr_request_timer = 1;
+    pio_cmd->reg2.set_async_wait = 1;
     pio_cmd->reg3.all = 0;
     pio_cmd->reg4.all = 0;
     pio_cmd->reg5.all = 0;
@@ -277,6 +277,7 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
     pio_cmd->reg7.all = 0;
     pio_cmd->reg8.all = 0;
     pio_cmd->flags.all = 0;
+    pio_cmd->flags.isCmd0 = 1;
     
     pio_cmd->reg25_26.all = 100000; // wait 1ms from when program begins before issuing commands
     
@@ -286,9 +287,12 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
     pio_cmd->next = NULL;
 
     TX->nSteeringLocs = 1;
-    TX->phaseDelays = (uint32_t **)malloc(sizeof(uint32_t *));
-    *(TX->phaseDelays) = (uint32_t *)calloc(4,sizeof(uint32_t));
+    TX->nPhaseDelaysWritten = 0;
+    TX->phaseDelays = (uint16_t **)malloc(sizeof(uint16_t *));
+    *(TX->phaseDelays) = (uint16_t *)calloc(8,sizeof(uint16_t));
 
+    TX->comm_sock = NULL;
+    TX->pd_data_sock = NULL;
     TX->interrupt.ps = NULL;
     
     // control comms
@@ -352,7 +356,7 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
     TX->setFireCmdDelay = &txSetFireCmdDelay;
     TX->setPhaseDelay = &txSetPhaseDelay;
     TX->setRecvTrigDelay = &txSetRecvTrigDelay;
-    TX->setRequestNextInstrTimer = &txSetRequestNextInstrTimer;
+    TX->setAsyncWait = &txSetAsyncWait;
     TX->issuePioCommand = &txIssuePioCommand;
 
     TX->addCmd = &txAddPioCmd_f;
@@ -369,12 +373,14 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
     TX->bufferFireCmd = &txBufferFireDelayCmd;
     TX->bufferPhaseDelays = &txBufferPhaseDelayCmd;
     TX->bufferRecvTrig = &txBufferRecvTrigDelayCmd;
-    TX->bufferInstructionTimeout = &txBufferSetRequestNextInstrTimerCmd;
+    TX->bufferAsyncWait = &txBufferAsyncWaitCmd;
     TX->resetTxInterrupt = &txResetTxInterrupt;
     TX->resetRcvTrig = &txResetRcvTrig;
 
     TX->setNumSteeringLocs = &txSetNumSteeringLocs;
     TX->storePhaseDelays = &txStorePhaseDelays;
 
+    TX->resetTxInterrupt(TX);
+    TX->resetRcvTrig(TX);
     return(1);
 }

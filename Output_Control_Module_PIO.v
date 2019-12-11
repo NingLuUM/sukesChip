@@ -186,6 +186,8 @@ begin
 	
 	requestTimerFlag = 1'b0;
 	instruction_request_timer = 64'b0;
+	
+	pio_cmd_previous = 9'b0;
 end
 
 
@@ -224,6 +226,8 @@ begin
 				
 				requestTimerFlag <= 1'b0;
 				instruction_request_timer <= 64'b0;
+				
+				pio_cmd_previous <= 9'b0;
 			end
 		
 		CASE_PIO_CONTROL:
@@ -476,6 +480,8 @@ begin
 				
 				requestTimerFlag <= 1'b0;
 				instruction_request_timer <= 64'b0;
+				
+				pio_cmd_previous <= 9'b0;
 			end
 		
 		CASE_PIO_CONTROL_RAM_SUBCALL:
@@ -508,6 +514,8 @@ begin
 				
 				requestTimerFlag <= 1'b0;
 				instruction_request_timer <= 64'b0;
+				
+				pio_cmd_previous <= 9'b0;
 			end
 			
 		default:

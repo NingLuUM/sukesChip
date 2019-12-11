@@ -25,7 +25,7 @@ typedef union TXpioreg2_{ // reg2: pioCommands
         uint32_t set_trig_leds : 1;
         uint32_t issue_rcv_trig : 1;
         uint32_t fire : 1;
-        uint32_t set_instr_request_timer : 1;
+        uint32_t set_async_wait : 1;
         uint32_t set_amp : 1;
         uint32_t set_phase : 1;
         uint32_t reset_rcv_trig : 1;

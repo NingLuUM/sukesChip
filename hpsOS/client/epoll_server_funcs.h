@@ -82,7 +82,7 @@ void acceptEnetClientSock(SOCK_t *servsock){
     } else if (clisock->portNum == TX_DATA_UPLOAD_PORT){
         clisock->is.tx_incoming_data = 1;
     }
-
+	printf("acceptEnetClientSock, port %d\n", clisock->portNum);
     if(clisock->portNum != ADC_CONTROL_PORT){
         setnonblocking(clisock->fd);
     }

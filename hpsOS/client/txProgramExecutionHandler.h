@@ -2,13 +2,34 @@
 int txProgramExecutionHandler(TXsys_t *TX){
     TXpiocmd_t *cmd;
     TXpiocmd_t *loopHead;
-    uint32_t *phaseDelays;
+    uint16_t *phaseDelays;
+    uint32_t prog_complete = 1;
     phaseDelays = *(TX->phaseDelays);
     cmd = *(TX->pio_cmd_list);
-
+    printf("cmd->flags = %d\n",cmd->flags.isFlags);
+    
     // reset the interrupt and rcv trig BEFORE updating command
     TX->resetTxInterrupt(TX);
     TX->resetRcvTrig(TX);
+    
+    if(cmd->flags.isLoopEndCmd){
+        printf("loop end, ");
+    }
+    if(cmd->flags.isSteeringEndCmd){
+        printf("steering loop end, ");
+    }
+    if(cmd->flags.isLoopStartCmd){
+        printf("loop start, ");
+    }
+    if(cmd->flags.isSteeringStartCmd){
+        printf("steering loop start, ");
+    }
+    if(cmd->flags.isPioCmd){
+        printf("pio cmd, ");
+    }
+    if(cmd->flags.isAsyncWait){
+        printf("async wait, ");
+    }
 
     // increment to next command
     if( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ){
@@ -16,20 +37,25 @@ int txProgramExecutionHandler(TXsys_t *TX){
         if( ( loopHead->currentIdx ) < ( loopHead->endIdx ) ){
             
             *(TX->pio_cmd_list) = loopHead;
-            TX->setRequestNextInstrTimer(TX);
+            TX->setAsyncWait(TX);
             return(1);
 
         } else if( cmd->next == NULL ){
             
             cmd = cmd->top;
             TX->setControlState(TX,0);
+            if( send(TX->comm_sock->fd,&prog_complete,sizeof(uint32_t),MSG_CONFIRM) ){
+                printf("exited successfully\n");
+            } else {
+                printf("failed to exit successfully\n");
+            }
             return(2);
 
         } else {
 
             cmd = cmd->next;
             *(TX->pio_cmd_list) = cmd;
-            TX->setRequestNextInstrTimer(TX);
+            TX->setAsyncWait(TX);
             return(1);
         
         }
@@ -38,6 +64,11 @@ int txProgramExecutionHandler(TXsys_t *TX){
    
         cmd = cmd->top;
         TX->setControlState(TX,0);
+        if( send(TX->comm_sock->fd,&prog_complete,sizeof(uint32_t),MSG_CONFIRM) ){
+            printf("exited successfully\n");
+        } else {
+            printf("failed to exit successfully\n");
+        }
         return(2);
     
     } else {
@@ -47,13 +78,19 @@ int txProgramExecutionHandler(TXsys_t *TX){
     
     }
     
+    printf("cmd->flags = %d\n",cmd->flags.isFlags);
+    printf("async_wait = %llu\n",cmd->reg25_26.all);
     
     if ( cmd->flags.isLoopStartCmd | cmd->flags.isSteeringStartCmd ) {
         if(cmd->flags.isSteeringStartCmd){
-            cmd->reg3.all = phaseDelays[cmd->currentIdx*4];
-            cmd->reg4.all = phaseDelays[cmd->currentIdx*4+1];
-            cmd->reg5.all = phaseDelays[cmd->currentIdx*4+2];
-            cmd->reg6.all = phaseDelays[cmd->currentIdx*4+3];
+            cmd->reg3.ch0 = phaseDelays[cmd->currentIdx*8];
+            cmd->reg3.ch1 = phaseDelays[cmd->currentIdx*8+1];
+            cmd->reg4.ch2 = phaseDelays[cmd->currentIdx*8+2];
+            cmd->reg4.ch3 = phaseDelays[cmd->currentIdx*8+3];
+            cmd->reg5.ch4 = phaseDelays[cmd->currentIdx*8+4];
+            cmd->reg5.ch5 = phaseDelays[cmd->currentIdx*8+5];
+            cmd->reg6.ch6 = phaseDelays[cmd->currentIdx*8+6];
+            cmd->reg6.ch7 = phaseDelays[cmd->currentIdx*8+7];
         }
         cmd->currentIdx += cmd->stepSize;
         
@@ -65,11 +102,16 @@ int txProgramExecutionHandler(TXsys_t *TX){
             TX->setPhaseDelay(TX);
         }
 
-        TX->setRequestNextInstrTimer(TX);
+        TX->setAsyncWait(TX);
         return(1);
-    }
-
-    if ( cmd->flags.isPioCmd ){
+    } 
+    
+    if ( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ){
+        TX->setAsyncWait(TX);
+        return(1);
+    } 
+    
+    if ( cmd->flags.isPioCmd | cmd->flags.isAsyncWait ){
         if( cmd->reg2.set_trig_leds ){
             TX->setTrigs(TX);
         }
@@ -82,8 +124,8 @@ int txProgramExecutionHandler(TXsys_t *TX){
             TX->setFireCmdDelay(TX);
         }
 
-        if( cmd->reg2.set_instr_request_timer ){
-            TX->setRequestNextInstrTimer(TX);
+        if( cmd->reg2.set_async_wait ){
+            TX->setAsyncWait(TX);
         }
 
         if( cmd->reg2.set_amp ){
