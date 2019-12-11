@@ -221,6 +221,8 @@ ADC_Control_Module u2(
 	.sampling_mode_opts		(adc_pio_settings[11:9]),
 	.compressor_opts		(adc_pio_settings[13:12]),
 	
+	.interruptThyself		(adc_pio_settings[14]),
+	
 	.oBYTEEN				(adc_byteen_bank),
 	.oADCData				(adc_writedata_bank),
 	
@@ -255,7 +257,7 @@ Output_Control_Module_PIO u3(
 	.itxRecvTrigDelay			(tx_pio_reg[8]),
 	
 	.itxTrigLedDurationAndDelay	(tx_pio_reg[24:9]),	// tx_pio_reg9-24	
-	.itxRequestNextInstrTimer	(tx_pio_reg[26:25]),
+	.itxTimeUntilNextInterrupt	(tx_pio_reg[26:25]),
 	
 	
 	.itxExternalTrigger			(EXTERNAL_TRIGGER_INPUT),

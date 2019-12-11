@@ -30,6 +30,8 @@ module ADC_Control_Module(
 	input	[2:0]				sampling_mode_opts,
 	input	[1:0]				compressor_opts,
 	
+	input				interruptThyself,
+	
 	output reg [15:0]	oBYTEEN,
 	output reg [127:0]	oADCData,
 	
@@ -152,7 +154,7 @@ begin
 			last_data_out <= 128'b0;
 			data_diff_out <= 64'b0;
 			bit8_cntr <= 8'b0;
-			oRcvInterrupt <= 32'b0;
+			if( !oRcvInterrupt ) oRcvInterrupt <= 32'b1111;
 		end
 	
 		
@@ -514,7 +516,14 @@ begin
 		trig_received_flag <= 2'b00;
 		write_complete_flag <= 1'b0;
 		waddr_cntr <= 15'b0;
-		oRcvInterrupt <= 32'b0;
+		if( !interruptThyself )
+		begin
+			oRcvInterrupt <= 32'b0;
+		end
+		else
+		begin
+			oRcvInterrupt <= 32'b1111;
+		end
 		otxTrigAck <= 1'b0;
 	end
 end

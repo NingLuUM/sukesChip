@@ -28,15 +28,16 @@ typedef union TXpioreg2_{ // reg2: pioCommands
         uint32_t set_async_wait : 1;
         uint32_t set_amp : 1;
         uint32_t set_phase : 1;
+        uint32_t blnk6_13 : 7;
         uint32_t reset_rcv_trig : 1;
         uint32_t reset_interrupt : 1;
-        uint32_t pio_cmd_blnk : 1;
+        uint32_t new_cmd_flag : 1;
         
-        uint32_t blnk : 23;
+        uint32_t blnk : 16;
     };
     struct{
-        uint32_t pio_cmds : 9;
-        uint32_t blnk2 : 23;
+        uint32_t pio_cmds : 16;
+        uint32_t blnk2 : 16;
     };
 
     uint32_t all;		

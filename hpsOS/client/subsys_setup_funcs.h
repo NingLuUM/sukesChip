@@ -182,6 +182,7 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
 }
 
 int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
+	RCV->interrupt_reg = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + RCV_INTERRUPT_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 
 	RCV->stateReset = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_FPGA_STATE_RESET_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	RCV->controlComms = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_CONTROL_COMMS_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
@@ -210,6 +211,8 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
     
     RCV->ADC = ADC;
 
+    RCV->comm_sock = NULL;
+    RCV->data_sock = NULL;
     RCV->interrupt.ps = NULL;
     
     RCV->recLen_ref = 2048;
@@ -380,6 +383,7 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
     TX->setNumSteeringLocs = &txSetNumSteeringLocs;
     TX->storePhaseDelays = &txStorePhaseDelays;
 
+    TX->setControlState(TX,0);
     TX->resetTxInterrupt(TX);
     TX->resetRcvTrig(TX);
     return(1);

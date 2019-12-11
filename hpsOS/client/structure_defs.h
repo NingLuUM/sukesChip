@@ -114,7 +114,7 @@ typedef struct SOCK_{
             uint8_t tx_incoming_data : 1;
             uint8_t rcv_interrupt : 1;
             uint8_t tx_interrupt : 1;
-            uint8_t blnk : 1;
+            uint8_t alive : 1;
         };
         uint8_t flags;
     } is;
@@ -184,6 +184,7 @@ typedef struct ADCvars_{
 
 
 typedef struct RCVsys_{
+    uint32_t volatile *interrupt_reg;
 
 	// memory mapped variables in FPGA
 	uint32_t volatile *stateReset;
@@ -217,13 +218,16 @@ typedef struct RCVsys_{
             uint32_t fclk_delay : 3;
             uint32_t sampling_mode : 3;
 			uint32_t compressor_mode : 2;
-            uint32_t blnk : 18;
+            uint32_t interrupt_thyself : 1;
+            uint32_t blnk : 17;
         };
         uint32_t all;
     } pioSettings_ref;
 
     char **data;
 
+    SOCK_t *comm_sock;
+    SOCK_t *data_sock;
 	SOCK_t interrupt;
     
     ADCvars_t *ADC;
@@ -295,6 +299,10 @@ typedef struct TXpiocmd_{
             uint32_t nextFlags : 7;
             uint32_t trigFlags : 16;
             uint32_t blnkFlags2 : 2;
+        };
+        struct{
+            uint32_t hasNonWaitCmds : 6;
+            uint32_t blnk24 : 24;
         };
         uint32_t all;
     } flags;
@@ -429,12 +437,12 @@ typedef struct RAMBANK12_{
 
 
 typedef union FMSG_{
-    uint8_t u8[256];
-    uint16_t u16[128];
-    uint32_t u[64];
-    uint64_t u64[32];
-    float f[64];
-    double d[32];
+    uint8_t u8[FMSG_SIZE];
+    uint16_t u16[FMSG_SIZE/2];
+    uint32_t u[FMSG_SIZE/4];
+    uint64_t u64[FMSG_SIZE/8];
+    float f[FMSG_SIZE/4];
+    double d[FMSG_SIZE/8];
 } FMSG_t;
 
 

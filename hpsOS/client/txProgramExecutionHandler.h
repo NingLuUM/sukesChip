@@ -6,38 +6,28 @@ int txProgramExecutionHandler(TXsys_t *TX){
     uint32_t prog_complete = 1;
     phaseDelays = *(TX->phaseDelays);
     cmd = *(TX->pio_cmd_list);
-    printf("cmd->flags = %d\n",cmd->flags.isFlags);
-    
+    printf("cmd->cmdNumber = %d, cmd->flags = %d. ",cmd->cmdNumber, cmd->flags.isFlags);
+    printBinary(cmd->flags.all); 
     // reset the interrupt and rcv trig BEFORE updating command
     TX->resetTxInterrupt(TX);
-    TX->resetRcvTrig(TX);
+    //TX->resetRcvTrig(TX);
     
-    if(cmd->flags.isLoopEndCmd){
-        printf("loop end, ");
-    }
-    if(cmd->flags.isSteeringEndCmd){
-        printf("steering loop end, ");
-    }
-    if(cmd->flags.isLoopStartCmd){
-        printf("loop start, ");
-    }
-    if(cmd->flags.isSteeringStartCmd){
-        printf("steering loop start, ");
-    }
-    if(cmd->flags.isPioCmd){
-        printf("pio cmd, ");
-    }
-    if(cmd->flags.isAsyncWait){
-        printf("async wait, ");
-    }
-
+    /*
+    if(cmd->flags.isLoopEndCmd)         printf("loop end, ");
+    if(cmd->flags.isSteeringEndCmd)     printf("steering loop end, ");
+    if(cmd->flags.isLoopStartCmd)       printf("loop start, ");
+    if(cmd->flags.isSteeringStartCmd)   printf("steering loop start, ");
+    if(cmd->flags.isPioCmd)             printf("pio cmd, ");
+    if(cmd->flags.isAsyncWait)          printf("async wait, ");
+    */
+    
     // increment to next command
     if( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ){
         loopHead = cmd->loopHead;
         if( ( loopHead->currentIdx ) < ( loopHead->endIdx ) ){
             
             *(TX->pio_cmd_list) = loopHead;
-            TX->setAsyncWait(TX);
+            TX->issuePioCommand(TX);
             return(1);
 
         } else if( cmd->next == NULL ){
@@ -55,7 +45,7 @@ int txProgramExecutionHandler(TXsys_t *TX){
 
             cmd = cmd->next;
             *(TX->pio_cmd_list) = cmd;
-            TX->setAsyncWait(TX);
+            TX->issuePioCommand(TX);
             return(1);
         
         }
@@ -78,8 +68,9 @@ int txProgramExecutionHandler(TXsys_t *TX){
     
     }
     
-    printf("cmd->flags = %d\n",cmd->flags.isFlags);
-    printf("async_wait = %llu\n",cmd->reg25_26.all);
+    //printf("cmd->flags = %d. ",cmd->flags.isFlags);
+    //printBinary(cmd->flags.all); 
+    //printf("async_wait = %llu\n",cmd->reg25_26.all);
     
     if ( cmd->flags.isLoopStartCmd | cmd->flags.isSteeringStartCmd ) {
         if(cmd->flags.isSteeringStartCmd){
@@ -93,51 +84,36 @@ int txProgramExecutionHandler(TXsys_t *TX){
             cmd->reg6.ch7 = phaseDelays[cmd->currentIdx*8+7];
         }
         cmd->currentIdx += cmd->stepSize;
-        
-        if( TX->reg2.set_amp ){
-            TX->setChargeTime(TX);
-        }
-
-        if( TX->reg2.set_phase ){
-            TX->setPhaseDelay(TX);
-        }
-
-        TX->setAsyncWait(TX);
-        return(1);
     } 
     
-    if ( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ){
-        TX->setAsyncWait(TX);
-        return(1);
-    } 
     
-    if ( cmd->flags.isPioCmd | cmd->flags.isAsyncWait ){
-        if( cmd->reg2.set_trig_leds ){
-            TX->setTrigs(TX);
-        }
-
-        if( cmd->reg2.issue_rcv_trig ){
-            TX->setRecvTrigDelay(TX);
-        }
-
-        if( cmd->reg2.fire ){
-            TX->setFireCmdDelay(TX);
-        }
-
-        if( cmd->reg2.set_async_wait ){
-            TX->setAsyncWait(TX);
-        }
-
-        if( cmd->reg2.set_amp ){
-            TX->setChargeTime(TX);
-        }
-
-        if( cmd->reg2.set_phase ){
-            TX->setPhaseDelay(TX);
-        }
-        
-        TX->issuePioCommand(TX);
+    if( cmd->reg2.set_trig_leds ){
+        TX->setTrigs(TX);
     }
+
+    if( cmd->reg2.issue_rcv_trig ){
+        TX->setRecvTrigDelay(TX);
+    }
+
+    if( cmd->reg2.fire ){
+        TX->setFireCmdDelay(TX);
+    }
+
+    if( cmd->reg2.set_async_wait ){
+        TX->setAsyncWait(TX);
+    }
+
+    if( cmd->reg2.set_amp ){
+        TX->setChargeTime(TX);
+    }
+
+    if( cmd->reg2.set_phase ){
+        TX->setPhaseDelay(TX);
+    }
+    
+    //usleep(100);
+    TX->issuePioCommand(TX);
+
     return(1);
 }
 

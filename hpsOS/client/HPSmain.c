@@ -91,6 +91,7 @@
 #define MAX_POLL_EVENTS     ( 8 )
 #define MAX_SERVER_PORTS    ( 6 )
 #define MAX_SERVER_QUEUE    ( 8 )
+#define FMSG_SIZE           ( 1024 )
 
 // UNUSED, but potentially useful (see 'cServer' for use examp) 
 #define ADC_CLK             ( 25 )	// MHz
@@ -116,6 +117,7 @@
 #define CASE_RCV_SET_RECLEN                 ( 0 )
 #define CASE_RCV_SET_PIO_VAR_GAIN           ( 1 )
 #define CASE_SET_LEDS                       ( 2 )
+#define CASE_RCV_STATE_RESET                ( 3 )
 #define CASE_ADC_SET_GAIN                   ( 4 )
 #define CASE_ADC_SET_UNSIGNED               ( 5 )
 #define CASE_ADC_SET_LOW_NOISE_MODE         ( 6 )
@@ -132,6 +134,7 @@
 #define CASE_RCV_SET_CLOCK_DIVISOR			( 17 )
 #define CASE_RCV_SET_SAMPLING_MODE			( 18 )
 #define CASE_RCV_SET_COMPRESSOR_MODE		( 19 )
+#define CASE_RCV_INTERRUPT_THYSELF          ( 20 )
 
 // TODO: delete these from rcv sys handler
 #define	CASE_ADC_SET_FCLOCK_DELAY			( 52 )
@@ -156,8 +159,34 @@
 #define CASE_TX_SET_NSTEERING_LOCS          ( 17 )
 #define CASE_TX_CONNECT_INTERRUPT           ( 18 )
 
-
 #define CASE_EXIT_PROGRAM 100
+
+
+
+#define BYTE_TO_BINARY_PATTERN "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s"
+#define BYTE_TO_BINARY(byte)  \
+  (byte & 0x8000 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x4000 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x2000 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x1000 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x0800 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x0400 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x0200 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x0100 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x0080 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x0040 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x0020 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x0010 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x0008 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x0004 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x0002 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
+  (byte & 0x0001 ? "\x1B[42;30m1\x1B[0;0m" : "\x1B[44;24m0\x1B[0;0m") 
+
+void printBinary(uint32_t val){
+    uint16_t bval;
+    bval = (val & 0x7f);
+    printf(BYTE_TO_BINARY_PATTERN"\n",BYTE_TO_BINARY(bval));
+}
 
 const int ONE = 1;
 const int ZERO = 0;
@@ -179,16 +208,6 @@ struct timespec gstart, gend, gdifftime;
 #include "txProgramExecutionHandler.h"
 #include "txSys_enetMsgHandlerFuncs.h"
 
-#define BYTE_TO_BINARY_PATTERN "%s%s%s%s%s%s%s%s"
-#define BYTE_TO_BINARY(byte)  \
-  (byte & 0x80 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
-  (byte & 0x40 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
-  (byte & 0x20 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
-  (byte & 0x10 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
-  (byte & 0x08 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
-  (byte & 0x04 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
-  (byte & 0x02 ? "\x1B[42;30m1" : "\x1B[44;24m0"), \
-  (byte & 0x01 ? "\x1B[42;30m1\x1B[0;0m" : "\x1B[44;24m0\x1B[0;0m") 
 
 int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
 	
@@ -209,6 +228,8 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
 
     connectPollInterrupter(&PS,&(RCV.interrupt),"gpio@0x100000000",RCV_INTERRUPT_ID);
     connectPollInterrupter(&PS,&(TX.interrupt),"gpio@0x100000010",TX_INTERRUPT_ID);
+    //disconnectPollSock(&(RCV.interrupt));
+    //disconnectPollSock(&(TX.interrupt));
     addEnetServerSock(&PS,&ENETserver[0],INIT_PORT);
     addEnetServerSock(&PS,&ENETserver[1],ADC_CONTROL_PORT);
     addEnetServerSock(&PS,&ENETserver[2],TX_CONTROL_PORT);
@@ -228,11 +249,16 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     int nrecv,pd_size;
     int tmp = 0;
     int runner = 1;
-    
+    int activeSocks = 0;
+    TXpiocmd_t *pio_cmd;
+
     while(runner==1){
         
         nfds = epoll_wait(PS.epfd,PS.events,MAX_POLL_EVENTS,timeout_ms);
-	    //printf("tx interrupt reg = %d\n",DREF32(TX.interrupt_reg));	
+	    //printf("rcv state reset = %d\n",DREF32(RCV.stateReset));	
+	    //printf("data ready flag = %d\n",DREF32(RCV.dataReadyFlag));	
+        //printf("rcv interrupt reg: %u (%d)\n",DREF32(RCV.interrupt_reg),DREF32(RCV.dataReadyFlag));
+        printf("tx interrupt reg: %u ()\n",DREF32(TX.interrupt_reg));
         if( nfds > 0 ){
             for(n=0;n<nfds;n++){
                 sock = (SOCK_t *)PS.events[n].data.ptr;
@@ -242,16 +268,25 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                         disconnectPollSock(sock->partner);
                     }
                     acceptEnetClientSock(sock);
+                    sock->is.alive = 1;
+                    activeSocks++;
+
                     if( sock->partner->is.tx_control ){
                         TX.comm_sock = sock->partner;
-                        //TX.setControlState(&TX,0);
                     } else if ( sock->partner->is.tx_incoming_data ){
                         TX.pd_data_sock = sock->partner;
+                    } else if ( sock->partner->is.commsock ){
+                        RCV.comm_sock = sock->partner;
+                        DREF32(RCV.stateReset)=0; 
+                    } else if ( sock->partner->is.adc_control ){
+                        RCV.data_sock = sock->partner;
                     }
                 
                 } else if ( sock->is.rcv_interrupt ) {
-					printf("rcv interrupt flag: %u (%d)\n",*(uint8_t *)RCV.dataReadyFlag,*(int8_t *)RCV.dataReadyFlag);
-                    queryData(&RCV,&ENETclient[1]); 
+					printf("rcv data ready flag: %u (%d)\n",DREF8(RCV.dataReadyFlag),DREF8(RCV.dataReadyFlag));
+					printf("rcv interrupt reg: %u (%d)\n",DREF32(RCV.interrupt_reg),DREF32(RCV.dataReadyFlag));
+                    //queryData(&RCV,&ENETclient[1]); 
+                    TX.resetRcvTrig(&TX);
                
                 } else if ( sock->is.tx_interrupt ){
                     printf("tx program execution interrupt\n");
@@ -259,14 +294,14 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
 
 
                 } else if ( PS.events[n].events & EPOLLIN ){
-                    printf("sock->portNum = %d\n",sock->portNum);
+                    //printf("sock->portNum = %d\n",sock->portNum);
                     if ( !(sock->is.tx_incoming_data) ){
                         nrecv = recv(sock->fd,&msg,10*sizeof(uint32_t),0);
                         
                     } else {
                         pd_size = TX.nSteeringLocs*8*sizeof(uint16_t) - TX.nPhaseDelaysWritten;
-                        if(pd_size>256){
-                            nrecv = recv(sock->fd,&msg,256*sizeof(uint8_t),0);
+                        if(pd_size>FMSG_SIZE){
+                            nrecv = recv(sock->fd,&msg,FMSG_SIZE*sizeof(uint8_t),0);
                         } else {
                             nrecv = recv(sock->fd,&msg,pd_size*sizeof(uint8_t ),0);
                         }
@@ -279,13 +314,21 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                     } else if ( nrecv == 0 ) {
                         printf("nrecv = 0, disconnecting sock\n");
                         disconnectPollSock(sock);
+                        sock->is.alive=0;
+                        activeSocks--;
+                        if( activeSocks <= 0){
+                            printf("deleting TX->pio_cmd_list\n");
+                            TX.setControlState(&TX,0);
+                            printf("exiting program\n");
+                            runner = 0;
+                        }
                     
                     } else if ( sock->is.commsock ){
-                        printf("rcv sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",msg.u[0],msg.u[1],msg.u[2],msg.u[3],msg.u[4],msg.u[5],msg.u[6],msg.u[7],msg.u[8],msg.u[9]);
+                        //printf("rcv sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",msg.u[0],msg.u[1],msg.u[2],msg.u[3],msg.u[4],msg.u[5],msg.u[6],msg.u[7],msg.u[8],msg.u[9]);
                         recvSysMsgHandler(&PS, &RCV, &msg, &runner);
                     
                     } else if ( sock->is.tx_control ){
-                        printf("tx sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",msg.u[0],msg.u[1],msg.u[2],msg.u[3],msg.u[4],msg.u[5],msg.u[6],msg.u[7],msg.u[8],msg.u[9]);
+                        //printf("tx sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",msg.u[0],msg.u[1],msg.u[2],msg.u[3],msg.u[4],msg.u[5],msg.u[6],msg.u[7],msg.u[8],msg.u[9]);
                         txSys_enetMsgHandler(&TX, &PS, &msg, nrecv, &runner);
                     
                     } else if ( sock->is.tx_incoming_data ){
@@ -305,7 +348,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
         }
         tmp++;
 
-        if( g_auto_shutdown_enabled && ( tmp>300 ) ){
+        if( g_auto_shutdown_enabled && ( tmp>3000 ) ){
             runner = 0;
             break;
         }
@@ -326,18 +369,33 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
         disconnectPollSock(&TX.interrupt);
     }
      
-    free(ADC.reg);
-    free(ADC.reg_dict[0]);
-    free(ADC.reg_dict[1]);
-    free(ADC.reg_dict);
+    free(ADC.reg); printf("free(ADC.reg)\n");
+    free(ADC.reg_dict[0]); printf("free(ADC.reg_dict[0])\n");
+    free(ADC.reg_dict[1]); printf("free(ADC.reg_dict[1])\n");
+    free(ADC.reg_dict); printf("free(ADC.reg_dict)\n");
     for(n=0;n<2;n++){
         if( RCV.data[n] != NULL){
-            free(RCV.data[n]);
+            free(RCV.data[n]); printf("free(RCV.data[%d])\n",n);
         }
     }
-    free(RCV.data);
-    // TODO: free all the TX stuff
-	FPGAclose(&FPGA);
+    free(RCV.data); printf("free(RCV.data)\n");
+    free(TX.phaseDelays[0]); printf("free(TX.phaseDelays[0])\n");
+    free(TX.phaseDelays); printf("free(TX.phaseDelays)\n");
+    
+    pio_cmd = *(TX.pio_cmd_list);
+    if( pio_cmd != NULL ){
+        pio_cmd = pio_cmd->top;
+        while(pio_cmd->next != NULL){
+            TX.delCmd(&TX,0);
+        }
+        if(pio_cmd->reg9_24 != NULL) free(pio_cmd->reg9_24);
+        free(pio_cmd);
+        printf("free(TX.pio_cmd_list[cmdNumber: %d])\n", pio_cmd->cmdNumber);
+    }
+    free(TX.pio_cmd_list);
+    printf("free(TX.pio_cmd_list)\n");
+	
+    FPGAclose(&FPGA);
 	return(0);
 }
 
