@@ -41,6 +41,9 @@ typedef union TXpioreg2526_ TXpioreg2526_t;
 typedef struct TXpiocmd_ TXpiocmd_t;
 
 // rcv system functions
+void rcvSysMsgHandler(RCVsys_t *RCV, FMSG_t *msg, int *runner);
+void rcvQueryData(RCVsys_t *RCV);
+void rcvSetStateReset(RCVsys_t *RCV, uint32_t val);
 void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen);
 void rcvSetPioVarGain(RCVsys_t *RCV, uint32_t val);
 void rcvSetClkDivisor(RCVsys_t *RCV, uint32_t val);
@@ -61,6 +64,8 @@ void adcSetDefaultSettings(ADCvars_t *ADC);
 void adcSync(ADCvars_t *ADC);
 
 // tx system function prototypes
+int txProgramExecutionHandler(TXsys_t *TX);
+void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner);
 void txSetControlState(TXsys_t *TX, uint32_t control_state);
 void txSetTrigRestLvls(TXsys_t *TX, uint32_t trigRestLvls);
 void txSetActiveTransducers(TXsys_t *TX, uint32_t activeTransducers);
@@ -195,43 +200,51 @@ typedef struct RCVsys_{
 	uint32_t volatile *dataReadyFlag;
 	uint32_t volatile *leds;
     char volatile *ramBank;
-    
-    // reference values for setting up data storage
-    uint32_t recLen_ref;
-    uint32_t npulses;
 
     union{
         struct{
-            uint8_t realTime : 1;
-            uint8_t transferData : 1;
-            uint8_t saveDataFile : 1;
-            uint8_t is16bit : 1;
-            uint8_t blnk : 4;
-        };
-        uint8_t all;
-    } queryMode;
-    
-    union{
-        struct{
-            uint32_t varGain : 2;
-            uint32_t clkDiv : 4;
-            uint32_t fclk_delay : 3;
-            uint32_t sampling_mode : 3;
-			uint32_t compressor_mode : 2;
-            uint32_t interrupt_thyself : 1;
-            uint32_t blnk : 17;
+            uint32_t realTime : 1;
+            uint32_t transferData : 1;
+            uint32_t saveDataFile : 1;
+            uint32_t is16bit : 1;
+            uint32_t sendOnRequest : 1;
+            uint32_t blnk : 3;
         };
         uint32_t all;
-    } pioSettings_ref;
+    } queryMode;
+    
+    // reference values for setting up data storage
+    // uint32_t recLen_ref;
+    uint32_t npulses;
+
+    struct{
+        union{
+            struct{
+                uint32_t varGain : 1;
+                uint32_t clkDiv : 4;
+                uint32_t fclk_delay : 3;
+                uint32_t sampling_mode : 3;
+                uint32_t compressor_mode : 2;
+                uint32_t interrupt_thyself : 1;
+                uint32_t blnk : 18;
+            };
+            uint32_t all;
+        } pioSettings;
+
+        uint32_t recLen;
+    } refVals;
 
     char **data;
 
+    POLLserver_t *ps;
     SOCK_t *comm_sock;
     SOCK_t *data_sock;
-	SOCK_t interrupt;
+	SOCK_t *interrupt;
     
     ADCvars_t *ADC;
-
+    void (*enetMsgHandler)(RCVsys_t *, FMSG_t *, int *);
+    void (*queryData)(RCVsys_t *);
+    void (*setStateReset)(RCVsys_t *,uint32_t);
     void (*setRecLen)(RCVsys_t *,uint32_t);   
     void (*setPioVarGain)(RCVsys_t *,uint32_t); 
     void (*setLEDs)(RCVsys_t *,uint32_t);
@@ -344,10 +357,13 @@ typedef struct TXsys_{
     uint32_t nPhaseDelaysWritten;
     uint16_t **phaseDelays;
 
+    POLLserver_t *ps;
     SOCK_t *comm_sock;
     SOCK_t *pd_data_sock;
-    SOCK_t interrupt;
+    SOCK_t *interrupt;
 
+    int (*programExecutionHandler)(TXsys_t *);
+    void (*enetMsgHandler)(TXsys_t *, FMSG_t *, int, int *);
     void (*setControlState)(TXsys_t *, uint32_t);
     void (*setTrigRestLvls)(TXsys_t *, uint32_t);
     void (*setActiveTransducers)(TXsys_t *, uint32_t);

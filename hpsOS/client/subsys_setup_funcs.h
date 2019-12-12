@@ -181,7 +181,7 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
     return(1);
 }
 
-int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
+int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV, POLLserver_t *PS){
 	RCV->interrupt_reg = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + RCV_INTERRUPT_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 
 	RCV->stateReset = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_FPGA_STATE_RESET_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
@@ -194,6 +194,9 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
 	RCV->ramBank = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
     
     // setup function pointers
+    RCV->enetMsgHandler = &rcvSysMsgHandler;
+    RCV->queryData = &rcvQueryData;
+    RCV->setStateReset = &rcvSetStateReset;
     RCV->setRecLen = &rcvSetRecLen;   
     RCV->setPioVarGain = &rcvSetPioVarGain; 
     RCV->setClkDivisor = &rcvSetClkDivisor;
@@ -201,21 +204,24 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
     RCV->setCompressorMode = &rcvSetCompressorMode;
     RCV->setLEDs = &rcvSetLEDs; 
  
-	RCV->pioSettings_ref.all = 0;
-	RCV->pioSettings_ref.fclk_delay = 1;
-	RCV->pioSettings_ref.sampling_mode = 1;
-	
-    DREF32(RCV->pioSettings) = RCV->pioSettings_ref.all;
-	DREF32(RCV->recLen) = 2048;
+	RCV->refVals.pioSettings.all = 0;
+	RCV->refVals.pioSettings.fclk_delay = 1;
+	RCV->refVals.pioSettings.sampling_mode = 1;
+    DREF32(RCV->pioSettings) = RCV->refVals.pioSettings.all;
+    
+    RCV->refVals.recLen = 2048;
+    DREF32(RCV->recLen) = RCV->refVals.recLen;
+
 	DREF32(RCV->stateReset)=1; 
     
     RCV->ADC = ADC;
+    RCV->ps = PS;
 
     RCV->comm_sock = NULL;
     RCV->data_sock = NULL;
-    RCV->interrupt.ps = NULL;
+    RCV->interrupt = (SOCK_t *)malloc(sizeof(SOCK_t));
+    RCV->interrupt->ps = NULL;
     
-    RCV->recLen_ref = 2048;
     RCV->npulses = 1;
     RCV->queryMode.all = 0;
     RCV->queryMode.realTime = 1;
@@ -228,7 +234,7 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV){
     return(1);
 }
 
-int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
+int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     TX->interrupt_reg = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_INTERRUPT_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
     TX->pio_reg = (uint32_t **)malloc(27*sizeof(uint32_t *));
     TX->pio_reg[0] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
@@ -294,9 +300,11 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
     TX->phaseDelays = (uint16_t **)malloc(sizeof(uint16_t *));
     *(TX->phaseDelays) = (uint16_t *)calloc(8,sizeof(uint16_t));
 
+    TX->ps = PS;
     TX->comm_sock = NULL;
     TX->pd_data_sock = NULL;
-    TX->interrupt.ps = NULL;
+    TX->interrupt = (SOCK_t *)malloc(sizeof(SOCK_t));
+    TX->interrupt->ps = NULL;
     
     // control comms
     TX->reg0.all = 0;
@@ -350,6 +358,8 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX){
     DREF32(TX->pio_reg[26]) = TX->reg25_26.reg26;
 
     // setup function pointers
+    TX->programExecutionHandler = &txProgramExecutionHandler;
+    TX->enetMsgHandler = &txSysMsgHandler;
     TX->setControlState = &txSetControlState;
     TX->setTrigRestLvls = &txSetTrigRestLvls;
     TX->setActiveTransducers = &txSetActiveTransducers;

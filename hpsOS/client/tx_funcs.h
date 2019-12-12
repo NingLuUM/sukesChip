@@ -2,39 +2,47 @@
 void txSetControlState(TXsys_t *TX, uint32_t control_state){
     TXpiocmd_t *cmd_list;
     cmd_list = *(TX->pio_cmd_list);
-    while( cmd_list->next != NULL ){
-        cmd_list = cmd_list->next;
-    }
+    uint32_t **pio_reg;
+    pio_reg = TX->pio_reg;
+
     if(control_state == 1){
+        cmd_list = cmd_list->top;
+        while( cmd_list->next != NULL ){
+            cmd_list->reg2.new_cmd_flag = ((cmd_list->cmdNumber)%2);
+            cmd_list = cmd_list->next;
+        }
+        
         if(cmd_list->flags.all){
             TX->addCmd(TX);
+            cmd_list->next->reg2.new_cmd_flag = ((cmd_list->next->cmdNumber)%2);
         }
+        
         if( !(cmd_list->flags.isAsyncWait) ){
             cmd_list->flags.isAsyncWait = 1;
             TX->bufferAsyncWait(TX,0);
         }
+
         *(TX->pio_cmd_list) = cmd_list->top;
+        
+        TX->reg0.control_state = control_state;
+        DREF32(pio_reg[0]) = TX->reg0.all;
 
-    } else {
-        cmd_list = cmd_list->top;
-        while(cmd_list->next != NULL){
-            TX->delCmd(TX,0);
-        }
-    }
-    uint32_t **pio_reg;
-    pio_reg = TX->pio_reg;
-
-    TX->reg0.control_state = control_state;
-    DREF32(pio_reg[0]) = TX->reg0.all;
-
-    if(control_state == 1){
         TX->resetTxInterrupt(TX);
         TX->resetRcvTrig(TX);
         DREF32(pio_reg[2]) = 0;
         usleep(5);
         TX->issuePioCommand(TX);
-    }
 
+    } else {
+
+        cmd_list = cmd_list->top;
+        while(cmd_list->next != NULL){
+            TX->delCmd(TX,0);
+        }
+        TX->reg0.control_state = control_state;
+        DREF32(pio_reg[0]) = TX->reg0.all;
+    
+    }
 }
 
 void txSetTrigRestLvls(TXsys_t *TX, uint32_t trigRestLvls){
@@ -59,12 +67,12 @@ void txIssuePioCommand(TXsys_t *TX){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
-    printf("issued cmd->cmdNumber = %d, cmd->flags = %d. ",cmd->cmdNumber, cmd->flags.isFlags);
-    printBinary(cmd->flags.all); 
-    printf("cmd->reg2 = ");
-    printBinary(cmd->reg2.all); 
-    printf("cmd->reg8 = %u\n",cmd->reg8.all);
-    printf("cmd->reg25_26 = %llu\n",cmd->reg25_26.all);
+    //printf("issued cmd->cmdNumber = %d, cmd->flags = %d. ",cmd->cmdNumber, cmd->flags.isFlags);
+    //printBinary(cmd->flags.all); 
+    //printf("cmd->reg2 = ");
+    //printBinary(cmd->reg2.all); 
+    //printf("cmd->reg8 = %u\n",cmd->reg8.all);
+    //printf("cmd->reg25_26 = %llu\n",cmd->reg25_26.all);
     TX->reg2.pio_cmds = cmd->reg2.pio_cmds;
     DREF32(pio_reg[2]) = TX->reg2.all;
     usleep(5);
@@ -179,7 +187,6 @@ void txAddPioCmd_f(TXsys_t *TX){
     
     tmp->cmdNumber = cmd_list->cmdNumber+1;
     tmp->reg2.all = 0;
-    tmp->reg2.new_cmd_flag = ~(cmd_list->reg2.new_cmd_flag);
     tmp->reg3.all = 0;
     tmp->reg4.all = 0;
     tmp->reg5.all = 0;
@@ -259,7 +266,7 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
         loopCmdNum = next->cmdNumber; // using loopCmdNum as dummy variable
         if(next != NULL){
             cmd_list->next = next->next;
-            next->next->prev = cmd_list;
+            if(next->next != NULL)  next->next->prev = cmd_list;
             if(next->reg9_24 != NULL) free(next->reg9_24);
             free(next); 
             printf("free(TX.pio_cmd_list[cmdNumber: %d])\n", loopCmdNum);
@@ -299,7 +306,7 @@ void txMakeLoopEnd(TXsys_t *TX){
     TXpiocmd_t *cmd,*tmp;
     cmd = *(TX->pio_cmd_list);
     
-    if( cmd->flags.all && cmd->flags.hasNonWaitCmds ){ 
+    if( ( cmd->flags.all && cmd->flags.hasNonWaitCmds ) || ( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ) ){ 
         txAddPioCmd_f(TX);
         cmd = *(TX->pio_cmd_list);
     }
@@ -359,7 +366,7 @@ void txMakeSteeringLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, ui
 void txMakeSteeringLoopEnd(TXsys_t *TX){
     TXpiocmd_t *cmd,*tmp;
     cmd = *(TX->pio_cmd_list);
-    if( cmd->flags.all && cmd->flags.hasNonWaitCmds ){ 
+    if( ( cmd->flags.all && cmd->flags.hasNonWaitCmds ) || ( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ) ){ 
         txAddPioCmd_f(TX);
         cmd = *(TX->pio_cmd_list);
     }

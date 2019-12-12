@@ -17,7 +17,7 @@ module ADC_Control_Module(
 	input [7:0]				ADC_INPUT_DATA_LINES,
 	
 	input					itxTrig,
-	output reg				otxTrigAck,
+	output					otxTrigAck,
 	
 	input [2:0]			fclk_delay,
 
@@ -43,6 +43,8 @@ module ADC_Control_Module(
 
 );
 
+reg otxTrigAck_reg;
+assign otxTrigAck = otxTrigAck_reg;
 
 reg [ 7: 0][11:0] data_sr;
 
@@ -91,7 +93,8 @@ begin
 	oCLKEN = 1'b0;
 	oCHIPSEL = 1'b0;
 	oBYTEEN = 16'b0000000000000000;
-	otxTrigAck = 1'b0;
+	
+	otxTrigAck_reg = 1'b0;
 	
 	first_pulse = 1'b1;
 	first_write = 1'b1;
@@ -100,7 +103,6 @@ begin
 	fclk_delay_cntr = 3'b0;
 	
 	data_compressor_buff_cntr = 2'b0;
-	
 	
 	trig_received_flag = 2'b0;
 	write_complete_flag = 1'b0;
@@ -154,7 +156,7 @@ begin
 			last_data_out <= 128'b0;
 			data_diff_out <= 64'b0;
 			bit8_cntr <= 8'b0;
-			if( !oRcvInterrupt ) oRcvInterrupt <= 32'b1111;
+			//if( !oRcvInterrupt ) oRcvInterrupt <= {32{1'b1}};
 		end
 	
 		
@@ -169,7 +171,7 @@ begin
 					oCLKEN <= 1'b1;
 					oCHIPSEL <= 1'b1;
 					if( !compressor_opts[1] ) oBYTEEN <= 16'b1111111111111111;
-					otxTrigAck <= 1'b1;
+					otxTrigAck_reg <= 1'b1;
 				end
 				else if ( down_sample_clk_divisor && first_pulse )
 				begin
@@ -489,8 +491,8 @@ begin
 			
 					write_complete_flag <= 1'b1;
 					trig_received_flag[0] <= 1'b0;
-					oRcvInterrupt <= 32'h000000ff;
-					otxTrigAck <= 1'b0;
+					oRcvInterrupt[0] <= 1'b1;
+					otxTrigAck_reg <= 1'b0;
 				end
 			end
 		end
@@ -518,13 +520,13 @@ begin
 		waddr_cntr <= 15'b0;
 		if( !interruptThyself )
 		begin
-			oRcvInterrupt <= 32'b0;
+			if( oRcvInterrupt ) oRcvInterrupt <= 32'b0;
 		end
 		else
 		begin
-			oRcvInterrupt <= 32'b1111;
+			if( !oRcvInterrupt ) oRcvInterrupt <= 32'b1111;
 		end
-		otxTrigAck <= 1'b0;
+		otxTrigAck_reg <= 1'b0;
 	end
 end
 
@@ -608,13 +610,17 @@ begin
 	
 	if( adc_clkinp & !fclk_flag )
 	begin
+	
 		fclk_flag <= 1'b1;
-		fclk_delay_cntr <= 3'b0;	
+		fclk_delay_cntr <= 3'b0;
+			
 	end
 	else 
 	begin
+	
 		if( !adc_clkinp & fclk_flag ) fclk_flag <= 1'b0;
-		fclk_delay_cntr <= fclk_delay_cntr + 1'b1;	
+		fclk_delay_cntr <= fclk_delay_cntr + 1'b1;
+			
 	end
 
 	if(fclk_delay_cntr == fclk_delay)
@@ -650,11 +656,10 @@ begin
 		data_sr[5] <= {data_out_h[5], data_out_l[5], data_sr[5][11:2]};
 		data_sr[6] <= {data_out_h[6], data_out_l[6], data_sr[6][11:2]};
 		data_sr[7] <= {data_out_h[7], data_out_l[7], data_sr[7][11:2]};		
-		
+			
 	end
-
+	
 end
-
 
 endmodule
 

@@ -6,8 +6,11 @@ int txProgramExecutionHandler(TXsys_t *TX){
     uint32_t prog_complete = 1;
     phaseDelays = *(TX->phaseDelays);
     cmd = *(TX->pio_cmd_list);
-    printf("cmd->cmdNumber = %d, cmd->flags = %d. ",cmd->cmdNumber, cmd->flags.isFlags);
-    printBinary(cmd->flags.all); 
+    //printf("prev cmd->reg2:\n");
+    //printBinary(cmd->reg2.pio_cmds); 
+    //printf("prev cmd->flags:\n");
+    //printBinary(cmd->flags.isFlags); 
+    //printf("\n");
     // reset the interrupt and rcv trig BEFORE updating command
     TX->resetTxInterrupt(TX);
     //TX->resetRcvTrig(TX);
@@ -24,6 +27,10 @@ int txProgramExecutionHandler(TXsys_t *TX){
     // increment to next command
     if( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ){
         loopHead = cmd->loopHead;
+        loopHead->currentIdx += loopHead->stepSize;
+        //printf("loopHead->flags:\n");
+        //printBinary(loopHead->flags.isFlags); 
+        //printf("loopHead->currentIdx/endIdx = %d / %d\n",loopHead->currentIdx, loopHead->endIdx);
         if( ( loopHead->currentIdx ) < ( loopHead->endIdx ) ){
             
             *(TX->pio_cmd_list) = loopHead;
@@ -42,7 +49,7 @@ int txProgramExecutionHandler(TXsys_t *TX){
             return(2);
 
         } else {
-
+            loopHead->currentIdx = 0;
             cmd = cmd->next;
             *(TX->pio_cmd_list) = cmd;
             TX->issuePioCommand(TX);
@@ -68,8 +75,13 @@ int txProgramExecutionHandler(TXsys_t *TX){
     
     }
     
+    //printf("next cmd->reg2:\n");
+    //printBinary(cmd->reg2.pio_cmds); 
+    //printf("next cmd->flags:\n");
+    //printBinary(cmd->flags.isFlags); 
     //printf("cmd->flags = %d. ",cmd->flags.isFlags);
     //printBinary(cmd->flags.all); 
+    //printf("\n");
     //printf("async_wait = %llu\n",cmd->reg25_26.all);
     
     if ( cmd->flags.isLoopStartCmd | cmd->flags.isSteeringStartCmd ) {
@@ -83,7 +95,6 @@ int txProgramExecutionHandler(TXsys_t *TX){
             cmd->reg6.ch6 = phaseDelays[cmd->currentIdx*8+6];
             cmd->reg6.ch7 = phaseDelays[cmd->currentIdx*8+7];
         }
-        cmd->currentIdx += cmd->stepSize;
     } 
     
     

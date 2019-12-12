@@ -41,7 +41,7 @@ module Output_Control_Module_PIO (
 	output [15:0]			otxTriggerLedOutput,
 	
 	input					itxADCTriggerAck,
-	output reg				otxADCTriggerLine,
+	output					otxADCTriggerLine,
 	
 	output reg	[31:0]		otxInterrupt
 );
@@ -122,6 +122,9 @@ wire isMaster;
 assign isSolo = itxBoardIdentifiers[0];
 assign isMaster = itxBoardIdentifiers[1];
 
+// hopefully this works
+reg otxADCTriggerLine_reg;
+assign otxADCTriggerLine = otxADCTriggerLine_reg;
 
 reg	internalTrigger;
 wor triggerSignal;
@@ -158,8 +161,6 @@ reg					trigLedStop;
 initial
 begin
 	transducer_is_active = 8'b0;
-	otxADCTriggerLine = 1'b0;
-	
 	transducer_chargetime = 9'b0;
 	transducer_phasedelay[0] = 16'b0;
 	transducer_phasedelay[1] = 16'b0;
@@ -169,24 +170,27 @@ begin
 	transducer_phasedelay[5] = 16'b0;
 	transducer_phasedelay[6] = 16'b0;
 	transducer_phasedelay[7] = 16'b0;
-
-	adcTrigFlag = 2'b0;
-	fireReset = 1'b1;
-	trigLedReset = 1'b1;
-	txResetFlag = 1'b0;
-	trigLedStop = 1'b0;
-	internalTrigger = 1'b0;
 	
+	fireFlag = 1'b0;
 	fireDelayTimerFlag = 1'b0;
-	fire_delay_timer = 23'b0;
-	
-	otxADCTriggerLine = 1'b0;
+	trigLedFlag = 1'b0;
 	recvTrigTimerFlag = 1'b0;
-	recv_trig_delay_timer = 32'b0;
-	
+	txResetFlag = 1'b0;
 	interruptRequestTimerFlag = 1'b0;
+	adcTrigFlag = 2'b0;
+	
+	fire_delay_timer = 23'b0;
+	recv_trig_delay_timer = 32'b0;
 	time_until_next_interrupt = 64'b0;
 	
+	fireReset = 1'b1;
+	trigLedReset = 1'b1;
+	
+	trigLedStop = 1'b0;
+	
+	internalTrigger = 1'b0;
+	otxADCTriggerLine_reg = 1'b0;
+
 	pio_cmd_previous = 16'b0;
 	
 	otxInterrupt = 32'b0;
@@ -203,6 +207,7 @@ begin
 	case ( control_state )
 		CASE_IDLE:
 			begin
+				transducer_is_active <= 8'b0;
 				transducer_chargetime <= 9'b0;
 				transducer_phasedelay[0] <= 16'b0;
 				transducer_phasedelay[1] <= 16'b0;
@@ -212,25 +217,27 @@ begin
 				transducer_phasedelay[5] <= 16'b0;
 				transducer_phasedelay[6] <= 16'b0;
 				transducer_phasedelay[7] <= 16'b0;
-				adcTrigFlag <= 2'b0;
+				
 				fireFlag <= 1'b0;
-				fireReset <= 1'b1;
-				trigLedReset <= 1'b1;
-				txResetFlag <= 1'b0;
-				transducer_is_active <= 8'b0;
-				internalTrigger <= 1'b0;
-				trigLedStop <= 1'b1;
-				
 				fireDelayTimerFlag <= 1'b0;
-				fire_delay_timer <= 23'b0;
-				
-				otxADCTriggerLine <= 1'b0;
+				trigLedFlag <= 1'b0;
 				recvTrigTimerFlag <= 1'b0;
-				recv_trig_delay_timer <= 32'b0;
-				
+				txResetFlag <= 1'b0;
 				interruptRequestTimerFlag <= 1'b0;
+				adcTrigFlag <= 2'b0;
+				
+				fire_delay_timer <= 23'b0;
+				recv_trig_delay_timer <= 32'b0;
 				time_until_next_interrupt <= 64'b0;
 				
+				fireReset <= 1'b1;
+				trigLedReset <= 1'b1;
+				
+				trigLedStop <= 1'b0;
+				
+				internalTrigger <= 1'b0;
+				otxADCTriggerLine_reg <= 1'b0;
+
 				pio_cmd_previous <= 16'b0;
 				
 				if ( otxInterrupt ) otxInterrupt <= 32'b0;
@@ -247,13 +254,15 @@ begin
 					if ( pio_output_commands ^ pio_cmd_previous ) 
 					begin
 						pio_cmd_previous <= pio_output_commands;
-
+						otxInterrupt[31:16] <= pio_output_commands;
+						otxInterrupt[1] <= 1'b1;
 						/******************************************************/
 						/*** GENERATE INTERRUPT *******************************/
 						/******************************************************/
 						if ( pio_output_commands & 16'b0000000000001111 ) 
 						begin
 							txResetFlag <= 1'b1;
+							otxInterrupt[2] <= 1'b1;
 						end
 						
 						/******************************************************/
@@ -262,6 +271,7 @@ begin
 						if ( pio_output_commands & 16'b0000000000000111 )
 						begin
 							if ( isSolo & !internalTrigger ) internalTrigger <= 1'b1;
+							otxInterrupt[3] <= 1'b1;
 						end
 						
 						/******************************************************/
@@ -278,6 +288,7 @@ begin
 								fireDelayTimerFlag <= 1'b1;
 								fire_delay_timer <= itxFireDelay;
 								fireReset <= 1'b0;
+								otxInterrupt[4] <= 1'b1;
 							end
 							
 							/**************************************************/
@@ -286,6 +297,7 @@ begin
 							if ( pio_output_commands & PIO_CMD_SET_AMP )
 							begin	
 								transducer_chargetime <= itxPioChargetime_reg;
+								otxInterrupt[5] <= 1'b1;
 							end
 							
 							/**************************************************/
@@ -301,6 +313,7 @@ begin
 								transducer_phasedelay[5] <= itxPioPhaseDelay_ch4_ch5[31:16];
 								transducer_phasedelay[6] <= itxPioPhaseDelay_ch6_ch7[15:0];
 								transducer_phasedelay[7] <= itxPioPhaseDelay_ch6_ch7[31:16];
+								otxInterrupt[6] <= 1'b1;
 							end
 						
 						end
@@ -312,6 +325,7 @@ begin
 						begin
 							trigLedFlag <= 1'b1;
 							trigLedReset <= 1'b0;
+							otxInterrupt[7] <= 1'b1;
 						end
 						
 						/******************************************************/
@@ -319,15 +333,18 @@ begin
 						/******************************************************/
 						if( ( pio_output_commands & PIO_CMD_ISSUE_RCV_TRIG ) && !recvTrigTimerFlag && !adcTrigFlag )
 						begin
-							otxADCTriggerLine <= 1'b0;
+							otxInterrupt[8] <= 1'b1;
+							otxADCTriggerLine_reg <= 1'b0;
 							recvTrigTimerFlag <= 1'b1;
 							if ( itxRecvTrigDelay )
 							begin
 								recv_trig_delay_timer <= itxRecvTrigDelay;
+								otxInterrupt[15] <= 1'b1;
 							end
 							else
 							begin
 								recv_trig_delay_timer <= 32'b0;
+								otxInterrupt[14] <= 1'b1;
 							end
 						end
 						
@@ -346,7 +363,7 @@ begin
 						/******************************************************/
 						if( pio_output_commands & PIO_CMD_RESET_RCV_TRIG )
 						begin
-							otxADCTriggerLine <= 1'b0;
+							otxADCTriggerLine_reg <= 1'b0;
 							adcTrigFlag <= 2'b00;
 							recvTrigTimerFlag <= 1'b0;
 							recv_trig_delay_timer <= 32'b0;
@@ -372,7 +389,7 @@ begin
 						/******************************************************/
 						if ( adcTrigFlag[0] & !adcTrigFlag[1] & itxADCTriggerAck )
 						begin
-							otxADCTriggerLine <= 1'b0;
+							otxADCTriggerLine_reg <= 1'b0;
 							adcTrigFlag[1] <= 1'b1;
 						end
 						
@@ -389,12 +406,14 @@ begin
 							begin
 								fireFlag <= 1'b1;
 								fireDelayTimerFlag <= 1'b0;
+								otxInterrupt[9] <= 1'b1;
 							end
 						end
 						else if ( ( fireComplete == 8'b11111111 ) && !fireReset )
 						begin
 							if ( fireFlag ) fireFlag <= 1'b0;
 							fireReset <= 1'b1;
+							otxInterrupt[10] <= 1'b1;
 						end
 						
 						/******************************************************/
@@ -404,6 +423,7 @@ begin
 						begin
 							if ( trigLedFlag ) trigLedFlag <= 1'b0;
 							trigLedReset <= 1'b1;
+							otxInterrupt[11] <= 1'b1;
 						end
 						
 						/******************************************************/
@@ -413,14 +433,16 @@ begin
 						begin
 							if( recv_trig_delay_timer )
 							begin
-								if ( otxADCTriggerLine ) otxADCTriggerLine <= 1'b0;
+								if ( otxADCTriggerLine_reg ) otxADCTriggerLine_reg <= 1'b0;
 								recv_trig_delay_timer <= recv_trig_delay_timer - 1'b1;
+								if( !otxInterrupt[13] ) otxInterrupt[13] <= 1'b1;
 							end
 							else
 							begin
-								otxADCTriggerLine <= 1'b1;
+								otxADCTriggerLine_reg <= 1'b1;
 								recvTrigTimerFlag <= 1'b0;
 								adcTrigFlag[0] <= 1'b1;
+								otxInterrupt[12] <= 1'b1;
 							end
 						end
 						
@@ -429,7 +451,7 @@ begin
 						/******************************************************/
 						if ( ( trigLedReset & fireReset & txResetFlag & !recvTrigTimerFlag ) && !time_until_next_interrupt && !adcTrigFlag )
 						begin
-							if( !otxInterrupt ) otxInterrupt <= {16'b1,pio_cmd_previous};
+							if( !otxInterrupt[0] ) otxInterrupt[0] <= 1'b1;
 						end
 						else if ( time_until_next_interrupt )
 						begin
@@ -444,6 +466,8 @@ begin
 				end
 				else if ( fireDanger ) 
 				begin
+
+					transducer_is_active <= 8'b0;
 					transducer_chargetime <= 9'b0;
 					transducer_phasedelay[0] <= 16'b0;
 					transducer_phasedelay[1] <= 16'b0;
@@ -453,110 +477,38 @@ begin
 					transducer_phasedelay[5] <= 16'b0;
 					transducer_phasedelay[6] <= 16'b0;
 					transducer_phasedelay[7] <= 16'b0;
-					adcTrigFlag <= 2'b0;
+					
 					fireFlag <= 1'b0;
-					fireReset <= 1'b1;
-					trigLedReset <= 1'b1;
-					txResetFlag <= 1'b0;
-					transducer_is_active <= 8'b0;
-					internalTrigger <= 1'b0;
-					trigLedStop <= 1'b1;
-					pio_cmd_previous <= pio_output_commands;
-					otxInterrupt[15] <= 1'b1;
-					
 					fireDelayTimerFlag <= 1'b0;
-					fire_delay_timer <= 23'b0;
-					
-					otxADCTriggerLine <= 1'b0;
+					trigLedFlag <= 1'b0;
 					recvTrigTimerFlag <= 1'b0;
-					recv_trig_delay_timer <= 32'b0;
-				
+					txResetFlag <= 1'b0;
 					interruptRequestTimerFlag <= 1'b0;
+					adcTrigFlag <= 2'b0;
+					
+					fire_delay_timer <= 23'b0;
+					recv_trig_delay_timer <= 32'b0;
 					time_until_next_interrupt <= 64'b0;
 					
-					if (otxInterrupt ) otxInterrupt <= 32'b0;
+					fireReset <= 1'b1;
+					trigLedReset <= 1'b1;
+					
+					trigLedStop <= 1'b1;
+					
+					internalTrigger <= 1'b0;
+					otxADCTriggerLine_reg <= 1'b0;
+
+					pio_cmd_previous <= pio_output_commands;
+					
+					if ( !otxInterrupt[0] ) otxInterrupt <= {15'b0,1'b1,15'b0,1'b1};
+
 				end
 				
 			end
 		
-		CASE_RAM_CONTROL:
-			begin
-				/******************************************************/
-				/*** PLACE HOLDER UNTIL THIS IS IMPLEMENTED ***********/
-				/******************************************************/
-				transducer_chargetime <= 9'b0;
-				transducer_phasedelay[0] <= 16'b0;
-				transducer_phasedelay[1] <= 16'b0;
-				transducer_phasedelay[2] <= 16'b0;
-				transducer_phasedelay[3] <= 16'b0;
-				transducer_phasedelay[4] <= 16'b0;
-				transducer_phasedelay[5] <= 16'b0;
-				transducer_phasedelay[6] <= 16'b0;
-				transducer_phasedelay[7] <= 16'b0;
-				adcTrigFlag <= 2'b0;
-				fireFlag <= 1'b0;
-				fireReset <= 1'b1;
-				trigLedReset <= 1'b1;
-				txResetFlag <= 1'b0;
-				transducer_is_active <= 8'b0;
-				internalTrigger <= 1'b0;
-				trigLedStop <= 1'b1;
-				
-				fireDelayTimerFlag <= 1'b0;
-				fire_delay_timer <= 23'b0;
-				
-				otxADCTriggerLine <= 1'b0;
-				recvTrigTimerFlag <= 1'b0;
-				recv_trig_delay_timer <= 32'b0;
-				
-				interruptRequestTimerFlag <= 1'b0;
-				time_until_next_interrupt <= 64'b0;
-				
-				pio_cmd_previous <= 16'b0;
-				
-				if (otxInterrupt ) otxInterrupt <= 32'b0;
-			end
-		
-		CASE_PIO_CONTROL_RAM_SUBCALL:
-			begin
-				/******************************************************/
-				/*** PLACE HOLDER UNTIL THIS IS IMPLEMENTED ***********/
-				/******************************************************/
-				transducer_chargetime <= 9'b0;
-				transducer_phasedelay[0] <= 16'b0;
-				transducer_phasedelay[1] <= 16'b0;
-				transducer_phasedelay[2] <= 16'b0;
-				transducer_phasedelay[3] <= 16'b0;
-				transducer_phasedelay[4] <= 16'b0;
-				transducer_phasedelay[5] <= 16'b0;
-				transducer_phasedelay[6] <= 16'b0;
-				transducer_phasedelay[7] <= 16'b0;
-				adcTrigFlag <= 2'b0;
-				fireFlag <= 1'b0;
-				fireReset <= 1'b1;
-				trigLedReset <= 1'b1;
-				txResetFlag <= 1'b0;
-				transducer_is_active <= 8'b0;
-				internalTrigger <= 1'b0;
-				trigLedStop <= 1'b1;
-				
-				fireDelayTimerFlag <= 1'b0;
-				fire_delay_timer <= 23'b0;
-				
-				otxADCTriggerLine <= 1'b0;
-				recvTrigTimerFlag <= 1'b0;
-				recv_trig_delay_timer <= 32'b0;
-				
-				interruptRequestTimerFlag <= 1'b0;
-				time_until_next_interrupt <= 64'b0;
-				
-				pio_cmd_previous <= 16'b0;
-				
-				if (otxInterrupt ) otxInterrupt <= 32'b0;
-			end
-			
 		default:
 			begin
+				transducer_is_active <= 8'b0;
 				transducer_chargetime <= 9'b0;
 				transducer_phasedelay[0] <= 16'b0;
 				transducer_phasedelay[1] <= 16'b0;
@@ -566,30 +518,32 @@ begin
 				transducer_phasedelay[5] <= 16'b0;
 				transducer_phasedelay[6] <= 16'b0;
 				transducer_phasedelay[7] <= 16'b0;
-				adcTrigFlag <= 2'b0;
+				
 				fireFlag <= 1'b0;
-				fireReset <= 1'b1;
-				trigLedReset <= 1'b1;
-				txResetFlag <= 1'b0;
-				transducer_is_active <= 8'b0;
-				internalTrigger <= 1'b0;
-				trigLedStop <= 1'b1;
-				
 				fireDelayTimerFlag <= 1'b0;
-				fire_delay_timer <= 23'b0;
-				
-				otxADCTriggerLine <= 1'b0;
+				trigLedFlag <= 1'b0;
 				recvTrigTimerFlag <= 1'b0;
-				recv_trig_delay_timer <= 32'b0;
-				
+				txResetFlag <= 1'b0;
 				interruptRequestTimerFlag <= 1'b0;
+				adcTrigFlag <= 2'b0;
+				
+				fire_delay_timer <= 23'b0;
+				recv_trig_delay_timer <= 32'b0;
 				time_until_next_interrupt <= 64'b0;
 				
-				if (otxInterrupt ) otxInterrupt <= 32'b0;
-			end
+				fireReset <= 1'b1;
+				trigLedReset <= 1'b1;
+				
+				trigLedStop <= 1'b0;
+				
+				internalTrigger <= 1'b0;
+				otxADCTriggerLine_reg <= 1'b0;
 
+				pio_cmd_previous <= 16'b0;
+				
+				if ( otxInterrupt ) otxInterrupt <= 32'b0;
+			end
 	endcase
-	
 end
 
 

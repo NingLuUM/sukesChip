@@ -489,14 +489,8 @@ set_global_assignment -name QIP_FILE ip/altsource_probe/hps_reset.qip
 set_global_assignment -name QIP_FILE soc_system/synthesis/soc_system.qip
 set_global_assignment -name QIP_FILE ADCclock.qip
 set_global_assignment -name SIP_FILE ADCclock.sip
-set_instance_assignment -name IO_STANDARD "2.5 V" -to VARGAIN[1]
-set_instance_assignment -name IO_STANDARD "2.5 V" -to VARGAIN[0]
 set_instance_assignment -name IO_STANDARD "2.5 V" -to VARGAIN
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to VARGAIN[1]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to VARGAIN[0]
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to VARGAIN
-set_instance_assignment -name SLEW_RATE 0 -to VARGAIN[1]
-set_instance_assignment -name SLEW_RATE 0 -to VARGAIN[0]
 set_global_assignment -name VERILOG_FILE ADC_Control_Module_128.v
 set_global_assignment -name QIP_FILE TXclocks.qip
 set_global_assignment -name SIP_FILE TXclocks.sip
@@ -527,7 +521,7 @@ set_instance_assignment -name SLEW_RATE 1 -to TRANSDUCER_OUTPUTS[1]
 set_instance_assignment -name SLEW_RATE 1 -to TRANSDUCER_OUTPUTS[0]
 set_location_assignment PIN_AH21 -to ADC_CLKIN
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_CLKIN
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_CLKIN
+set_instance_assignment -name CURRENT_STRENGTH_NEW "MAXIMUM CURRENT" -to ADC_CLKIN
 set_instance_assignment -name SLEW_RATE 1 -to ADC_CLKIN
 set_location_assignment PIN_AF25 -to ADC_DATA_LINES[7]
 set_location_assignment PIN_AG25 -to "ADC_DATA_LINES[7](n)"
@@ -572,5 +566,6 @@ set_instance_assignment -name SLEW_RATE 1 -to TRIG_LED_OUTPUTS[2]
 set_instance_assignment -name SLEW_RATE 1 -to TRIG_LED_OUTPUTS[1]
 set_instance_assignment -name SLEW_RATE 1 -to TRIG_LED_OUTPUTS[0]
 set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to EXTERNAL_TRIGGER_INPUT
-set_location_assignment PIN_AA13 -to VARGAIN[0]
+set_location_assignment PIN_AA13 -to VARGAIN
+set_instance_assignment -name SLEW_RATE 1 -to VARGAIN
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

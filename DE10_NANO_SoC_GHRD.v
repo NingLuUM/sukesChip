@@ -86,11 +86,11 @@ module DE10_NANO_SoC_GHRD(
 	output				ADC_PDN,
 	output				ADC_SYNC,
 	
-	input					ADC_SDOUT,
+	input				ADC_SDOUT,
 
 	output [7:0]		TRANSDUCER_OUTPUTS,
 	output [15:0]		TRIG_LED_OUTPUTS,
-	output [1:0]		VARGAIN
+	output				VARGAIN
 
 );
 
@@ -120,13 +120,11 @@ reg gnd = 1'b0;
 
 wire [7:0] led_pins;
 
-
 wire CLK2, CLK50, CLK100, CLK200;
-assign ADC_SCLK = CLK2;
-assign ADC_CLKIN = CLK50;
-// wires and assignments for adc outputs
 wire adc_reset, adc_sen, adc_sdata, adc_sync, adc_pdn;
 
+assign ADC_SCLK 	= CLK2;
+assign ADC_CLKIN 	= CLK50;
 assign ADC_RESET	= adc_reset; 
 assign ADC_SEN		= adc_sen;
 assign ADC_SDATA	= adc_sdata; 
@@ -138,37 +136,35 @@ assign ADC_PDN		= adc_pdn;
 //  Structural coding
 //=======================================================
 
-wire 	[31:0] 		adc_pio_settings;
-assign VARGAIN[0] = adc_pio_settings[0];
-assign VARGAIN[1] = adc_pio_settings[1];
+wire [31:0] adc_pio_settings;
+assign VARGAIN 		= adc_pio_settings[0];
 
-wire	[23:0]		adc_serial_command;
-wire	[7:0]		adc_control_comms;
+wire [23:0]			adc_serial_command;
+wire [7:0]			adc_control_comms;
 
-wire	[14:0]		adc_write_addr;
+wire [14:0]			adc_write_addr;
 wire				adc_state_reset;
 
-wire	[15:0]		adc_record_length;
-
+wire [15:0]			adc_record_length;
 
 wire  	       		adc_wren_bank;
 wire  	       		adc_chipsel_bank;
 wire  	       		adc_clken_bank;
-wire	[15:0]		adc_byteen_bank;
-wire  	[127:0] 	adc_writedata_bank;
+wire [15:0]			adc_byteen_bank;
+wire [127:0]		adc_writedata_bank;
 
-wire 	[31:0]		rcv_interrupt;
-wire 	[31:0]		tx_interrupt;
+wire [31:0]			rcv_interrupt;
+wire [31:0]			tx_interrupt;
 
-wire 	[14:0]		tx_phasedelay_read_addr;
-wire 	[127:0]		tx_phasedelays;
+wire [14:0]			tx_phasedelay_read_addr;
+wire [127:0]		tx_phasedelays;
 
-wire 	[14:0]		tx_instruction_read_addr;
-wire 	[127:0]		tx_instruction;
+wire [14:0]			tx_instruction_read_addr;
+wire [127:0]		tx_instruction;
 
-wire 	[26:0][31:0]	tx_pio_reg;
+wire [26:0][31:0]	tx_pio_reg;
 
-wire	[1:0] 		trigLines_txAdc;
+wire [1:0]			trigLines_txAdc;
 
 wire				FRAME_CLK_SHIFT;
 wire 				BIT_CLK_SHIFT;
@@ -209,7 +205,7 @@ ADC_Control_Module u2(
 	.itxTrig				(trigLines_txAdc[0]),
 	.otxTrigAck				(trigLines_txAdc[1]),
 	
-	.fclk_delay				(adc_pio_settings[8:6]),
+	.fclk_delay				(adc_pio_settings[7:5]),
 	
 	
 	.iRecLength				(adc_record_length),
@@ -217,11 +213,11 @@ ADC_Control_Module u2(
 	
 	.oRcvInterrupt			(rcv_interrupt),
 	
-	.down_sample_clk_divisor (adc_pio_settings[5:2]),
-	.sampling_mode_opts		(adc_pio_settings[11:9]),
-	.compressor_opts		(adc_pio_settings[13:12]),
+	.down_sample_clk_divisor (adc_pio_settings[4:1]),
+	.sampling_mode_opts		(adc_pio_settings[10:8]),
+	.compressor_opts		(adc_pio_settings[12:11]),
 	
-	.interruptThyself		(adc_pio_settings[14]),
+	.interruptThyself		(adc_pio_settings[13]),
 	
 	.oBYTEEN				(adc_byteen_bank),
 	.oADCData				(adc_writedata_bank),

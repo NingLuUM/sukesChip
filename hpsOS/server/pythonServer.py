@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import os
+import signal
 
 class transmitter():
 	
@@ -92,6 +93,12 @@ class transmitter():
 		
 	def async_wait_us(self,waitVal_us=0):
 		wv = np.uint64(waitVal_us*100)
+		msg = struct.pack(self.async_msg,self.CASE_TX_BUFFER_ASYNC_WAIT,0,wv,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+		
+	def async_wait_sec(self,waitVal_sec=0):
+		wv = np.uint64(waitVal_sec*1e8)
 		msg = struct.pack(self.async_msg,self.CASE_TX_BUFFER_ASYNC_WAIT,0,wv,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
@@ -183,6 +190,15 @@ class transmitter():
 
 class receiver():
 	
+	def activateRecvr(self):
+		self.pid = os.fork()
+		if (self.pid == 0):
+			self.connectRcvDataSock()
+			n=0
+			while n<self.nplotpulses:
+				n+=1
+				self.queryData()
+					
 	def stateReset(self,val=0):
 		msg = struct.pack(self.cmsg,self.CASE_RCV_STATE_RESET,val,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
@@ -315,9 +331,9 @@ class receiver():
 		plt.show()
 		
 	def queryDataLocal16(self,pltr):
-		msg = struct.pack(self.cmsg,self.CASE_QUERY_DATA,0,0,0,0,0,0,0,0,0)
-		self.sock.send(msg)
-		bb = self.sock.recv(4,socket.MSG_WAITALL)
+		#~ msg = struct.pack(self.cmsg,self.CASE_QUERY_DATA,0,0,0,0,0,0,0,0,0)
+		#~ self.sock.send(msg)
+		#~ bb = self.sock.recv(4,socket.MSG_WAITALL)
 		aa = 0
 		bb=''
 		while len(bb)<(self.npulses*self.recLen*16):
@@ -475,15 +491,19 @@ class receiver():
 		msg = struct.pack(self.cmsg,self.CASE_RCV_SET_NPULSES,self.npulses,self.allocated,0,0,0,0,0,0,0)	
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
-				
-	def setQueryMode(self,realTime=1, transferData=1, saveData=0, is16bit=1):
+	
+	def plotNPulses(self,npulses):
+		self.nplotpulses = npulses
+					
+	def setQueryMode(self,realTime=1, transferData=1, saveData=0, is16bit=1, sendOnRequest=0):
 		
 		self.realTime = realTime
 		self.transferData = transferData
 		self.saveData = saveData
 		self.is16bit = is16bit
+		self.sendOnRequest = sendOnRequest
 		
-		msg = struct.pack(self.cmsg,self.CASE_RCV_SET_QUERY_MODE,self.realTime,self.transferData,self.saveData,self.is16bit,0,0,0,0,0)
+		msg = struct.pack(self.cmsg,self.CASE_RCV_SET_QUERY_MODE,self.realTime,self.transferData,self.saveData,self.is16bit,self.sendOnRequest,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
@@ -508,6 +528,8 @@ class receiver():
 			
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3400))
+		
+	def connectRcvDataSock(self):
 		self.dsock.connect(('192.168.1.101',3500))
 	
 	def disconnectFromFpga(self):
@@ -567,6 +589,7 @@ class receiver():
 		self.transferData = 0
 		self.saveData = 0
 		self.is16bit = 1
+		self.sendOnRequest = 0
 		self.clockDiv = 0
 		self.samplingMode = 1
 		self.compressorMode = 0
@@ -580,6 +603,8 @@ class receiver():
 		self.RAW12 = 1
 		self.DIFF_8BIT = 2
 
+		self.nplotpulses = 1
+		
 		# variables to control size of plotted data
 		self.ylims = [-200,4300]
 		self.xlims = [-100,-1,0]
@@ -599,6 +624,8 @@ class receiver():
 		self.c6mask = 0xfff00
 		self.c7mask = 0xfff00000
 		
+		self.pid = 0
+		
 		# for for converting enet msg's into c-readable form
 		self.cmsg = '10I'
 		self.cmsg2 = '1I1f8I'
@@ -614,48 +641,52 @@ class receiver():
 		#	'd' = double (8bytes)
 		'''
 		
-t = transmitter()
-t.connectToFpga()
+
 
 r = receiver()
 r.connectToFpga()
 r.resetToDefaultAdcSettings()
 r.setAutoShutdown(0)
-r.toggleAdcChannelPower(0b10011111)
+#~ r.toggleAdcChannelPower(0b11111111)
 # can't do 'moving sum' with compression. will corrupt data
 r.setClockDivisor(1)
 r.setSamplingMode(r.EVERY_NTH)
-r.setCompressorMode(r.RAW12)
+r.setCompressorMode(r.RAW16)
 r.setRecLen(1000)
 #~ r.setRecDuration(20.00) # us (max = 327.68)
 
-r.setAdcGain(0)
-r.setPioVarAtten(0)
+r.setAdcGain(20)
+r.setPioVarAtten(1)
 #~ r.setNPulses(1)
-#~ r.setFclkDelay(1) # accepts values 0-5
-#~ r.setRecLen(17000) # npoints (max = 16384)
+r.setFclkDelay(1) # accepts values 0-5
 #~ r.setAdcLowNoiseMode(0)
 #~ r.setAdcFilterBw(0)
 #~ r.setAdcInternalAcCoupling(1)
 #~ r.setAdcUnsigned(0)
 #~ r.setRamp()
 
-r.setQueryMode(realTime=0,transferData=1,saveData=0)
+r.setQueryMode(realTime=1,transferData=0,saveData=0)
 #~ r.plotterSetup(figheight = 15, figwidth = 10, nrows = 4, ncols = 2)
 #~ r.plotterSetup(ylims = [-200,4300], xlims = [-100,2600], figheight = 10, figwidth = 30, nrows = 4, ncols = 2)
-r.stateReset(1)
+r.stateReset(0)
 
+r.plotNPulses(10)
+
+r.activateRecvr()
 
 #~ r.interruptSelf(1)
 #~ time.sleep(0.1)
 #~ r.interruptSelf(0)
 
-t.setTrigRestLvls(0x0000)
+t = transmitter()
+t.connectToFpga()
+
+t.setTrigRestLvls(0xffff)
 t.setActiveTransducers(0xff)
 phaseDelays = np.zeros((100,8)).astype(np.uint16)
 t.uploadPhaseDelays(phaseDelays)
 
-t.startLoop(0,0,1)
+t.startLoop(0,0,10)
 if 1:
 	t.startSteeringLoop(0,0,1)
 	if 1:
@@ -667,18 +698,23 @@ if 1:
 		t.wait_us(5)
 		t.rcvData()
 		t.fire()
-		t.wait_us(50000)
+		t.wait_us(5)
 		
 		t.endSyncCmd()
 		
-		t.async_wait_us(100000)
+		t.async_wait_sec(0.1)
 
 	t.endSteeringLoop(0)
+	
 t.endLoop(0)
 
 
 #~ r.activateRcvSystem()
 t.executeProgram()
+
+if (r.pid):
+	os.kill(r.pid,signal.SIGTERM)
+	print "the child is dead"
 
 time.sleep(2)
 

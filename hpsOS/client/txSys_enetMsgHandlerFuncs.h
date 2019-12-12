@@ -1,5 +1,5 @@
 
-void txSys_enetMsgHandler(TXsys_t *TX, POLLserver_t *PS, FMSG_t *msg, int nrecvd, int *runner){
+void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
 
     static uint32_t currentTimer;
     static TXtrigtimings_t trigs[16];
@@ -88,7 +88,7 @@ void txSys_enetMsgHandler(TXsys_t *TX, POLLserver_t *PS, FMSG_t *msg, int nrecvd
             for(int i=0;i<16;i++){
                 trigs[i].all = 0;
             }
-            if( cmd->flags.all && cmd->flags.hasNonWaitCmds ){ 
+            if( ( cmd->flags.all && cmd->flags.hasNonWaitCmds ) || ( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ) ){ 
                 cmdCntr++;
             }
             TX->makeLoopEnd(TX);
@@ -121,7 +121,7 @@ void txSys_enetMsgHandler(TXsys_t *TX, POLLserver_t *PS, FMSG_t *msg, int nrecvd
             for(int i=0;i<16;i++){
                 trigs[i].all = 0;
             }
-            if( cmd->flags.all && cmd->flags.hasNonWaitCmds ){ 
+            if( ( cmd->flags.all && cmd->flags.hasNonWaitCmds ) || ( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ) ){ 
                 cmdCntr++;
             }
             TX->makeSteeringLoopEnd(TX);
@@ -246,10 +246,10 @@ void txSys_enetMsgHandler(TXsys_t *TX, POLLserver_t *PS, FMSG_t *msg, int nrecvd
         }
         
         case(CASE_TX_CONNECT_INTERRUPT):{
-            if(msg->u[1] && ( TX->interrupt.ps == NULL ) ){
-                connectPollInterrupter(PS,&(TX->interrupt),"gpio@0x100000010",TX_INTERRUPT_ID);
-            } else if ( !msg->u[1] && ( TX->interrupt.ps != NULL ) ){
-                disconnectPollSock(&(TX->interrupt));
+            if(msg->u[1] && ( TX->interrupt->ps == NULL ) ){
+                connectPollInterrupter(TX->ps,TX->interrupt,"gpio@0x100000010",TX_INTERRUPT_ID);
+            } else if ( !msg->u[1] && ( TX->interrupt->ps != NULL ) ){
+                disconnectPollSock(TX->interrupt);
             }
             break;
         }
