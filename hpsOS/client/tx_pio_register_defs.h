@@ -11,7 +11,8 @@ typedef union TXpioreg1_{ // reg1: trig/led rest levels and transducer output ma
     struct{
         uint32_t isSolo : 1;
         uint32_t isMaster : 1;
-        uint32_t blnk : 6;
+        uint32_t isExternallyTriggered : 1;
+        uint32_t blnk : 5;
         uint32_t activeTransducers : 8;
         uint32_t trigRestLvls : 16;
     };

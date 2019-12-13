@@ -6,16 +6,22 @@ module transducerOutput_Module (
 	input			GOGOGO_EXCLAMATION,
 	input [8:0]		chargeTime,
 	input [15:0]	phaseDelay,
-	output reg		transducerOutput,
-	output reg		fireComplete,
-	output reg		warning
+	output			transducerOutput,
+	output 			fireComplete,
+	output 			warning
 );
+
+reg	transducerOutput_reg;
+reg	fireComplete_reg;
+reg	warning_reg;
+
+assign transducerOutput = transducerOutput_reg;
+assign fireComplete = fireComplete_reg;
+assign warning = warning_reg;
 
 reg		[15:0] 	pd;
 reg 	[8:0] 	ct;
 reg		[9:0]	dangerCntr;
-wire	dangerValve;
-assign dangerValve = dangerCntr[9];
 
 reg	[1:0]	state;
 
@@ -25,32 +31,29 @@ parameter [1:0] GOGOGO = 2'b11;
 
 initial
 begin
+	transducerOutput_reg = 1'b0;
+	fireComplete_reg = 1'b0;
+	warning_reg = 1'b0;
+	
 	state = 2'b0;
-	warning = 1'b0;
 	ct = 9'b0;
 	pd = 16'b0;
 	dangerCntr = 10'b0;
-	fireComplete = 1'b1;
 end
 
 always @(posedge clk)
 begin
 
-	if( !rst & !dangerValve & isActive )
+	if( !rst & !dangerCntr[9] & isActive )
 	begin
 	
-		if( transducerOutput )
+		if( transducerOutput_reg )
 		begin
 			dangerCntr <= dangerCntr + 1'b1;
 		end
 		else
 		begin
 			if( dangerCntr ) dangerCntr <= 10'b0;
-		end
-		
-		if( !state )
-		begin
-			if( fireComplete ) fireComplete <= 1'b0;
 		end
 		
 		if( onYourMark & !GOGOGO_EXCLAMATION & !state[0] )
@@ -68,14 +71,14 @@ begin
 				begin
 					pd <= phaseDelay;
 					ct <= chargeTime;
-					if( transducerOutput ) transducerOutput <= 1'b0;
+					if( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
 				end
 				
 			UNMARKED_GO:
 				begin
 					pd <= phaseDelay;
 					ct <= chargeTime;
-					if( transducerOutput ) transducerOutput <= 1'b0;
+					if( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
 					if( onYourMark ) state[0] <= 1'b1;
 				end
 				
@@ -87,20 +90,20 @@ begin
 					end
 					else if ( ct )
 					begin
-						if( !transducerOutput ) transducerOutput <= 1'b1;
+						if( !transducerOutput_reg ) transducerOutput_reg <= 1'b1;
 						ct <= ct - 1'b1;
 					end
 					else
 					begin
-						if( transducerOutput ) transducerOutput <= 1'b0;
-						if( !fireComplete ) fireComplete <= 1'b1;
+						if( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
+						if( !fireComplete_reg ) fireComplete_reg <= 1'b1;
 					end
 				end
 				
 			default:
 				begin
-					if( transducerOutput ) transducerOutput <= 1'b0;
-					if( !fireComplete ) fireComplete <= 1'b1;
+					if( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
+					if( fireComplete_reg ) fireComplete_reg <= 1'b0;
 				end
 				
 		endcase
@@ -109,21 +112,20 @@ begin
 	else
 	begin
 	
-		if( rst | !isActive )
-		begin
-			state <= 2'b0;
-			if( dangerCntr ) dangerCntr <= 10'b0;
-			if( warning ) warning <= 1'b0;
-			if( !fireComplete ) fireComplete <= 1'b1;
-		end
-		else if( !warning & isActive )
-		begin
-			warning <= 1'b1;
-			fireComplete <= 1'b0;
-		end
-
-		if( transducerOutput ) transducerOutput <= 1'b0;
+		if ( state ) state <= 2'b0;
+		if ( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
 		
+		if ( dangerCntr[9] )
+		begin
+			warning_reg <= 1'b1;
+			fireComplete_reg <= 1'b1;
+		end	
+		else if ( rst | !isActive )
+		begin
+			if( dangerCntr ) dangerCntr <= 10'b0;
+			if( warning_reg ) warning_reg <= 1'b0;
+			if( fireComplete_reg ) fireComplete_reg <= 1'b0;
+		end
 	end
 	
 end

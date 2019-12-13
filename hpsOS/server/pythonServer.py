@@ -196,8 +196,9 @@ class receiver():
 			self.connectRcvDataSock()
 			n=0
 			while n<self.nplotpulses:
-				n+=1
 				self.queryData()
+				n+=1
+			os._exit(0)
 					
 	def stateReset(self,val=0):
 		msg = struct.pack(self.cmsg,self.CASE_RCV_STATE_RESET,val,0,0,0,0,0,0,0,0)
@@ -647,7 +648,7 @@ r = receiver()
 r.connectToFpga()
 r.resetToDefaultAdcSettings()
 r.setAutoShutdown(0)
-#~ r.toggleAdcChannelPower(0b11111111)
+r.toggleAdcChannelPower(0b11111111)
 # can't do 'moving sum' with compression. will corrupt data
 r.setClockDivisor(1)
 r.setSamplingMode(r.EVERY_NTH)
@@ -656,7 +657,7 @@ r.setRecLen(1000)
 #~ r.setRecDuration(20.00) # us (max = 327.68)
 
 r.setAdcGain(20)
-r.setPioVarAtten(1)
+r.setPioVarAtten(0)
 #~ r.setNPulses(1)
 r.setFclkDelay(1) # accepts values 0-5
 #~ r.setAdcLowNoiseMode(0)
@@ -670,7 +671,7 @@ r.setQueryMode(realTime=1,transferData=0,saveData=0)
 #~ r.plotterSetup(ylims = [-200,4300], xlims = [-100,2600], figheight = 10, figwidth = 30, nrows = 4, ncols = 2)
 r.stateReset(0)
 
-r.plotNPulses(10)
+r.plotNPulses(1)
 
 r.activateRecvr()
 
@@ -681,12 +682,12 @@ r.activateRecvr()
 t = transmitter()
 t.connectToFpga()
 
-t.setTrigRestLvls(0xffff)
+t.setTrigRestLvls(0x0000)
 t.setActiveTransducers(0xff)
 phaseDelays = np.zeros((100,8)).astype(np.uint16)
 t.uploadPhaseDelays(phaseDelays)
 
-t.startLoop(0,0,10)
+t.startLoop(0,0,1)
 if 1:
 	t.startSteeringLoop(0,0,1)
 	if 1:
@@ -708,15 +709,12 @@ if 1:
 	
 t.endLoop(0)
 
-
-#~ r.activateRcvSystem()
 t.executeProgram()
 
 if (r.pid):
-	os.kill(r.pid,signal.SIGTERM)
+	os.waitpid(r.pid,0)
 	print "the child is dead"
 
-time.sleep(2)
 
 
 

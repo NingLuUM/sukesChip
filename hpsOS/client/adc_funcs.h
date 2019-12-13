@@ -12,7 +12,7 @@ void adcIssueSerialCmd(ADCvars_t *ADC, uint32_t cmd){
 	DREF32(ADC->controlComms) = ADC_BUFFER_SERIAL_COMMAND;
 	usleep(5);
 	DREF32(ADC->controlComms) = ADC_ISSUE_SERIAL_COMMAND;
-	usleep(100);
+	usleep(5);
 	DREF32(ADC->controlComms) = ADC_IDLE_STATE;
 	usleep(5);
 }

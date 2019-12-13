@@ -228,8 +228,10 @@ void setupInternalStorage(RCVsys_t *RCV){
 	
 	tmp = (char *)malloc(RCV->refVals.recLen*RCV->npulses*8*sizeof(uint16_t));
 	printf("internal storage2\n");
+
 	if( RCV->data[1] != NULL ){
 		free( RCV->data[1] );
+        RCV->data[1] = NULL;
 		printf("internal storage3\n");
 	} 
 	

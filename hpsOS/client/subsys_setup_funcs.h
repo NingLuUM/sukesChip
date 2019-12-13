@@ -226,8 +226,8 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV, POLLserver_t *PS){
     RCV->queryMode.all = 0;
     RCV->queryMode.realTime = 1;
     RCV->data = (char **)calloc(2,sizeof(char *));
-    RCV->data[0] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));
-    RCV->data[1] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));	
+    (RCV->data)[0] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));
+    (RCV->data)[1] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));	
     
     //~ RCV->setLEDs(RCV,0x1f);
    
@@ -314,6 +314,7 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     TX->reg1.all = 0;
     TX->reg1.isSolo = 1;
     TX->reg1.isMaster = 1;
+    TX->reg1.isExternallyTriggered = 0;
     TX->reg1.activeTransducers = 0xff;
     TX->reg1.trigRestLvls = 0;
     DREF32(TX->pio_reg[1]) = TX->reg1.all;

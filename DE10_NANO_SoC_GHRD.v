@@ -85,12 +85,19 @@ module DE10_NANO_SoC_GHRD(
 	output				ADC_SEN,
 	output				ADC_PDN,
 	output				ADC_SYNC,
-	
 	input				ADC_SDOUT,
 
+	input				MASTER_CLK,
+	
 	output [7:0]		TRANSDUCER_OUTPUTS,
-	output [15:0]		TRIG_LED_OUTPUTS,
-	output				VARGAIN
+	
+	output [4:0]		IO_LINE_OUTPUTS,
+	input [4:0]			IO_LINE_INPUTS,
+	
+	output				EMERGENCY_STOP_OUT,
+	input				EMERGENCY_STOP_IN,
+	
+	output				VAR_ATTEN
 
 );
 
@@ -120,7 +127,7 @@ reg gnd = 1'b0;
 
 wire [7:0] led_pins;
 
-wire CLK2, CLK50, CLK100, CLK200;
+wire CLK2, CLK50, CLK100, CLK200, CLK300;
 wire adc_reset, adc_sen, adc_sdata, adc_sync, adc_pdn;
 
 assign ADC_SCLK 	= CLK2;
@@ -137,7 +144,7 @@ assign ADC_PDN		= adc_pdn;
 //=======================================================
 
 wire [31:0] adc_pio_settings;
-assign VARGAIN 		= adc_pio_settings[0];
+assign VAR_ATTEN 		= adc_pio_settings[0];
 
 wire [23:0]			adc_serial_command;
 wire [7:0]			adc_control_comms;
@@ -166,9 +173,6 @@ wire [26:0][31:0]	tx_pio_reg;
 
 wire [1:0]			trigLines_txAdc;
 
-wire				FRAME_CLK_SHIFT;
-wire 				BIT_CLK_SHIFT;
-
 assign rst = 0;
 
 ADCclock u4 (
@@ -179,93 +183,90 @@ ADCclock u4 (
 	.outclk_2			(CLK100),	// 100 MHz
 	
 	.outclk_3			(CLK200),	// 200MHz	
-	.outclk_4			(FRAME_CLK_SHIFT),		// **50mhz - 1ns phase delay
-	.outclk_5			(BIT_CLK_SHIFT)		// **300mhz 0 phase delay
+	.outclk_4			(CLK300)		// **300mhz 0 phase delay
 );
 
 		
 ADC_Control_Module u2(
 
-	.adc_clkinp				(CLK50),
-	.frame_clk				(FRAME_CLK_SHIFT),
-	.bit_clk				(BIT_CLK_SHIFT),
+	.adc_clkinp					(CLK50),
+	.bit_clk					(CLK300),
 	
-	.adc_control_comm		(adc_control_comms),
-	.adc_serial_cmd			(adc_serial_command),
+	.adc_control_comm			(adc_control_comms),
+	.adc_serial_cmd				(adc_serial_command),
 	
-	.ADC_RESET				(adc_reset),
-	.ADC_SDATA				(adc_sdata),
-	.ADC_SEN				(adc_sen),
-	.ADC_PDN				(adc_pdn),
-	.ADC_SYNC				(adc_sync),
+	.ADC_RESET					(adc_reset),
+	.ADC_SDATA					(adc_sdata),
+	.ADC_SEN					(adc_sen),
+	.ADC_PDN					(adc_pdn),
+	.ADC_SYNC					(adc_sync),
 	
-	.ADC_SCLK				(ADC_SCLK),
-	.ADC_INPUT_DATA_LINES	(ADC_DATA_LINES),
+	.ADC_SCLK					(ADC_SCLK),
+	.ADC_INPUT_DATA_LINES		(ADC_DATA_LINES),
 	
-	.itxTrig				(trigLines_txAdc[0]),
-	.otxTrigAck				(trigLines_txAdc[1]),
+	.itxTrig					(trigLines_txAdc[0]),
+	.otxTrigAck					(trigLines_txAdc[1]),
 	
-	.fclk_delay				(adc_pio_settings[7:5]),
+	.fclk_delay					(adc_pio_settings[7:5]),
 	
+	.iRecLength					(adc_record_length),
+	.iStateReset				(adc_state_reset),
 	
-	.iRecLength				(adc_record_length),
-	.iStateReset			(adc_state_reset),
+	.oRcvInterrupt				(rcv_interrupt),
 	
-	.oRcvInterrupt			(rcv_interrupt),
+	.down_sample_clk_divisor	(adc_pio_settings[4:1]),
+	.sampling_mode_opts			(adc_pio_settings[10:8]),
+	.compressor_opts			(adc_pio_settings[12:11]),
 	
-	.down_sample_clk_divisor (adc_pio_settings[4:1]),
-	.sampling_mode_opts		(adc_pio_settings[10:8]),
-	.compressor_opts		(adc_pio_settings[12:11]),
+	.interruptThyself			(adc_pio_settings[13]),
 	
-	.interruptThyself		(adc_pio_settings[13]),
+	.oBYTEEN					(adc_byteen_bank),
+	.oADCData					(adc_writedata_bank),
 	
-	.oBYTEEN				(adc_byteen_bank),
-	.oADCData				(adc_writedata_bank),
-	
-	.oWREN					(adc_wren_bank),
-	.oCLKEN					(adc_clken_bank),
-	.oCHIPSEL				(adc_chipsel_bank),
+	.oWREN						(adc_wren_bank),
+	.oCLKEN						(adc_clken_bank),
+	.oCHIPSEL					(adc_chipsel_bank),
 
-	.oWAddr					(adc_write_addr)
+	.oWAddr						(adc_write_addr)
 );
 
 
 Output_Control_Module_PIO u3(
-	.txCLK						(CLK100),
+	.txCLK								(CLK100),
 	
-	.itxControlComms			(tx_pio_reg[0]), // tx_pio_reg0
+	.itxControlComms					(tx_pio_reg[0]), // tx_pio_reg0
 	
 	// static settings
-	.itxPioTriggerLedRestLevels	(tx_pio_reg[1][31:16]),
-	.itxTransducerOutputIsActive(tx_pio_reg[1][15:8]),	// tx_pio_reg1
-	.itxBoardIdentifiers		(tx_pio_reg[1][7:0]),	// tx_pio_reg1
+	.itxIOLineOutputRestLevels			(tx_pio_reg[1][31:16]),
+	.itxTransducerOutputIsActive		(tx_pio_reg[1][15:8]),	// tx_pio_reg1
+	.itxBoardIdentifiers				(tx_pio_reg[1][7:0]),	// tx_pio_reg1
 	
-	.itxPioCommands				(tx_pio_reg[2]), // tx_pio_reg2
+	.itxPioCommands						(tx_pio_reg[2]), // tx_pio_reg2
 	
-	.itxPioPhaseDelay_ch0_ch1	(tx_pio_reg[3]), 	// tx_pio_reg3
-	.itxPioPhaseDelay_ch2_ch3	(tx_pio_reg[4]), 	// tx_pio_reg4
-	.itxPioPhaseDelay_ch4_ch5	(tx_pio_reg[5]), 	// tx_pio_reg5
-	.itxPioPhaseDelay_ch6_ch7	(tx_pio_reg[6]), 	// tx_pio_reg6
+	.itxPioPhaseDelay_ch0_ch1			(tx_pio_reg[3]), 	// tx_pio_reg3
+	.itxPioPhaseDelay_ch2_ch3			(tx_pio_reg[4]), 	// tx_pio_reg4
+	.itxPioPhaseDelay_ch4_ch5			(tx_pio_reg[5]), 	// tx_pio_reg5
+	.itxPioPhaseDelay_ch6_ch7			(tx_pio_reg[6]), 	// tx_pio_reg6
 	
-	.itxPioChargetime_reg		(tx_pio_reg[7][8:0]),// tx_pio_reg7
-	.itxFireDelay				(tx_pio_reg[7][31:9]),
+	.itxPioChargetime_reg				(tx_pio_reg[7][8:0]),// tx_pio_reg7
+	.itxFireDelay						(tx_pio_reg[7][31:9]),
 	
-	.itxRecvTrigDelay			(tx_pio_reg[8]),
+	.itxRecvTrigDelay					(tx_pio_reg[8]),
 	
-	.itxTrigLedDurationAndDelay	(tx_pio_reg[24:9]),	// tx_pio_reg9-24	
-	.itxTimeUntilNextInterrupt	(tx_pio_reg[26:25]),
+	.itxIOLineOutputDurationAndDelay	(tx_pio_reg[24:9]),	// tx_pio_reg9-24	
+	.itxTimeUntilNextInterrupt			(tx_pio_reg[26:25]),
 	
+	.itxExternalTrigger					(EXTERNAL_TRIGGER_INPUT),
 	
-	.itxExternalTrigger			(EXTERNAL_TRIGGER_INPUT),
+	.otxTransducerOutput				(TRANSDUCER_OUTPUTS),
 	
-	.otxTransducerOutput		(TRANSDUCER_OUTPUTS),
+	.otxIOLineOutput					(IO_LINE_OUTPUTS),
+	.itxIOLineInput						(IO_LINE_INPUTS),
 	
-	.otxTriggerLedOutput		(TRIG_LED_OUTPUTS),
+	.itxADCTriggerAck					(trigLines_txAdc[1]),
+	.otxADCTriggerLine					(trigLines_txAdc[0]),
 	
-	.itxADCTriggerAck			(trigLines_txAdc[1]),
-	.otxADCTriggerLine			(trigLines_txAdc[0]),
-	
-	.otxInterrupt				(tx_interrupt)
+	.otxInterrupt						(tx_interrupt)
 
 );
 
@@ -325,7 +326,7 @@ soc_system u0(
 		.adc_ram_bank_writedata					(adc_writedata_bank),
 		.adc_ram_bank_readdata						(128'b0), //(32'b0)
 		
-		
+		/*
 		.tx_instruction_mem_address            (tx_instruction_read_addr),
 		.tx_instruction_mem_chipselect         (1'b1), 
 		.tx_instruction_mem_clken              (1'b1),
@@ -344,6 +345,7 @@ soc_system u0(
 		.tx_phase_delay_mem_byteenable			(16'b1111111111111111),
 
 		.ram_clock_bridge_clk						(CLK200), 
+		*/
 		.adc_clock_bridge_clk						(CLK50), 
 		
 		

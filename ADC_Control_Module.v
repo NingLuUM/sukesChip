@@ -1,6 +1,5 @@
 module ADC_Control_Module(
 	input					adc_clkinp,
-	input					frame_clk,
 	input					bit_clk,
 	
 	input [7:0]				adc_control_comm,
@@ -192,6 +191,15 @@ begin
 						if( !compressor_opts )
 						begin
 							oADCData <= data_out;
+							
+							//oADCData[14:0]<=waddr_cntr;
+							//oADCData[30:16]<=waddr_cntr;
+							//oADCData[46:32]<=waddr_cntr;
+							//oADCData[62:48]<=waddr_cntr;
+							//oADCData[78:64]<=waddr_cntr;
+							//oADCData[94:80]<=waddr_cntr;
+							//oADCData[110:96]<=waddr_cntr;
+							//oADCData[126:112]<=waddr_cntr;
 							waddr_cntr <= waddr_cntr + 1'b1;
 						end
 						else

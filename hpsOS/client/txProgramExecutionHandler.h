@@ -75,13 +75,13 @@ int txProgramExecutionHandler(TXsys_t *TX){
     
     }
     
-    //printf("next cmd->reg2:\n");
-    //printBinary(cmd->reg2.pio_cmds); 
-    //printf("next cmd->flags:\n");
-    //printBinary(cmd->flags.isFlags); 
+    printf("next cmd->reg2:\n");
+    printBinary(cmd->reg2.pio_cmds); 
+    printf("next cmd->flags:\n");
+    printBinary(cmd->flags.isFlags); 
     //printf("cmd->flags = %d. ",cmd->flags.isFlags);
     //printBinary(cmd->flags.all); 
-    //printf("\n");
+    printf("\n");
     //printf("async_wait = %llu\n",cmd->reg25_26.all);
     
     if ( cmd->flags.isLoopStartCmd | cmd->flags.isSteeringStartCmd ) {

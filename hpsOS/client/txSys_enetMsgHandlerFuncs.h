@@ -60,6 +60,9 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             timeOutVal = currentTimer;
             TX->bufferAsyncWait(TX,timeOutVal);
             TX->addCmd(TX);
+            for(int i=0;i<16;i++){
+                trigs[i].all = 0;
+            }
             cmdCntr++;
             currentTimer = 0;
             if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
@@ -142,11 +145,14 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             }
             if ( !(cmd->flags.all) ){
                 TX->makePioCmd(TX);
-                stepSize = 1;
+                stepSize = 1; // as dummy variable
             }
             TX->bufferTrigTimings(TX,&(trigs[0].all));
-            if( stepSize ){
+            if( stepSize ){ // as dummy variable
                 TX->addCmd(TX);
+                for(int i=0;i<16;i++){
+                    trigs[i].all = 0;
+                }
                 cmdCntr++;
                 currentTimer = 0;
             }
@@ -161,6 +167,9 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             if ( !(cmd->flags.all) ){
                 TX->makePioCmd(TX);
                 TX->addCmd(TX);
+                for(int i=0;i<16;i++){
+                    trigs[i].all = 0;
+                }
                 cmdCntr++;
                 currentTimer = 0;
             }
@@ -176,6 +185,9 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             if ( !(cmd->flags.all) ){
                 TX->makePioCmd(TX);
                 TX->addCmd(TX);
+                for(int i=0;i<16;i++){
+                    trigs[i].all = 0;
+                }
                 cmdCntr++;
                 currentTimer = 0;
             }
@@ -190,6 +202,9 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             if ( !(cmd->flags.all) ){
                 TX->makePioCmd(TX);
                 TX->addCmd(TX);
+                for(int i=0;i<16;i++){
+                    trigs[i].all = 0;
+                }
                 cmdCntr++;
                 currentTimer = 0;
             }
@@ -204,6 +219,9 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             if ( !(cmd->flags.all) ){
                 TX->makePioCmd(TX);
                 TX->addCmd(TX);
+                for(int i=0;i<16;i++){
+                    trigs[i].all = 0;
+                }
                 cmdCntr++;
                 currentTimer = 0;
             }
@@ -218,6 +236,9 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             timeOutVal = timerVal.all+currentTimer;
             if( cmd->flags.isCmd0 ){ 
                 cmdCntr++;
+                for(int i=0;i<16;i++){
+                    trigs[i].all = 0;
+                }
             }
             TX->bufferAsyncWait(TX,timeOutVal);
             if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
@@ -250,6 +271,23 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
                 connectPollInterrupter(TX->ps,TX->interrupt,"gpio@0x100000010",TX_INTERRUPT_ID);
             } else if ( !msg->u[1] && ( TX->interrupt->ps != NULL ) ){
                 disconnectPollSock(TX->interrupt);
+            }
+            break;
+        }
+
+        case(CASE_TX_SET_EXTERNAL_TRIGGER_MODE):{
+            TX->bufferRecvTrig(TX,currentTimer);
+            if ( !(cmd->flags.all) ){
+                TX->makePioCmd(TX);
+                TX->addCmd(TX);
+                for(int i=0;i<16;i++){
+                    trigs[i].all = 0;
+                }
+                cmdCntr++;
+                currentTimer = 0;
+            }
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+                printf("recv trig set successfully\n");
             }
             break;
         }

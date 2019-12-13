@@ -158,6 +158,7 @@
 #define CASE_TX_WAIT_CMD                    ( 16 )
 #define CASE_TX_SET_NSTEERING_LOCS          ( 17 )
 #define CASE_TX_CONNECT_INTERRUPT           ( 18 )
+#define CASE_TX_SET_EXTERNAL_TRIGGER_MODE   ( 20 )
 
 #define CASE_EXIT_PROGRAM 100
 
@@ -269,9 +270,9 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                
                 } else if ( sock->is.tx_interrupt ){
                     //printf("tx program execution interrupt\n");
-                    //interrupt_readout = DREF32(TX->interrupt_reg);
-                    //printf("tx interrupt reg:\n");
-                    //printBinaryInterrupt(interrupt_readout);
+                    interrupt_readout = DREF32(TX->interrupt_reg);
+                    printf("tx interrupt reg:\n");
+                    printBinaryInterrupt(interrupt_readout);
                     TX->programExecutionHandler(TX);
 
                 } else if ( PS->events[n].events & EPOLLIN ){
@@ -296,13 +297,13 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                         printf("nrecv = 0, disconnecting sock\n");
                         disconnectPollSock(sock);
                         sock->is.alive=0;
-                        activeSocks--;
+                        /*activeSocks--;
                         if( activeSocks <= 0){
                             printf("deleting TX->pio_cmd_list\n");
                             TX->setControlState(TX,0);
                             printf("exiting program\n");
                             runner = 0;
-                        }
+                        }*/
                     
                     } else if ( sock->is.commsock ){
                         //printf("rcv sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",msg.u[0],msg.u[1],msg.u[2],msg.u[3],msg.u[4],msg.u[5],msg.u[6],msg.u[7],msg.u[8],msg.u[9]);

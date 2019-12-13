@@ -472,7 +472,7 @@ set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_SYNC
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_RESET
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_SCLK
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_SDATA
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to ADC_SDOUT
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_SDOUT
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_SEN
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to ADC_SYNC
 set_instance_assignment -name SLEW_RATE 0 -to ADC_RESET
@@ -489,11 +489,6 @@ set_global_assignment -name QIP_FILE ip/altsource_probe/hps_reset.qip
 set_global_assignment -name QIP_FILE soc_system/synthesis/soc_system.qip
 set_global_assignment -name QIP_FILE ADCclock.qip
 set_global_assignment -name SIP_FILE ADCclock.sip
-set_instance_assignment -name IO_STANDARD "2.5 V" -to VARGAIN
-set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to VARGAIN
-set_global_assignment -name VERILOG_FILE ADC_Control_Module_128.v
-set_global_assignment -name QIP_FILE TXclocks.qip
-set_global_assignment -name SIP_FILE TXclocks.sip
 set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES
 set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[0]
 set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[1]
@@ -545,27 +540,59 @@ set_instance_assignment -name SLEW_RATE 1 -to TRANSDUCER_OUTPUTS[4]
 set_instance_assignment -name SLEW_RATE 1 -to TRANSDUCER_OUTPUTS[5]
 set_instance_assignment -name SLEW_RATE 1 -to TRANSDUCER_OUTPUTS[6]
 set_instance_assignment -name SLEW_RATE 1 -to TRANSDUCER_OUTPUTS[7]
-set_location_assignment PIN_AG28 -to TRIG_LED_OUTPUTS[0]
-set_location_assignment PIN_AE25 -to TRIG_LED_OUTPUTS[1]
-set_location_assignment PIN_AG26 -to TRIG_LED_OUTPUTS[2]
-set_location_assignment PIN_AG19 -to TRIG_LED_OUTPUTS[3]
-set_location_assignment PIN_AF18 -to TRIG_LED_OUTPUTS[4]
-set_instance_assignment -name IO_STANDARD "2.5 V" -to TRIG_LED_OUTPUTS[0]
-set_instance_assignment -name IO_STANDARD "2.5 V" -to TRIG_LED_OUTPUTS[1]
-set_instance_assignment -name IO_STANDARD "2.5 V" -to TRIG_LED_OUTPUTS[2]
-set_instance_assignment -name IO_STANDARD "2.5 V" -to TRIG_LED_OUTPUTS[3]
-set_instance_assignment -name IO_STANDARD "2.5 V" -to TRIG_LED_OUTPUTS[4]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to TRIG_LED_OUTPUTS[0]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to TRIG_LED_OUTPUTS[4]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to TRIG_LED_OUTPUTS[3]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to TRIG_LED_OUTPUTS[2]
-set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to TRIG_LED_OUTPUTS[1]
-set_instance_assignment -name SLEW_RATE 1 -to TRIG_LED_OUTPUTS[4]
-set_instance_assignment -name SLEW_RATE 1 -to TRIG_LED_OUTPUTS[3]
-set_instance_assignment -name SLEW_RATE 1 -to TRIG_LED_OUTPUTS[2]
-set_instance_assignment -name SLEW_RATE 1 -to TRIG_LED_OUTPUTS[1]
-set_instance_assignment -name SLEW_RATE 1 -to TRIG_LED_OUTPUTS[0]
 set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to EXTERNAL_TRIGGER_INPUT
-set_location_assignment PIN_AA13 -to VARGAIN
-set_instance_assignment -name SLEW_RATE 1 -to VARGAIN
+set_location_assignment PIN_AH18 -to EMERGENCY_STOP_IN
+set_instance_assignment -name IO_STANDARD "2.5 V" -to EMERGENCY_STOP_IN
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to EMERGENCY_STOP_IN
+set_location_assignment PIN_AG18 -to EMERGENCY_STOP_OUT
+set_instance_assignment -name IO_STANDARD "2.5 V" -to EMERGENCY_STOP_OUT
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to EMERGENCY_STOP_OUT
+set_instance_assignment -name SLEW_RATE 0 -to EMERGENCY_STOP_OUT
+set_location_assignment PIN_AA13 -to VAR_ATTEN
+set_instance_assignment -name IO_STANDARD "2.5 V" -to VAR_ATTEN
+set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to VAR_ATTEN
+set_instance_assignment -name SLEW_RATE 0 -to VAR_ATTEN
+set_instance_assignment -name IO_STANDARD LVDS -to MASTER_CLK
+set_location_assignment PIN_Y15 -to MASTER_CLK
+set_location_assignment PIN_AA15 -to "MASTER_CLK(n)"
+set_location_assignment PIN_AF18 -to IO_LINE_OUTPUTS[4]
+set_location_assignment PIN_AG19 -to IO_LINE_OUTPUTS[3]
+set_location_assignment PIN_AG26 -to IO_LINE_OUTPUTS[2]
+set_location_assignment PIN_AE25 -to IO_LINE_OUTPUTS[1]
+set_location_assignment PIN_AG28 -to IO_LINE_OUTPUTS[0]
+set_location_assignment PIN_AF20 -to IO_LINE_INPUTS[4]
+set_location_assignment PIN_AH19 -to IO_LINE_INPUTS[3]
+set_location_assignment PIN_AH27 -to IO_LINE_INPUTS[2]
+set_location_assignment PIN_AF27 -to IO_LINE_INPUTS[1]
+set_location_assignment PIN_AF28 -to IO_LINE_INPUTS[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to IO_LINE_INPUTS[4]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to IO_LINE_OUTPUTS[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to IO_LINE_OUTPUTS[1]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to IO_LINE_OUTPUTS[2]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to IO_LINE_OUTPUTS[3]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to IO_LINE_OUTPUTS[4]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to IO_LINE_OUTPUTS
+set_instance_assignment -name IO_STANDARD "2.5 V" -to IO_LINE_INPUTS[0]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to IO_LINE_INPUTS[1]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to IO_LINE_INPUTS[2]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to IO_LINE_INPUTS[3]
+set_instance_assignment -name IO_STANDARD "2.5 V" -to IO_LINE_INPUTS
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to IO_LINE_INPUTS[4]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to IO_LINE_INPUTS[3]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to IO_LINE_INPUTS[2]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to IO_LINE_INPUTS[1]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to IO_LINE_INPUTS[0]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to IO_LINE_INPUTS
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to IO_LINE_OUTPUTS[4]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to IO_LINE_OUTPUTS[0]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to IO_LINE_OUTPUTS[1]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to IO_LINE_OUTPUTS[2]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to IO_LINE_OUTPUTS[3]
+set_instance_assignment -name CURRENT_STRENGTH_NEW 12MA -to IO_LINE_OUTPUTS
+set_instance_assignment -name SLEW_RATE 0 -to IO_LINE_OUTPUTS[0]
+set_instance_assignment -name SLEW_RATE 0 -to IO_LINE_OUTPUTS[1]
+set_instance_assignment -name SLEW_RATE 0 -to IO_LINE_OUTPUTS[2]
+set_instance_assignment -name SLEW_RATE 0 -to IO_LINE_OUTPUTS[3]
+set_instance_assignment -name SLEW_RATE 0 -to IO_LINE_OUTPUTS[4]
+set_instance_assignment -name OUTPUT_TERMINATION OFF -to ADC_PDN
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
