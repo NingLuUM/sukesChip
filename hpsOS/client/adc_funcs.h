@@ -73,14 +73,17 @@ void adcSetGain(ADCvars_t *ADC, double gainVal){
 	
     ADC->tgcreg0x9A.COARSE_GAIN = coarseGain;
 	ADC->issueSerialCommand(ADC,ADC->tgcreg0x9A.adccmd);
+    /*
     printf("ADC->tgcreg0x9A.COARSE_GAIN:\n\t0x%02x (%u) ->  gain: %g [%g]\n\n",
         ADC->tgcreg0x9A.COARSE_GAIN, ADC->tgcreg0x9A.COARSE_GAIN, gainVal-5.0, gainVal);
-	
+	*/
+
     ADC->tgcreg0x99.FINE_GAIN = fineGain;
 	ADC->issueSerialCommand(ADC,ADC->tgcreg0x99.adccmd);
+    /*
     printf("ADC->tgcreg0x99.FINE_GAIN:\n\t0x%02x (%u) -> gain: %g [%g]\n\n",
         ADC->tgcreg0x99.FINE_GAIN,ADC->tgcreg0x99.FINE_GAIN, gainVal-5.0,gainVal);
-	
+	*/
 	
 }
 
@@ -97,7 +100,7 @@ void adcSetUnsignedInt(ADCvars_t *ADC, uint32_t val){
 	} else {
 		ADC->gpreg4.DFS = 0;
 	}	
-    printf("ADC->gpreg4.DFS: (SIGNED/UNSIGNED)\n\t0x%02x\n\n",ADC->gpreg4.DFS);
+    //printf("ADC->gpreg4.DFS: (SIGNED/UNSIGNED)\n\t0x%02x\n\n",ADC->gpreg4.DFS);
 	ADC->issueSerialCommand(ADC,ADC->gpreg4.adccmd);
 }
 
@@ -114,7 +117,7 @@ void adcSetLowNoiseMode(ADCvars_t *ADC, uint32_t val){
 		ADC->gpreg7.VCA_LOW_NOISE_MODE = 0;
 	}
 	
-    printf("ADC->gpreg7.VCA_LOW_NOISE_MODE:\n\t0x%02x\n\n",ADC->gpreg7.VCA_LOW_NOISE_MODE);
+    //printf("ADC->gpreg7.VCA_LOW_NOISE_MODE:\n\t0x%02x\n\n",ADC->gpreg7.VCA_LOW_NOISE_MODE);
 	ADC->issueSerialCommand(ADC,ADC->gpreg7.adccmd);
 }
 
@@ -126,6 +129,7 @@ void adcToggleChannelPwr(ADCvars_t *ADC, uint32_t pwrOn){
 	}
 	
 	ADC->gpreg1.PDN_CHANNEL = pwrOn;	
+    /*
     printf("ADC->gpreg1.PDN_CHANNEL:\n\t0x%02x\n",ADC->gpreg1.PDN_CHANNEL);
     printf(
         "\n\tPDN_CHANNEL<1,...,8> = <%u, %u, %u, %u, %u, %u, %u, %u>\n", 
@@ -133,7 +137,8 @@ void adcToggleChannelPwr(ADCvars_t *ADC, uint32_t pwrOn){
         ADC->gpreg1.PDN_CHANNEL3, ADC->gpreg1.PDN_CHANNEL4, 
         ADC->gpreg1.PDN_CHANNEL5, ADC->gpreg1.PDN_CHANNEL6, 
         ADC->gpreg1.PDN_CHANNEL7, ADC->gpreg1.PDN_CHANNEL8);
-	ADC->issueSerialCommand(ADC,ADC->gpreg1.adccmd);
+	*/
+    ADC->issueSerialCommand(ADC,ADC->gpreg1.adccmd);
 }
 
 void adcSetFilterBW(ADCvars_t *ADC, uint32_t filter){	
@@ -143,7 +148,7 @@ void adcSetFilterBW(ADCvars_t *ADC, uint32_t filter){
 	}
 	
 	ADC->gpreg7.FILTER_BW = filter;
-    printf("ADC->gpreg7.FILTER_BW:\n\t0x%02x\n\n",ADC->gpreg7.FILTER_BW);
+    //printf("ADC->gpreg7.FILTER_BW:\n\t0x%02x\n\n",ADC->gpreg7.FILTER_BW);
 	ADC->issueSerialCommand(ADC,ADC->gpreg7.adccmd);
 }
 
@@ -154,7 +159,7 @@ void adcSetInternalAcCoupling(ADCvars_t *ADC, uint32_t accoupling){
 	}
 	
 	ADC->gpreg7.INTERNAL_AC_COUPLING = accoupling;
-    printf("ADC->gpreg7.INTERNAL_AC_COUPLING:\n\t0x%02x\n\n",ADC->gpreg7.INTERNAL_AC_COUPLING);
+    //printf("ADC->gpreg7.INTERNAL_AC_COUPLING:\n\t0x%02x\n\n",ADC->gpreg7.INTERNAL_AC_COUPLING);
 	ADC->issueSerialCommand(ADC,ADC->gpreg7.adccmd);
 }
 
@@ -165,7 +170,7 @@ void adcIssueDirectCmd(ADCvars_t *ADC, FMSG_t *msg){
         ADC->issueSerialCommand(ADC,ADC->gpreg0.adccmd);
 
         regaddr = ADC->reg_dict[1][msg->u[2]];
-        printf("regaddr = %u\n",regaddr);
+        //printf("regaddr = %u\n",regaddr);
         ADC->reg[regaddr]->cmd = msg->u[3];
         ADC->issueSerialCommand(ADC,ADC->reg[regaddr]->adccmd);
     } else {

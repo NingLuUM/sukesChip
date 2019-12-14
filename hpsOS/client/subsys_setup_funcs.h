@@ -226,8 +226,8 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV, POLLserver_t *PS){
     RCV->queryMode.all = 0;
     RCV->queryMode.realTime = 1;
     RCV->data = (char **)calloc(2,sizeof(char *));
-    (RCV->data)[0] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));
-    (RCV->data)[1] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));	
+    RCV->data[0] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));
+    RCV->data[1] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));	
     
     //~ RCV->setLEDs(RCV,0x1f);
    

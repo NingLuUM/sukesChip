@@ -1,6 +1,7 @@
 
 void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
 
+    static uint32_t printMsgs = 0;
     static uint32_t currentTimer;
     static TXtrigtimings_t trigs[16];
     static int cmdCntr;
@@ -15,10 +16,11 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
+
     switch(msg->u[0]){
         case(CASE_TX_SET_CONTROL_STATE):{
             TX->setControlState(TX,msg->u[1]);
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("change control state cmd issued successfully\n");
             }
             break;
@@ -26,16 +28,15 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
 
         case(CASE_TX_SET_TRIG_REST_LVLS):{
             TX->setTrigRestLvls(TX,msg->u[1]);
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("trig rest lvls set successfully\n");
             }
             break;
         }
 
         case(CASE_TX_SET_ACTIVE_TRANSDUCERS):{
-            printf("CASE_TX_SET_ACTIVE_TRANSDUCERS\n");
             TX->setActiveTransducers(TX,msg->u[1]);
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("transducers activated successfully\n");
             }
             break;
@@ -50,7 +51,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
                 cmdCntr++;
             }
             TX->makePioCmd(TX);
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("pio cmd made successfully\n");
             }
             break;
@@ -65,7 +66,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             }
             cmdCntr++;
             currentTimer = 0;
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("pio cmd ended successfully\n");
             }
             break;
@@ -80,7 +81,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
                 cmdCntr++;
             }
             TX->makeLoopStart(TX,msg->u[1],msg->u[2],msg->u[3]);
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("loop started successfully\n");
             }
             break;
@@ -97,7 +98,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             TX->makeLoopEnd(TX);
             TX->addCmd(TX);
             cmdCntr++;
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("loop ended successfully\n");
             }
             break;
@@ -113,7 +114,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
                 cmdCntr++;
             }
             TX->makeSteeringLoopStart(TX,msg->u[1],msg->u[2],stepSize);
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("steering loop started successfully\n");
             }
             break;
@@ -130,7 +131,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             TX->makeSteeringLoopEnd(TX);
             TX->addCmd(TX);
             cmdCntr++;
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("steering loop ended successfully\n");
             }
             break;
@@ -156,7 +157,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
                 cmdCntr++;
                 currentTimer = 0;
             }
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("trigs set successfully\n");
             }
             break;
@@ -173,7 +174,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
                 cmdCntr++;
                 currentTimer = 0;
             }
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("charge time set successfully\n");
             }
             break;
@@ -191,7 +192,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
                 cmdCntr++;
                 currentTimer = 0;
             }
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("phase delays set successfully\n");
             }
             break;
@@ -208,7 +209,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
                 cmdCntr++;
                 currentTimer = 0;
             }
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("fire cmd set successfully\n");
             }
             break;
@@ -225,7 +226,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
                 cmdCntr++;
                 currentTimer = 0;
             }
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("recv trig set successfully\n");
             }
             break;
@@ -241,7 +242,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
                 }
             }
             TX->bufferAsyncWait(TX,timeOutVal);
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("async wait set successfully\n");
             }
             break;
@@ -249,18 +250,15 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
 
         case(CASE_TX_WAIT_CMD):{
             currentTimer += msg->u[1];
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
-                printf("wait cmd issued successfully\n");
-            } else {
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("wait cmd issued successfully\n");
             }
             break;
         }
 
         case(CASE_TX_SET_NSTEERING_LOCS):{
-            printf("CASE_TX_SET_NSTEERING_LOCS\n");
             TX->setNumSteeringLocs(TX,msg->u[1]);
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("num steering locations set successfully\n");
             }
             break;
@@ -286,12 +284,20 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
                 cmdCntr++;
                 currentTimer = 0;
             }
-            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("recv trig set successfully\n");
             }
             break;
         }
         
+        case(CASE_TX_PRINT_FEEDBACK_MSGS):{
+            printMsgs = msg->u[1];
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
+                printf("tx print msgs setting updated successfully\n");
+            }
+            break;
+        }
+
         case(CASE_EXIT_PROGRAM):{
             printf("case exit program\n");
             *runner=0;

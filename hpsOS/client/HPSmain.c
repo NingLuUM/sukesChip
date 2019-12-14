@@ -135,6 +135,7 @@
 #define CASE_RCV_SET_SAMPLING_MODE			( 18 )
 #define CASE_RCV_SET_COMPRESSOR_MODE		( 19 )
 #define CASE_RCV_INTERRUPT_THYSELF          ( 20 )
+#define CASE_RCV_PRINT_FEEDBACK_MSGS        ( 50 )
 
 // TODO: delete these from rcv sys handler
 #define	CASE_ADC_SET_FCLOCK_DELAY			( 52 )
@@ -159,7 +160,7 @@
 #define CASE_TX_SET_NSTEERING_LOCS          ( 17 )
 #define CASE_TX_CONNECT_INTERRUPT           ( 18 )
 #define CASE_TX_SET_EXTERNAL_TRIGGER_MODE   ( 20 )
-
+#define CASE_TX_PRINT_FEEDBACK_MSGS         ( 50 )
 #define CASE_EXIT_PROGRAM 100
 
 const int ONE = 1;
@@ -204,8 +205,6 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
 
     connectPollInterrupter(PS,RCV->interrupt,"gpio@0x100000000",RCV_INTERRUPT_ID);
     connectPollInterrupter(PS,TX->interrupt,"gpio@0x100000010",TX_INTERRUPT_ID);
-    //disconnectPollSock(RCV->interrupt);
-    //disconnectPollSock(TX->interrupt);
     addEnetServerSock(PS,&ENETserver[0],INIT_PORT);
     addEnetServerSock(PS,&ENETserver[1],ADC_CONTROL_PORT);
     addEnetServerSock(PS,&ENETserver[2],TX_CONTROL_PORT);
@@ -220,121 +219,144 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     int n;
     SOCK_t *sock;
     FMSG_t msg;
-    int timeout_ms = 100;
+    int timeout_ms = 1000;
     int nfds;
     int nrecv,pd_size;
-    int tmp = 0;
     int runner = 1;
     int activeSocks = 0;
     TXpiocmd_t *pio_cmd;
-    uint32_t interrupt_readout;
+    struct timespec st0,st1,et1,dt1;
+    float dt;
+    clock_gettime(CLOCK_MONOTONIC,&st0);
+    clock_gettime(CLOCK_MONOTONIC,&st1);
+    //uint32_t interrupt_readout;
 
     while(runner==1){
         
         nfds = epoll_wait(PS->epfd,PS->events,MAX_POLL_EVENTS,timeout_ms);
-	    //printf("rcv state reset = %d\n",DREF32(RCV->stateReset));	
-	    //printf("data ready flag = %d\n",DREF32(RCV->dataReadyFlag));	
-        //printf("rcv interrupt reg: %u (%d)\n",DREF32(RCV->interrupt_reg),DREF32(RCV->dataReadyFlag));
-        //printf("tx interrupt reg: %u ()\n",DREF32(TX->interrupt_reg));
+        
         if( nfds > 0 ){
+
             for(n=0;n<nfds;n++){
+
                 sock = (SOCK_t *)PS->events[n].data.ptr;
 
                 if( sock->is.listener ){
+
                     if( sock->partner->ps != NULL ){
                         disconnectPollSock(sock->partner);
                     }
+
                     acceptEnetClientSock(sock);
                     sock->is.alive = 1;
                     activeSocks++;
 
                     if( sock->partner->is.tx_control ){
+
                         TX->comm_sock = sock->partner;
+
                     } else if ( sock->partner->is.tx_incoming_data ){
+
                         TX->pd_data_sock = sock->partner;
+
                     } else if ( sock->partner->is.commsock ){
+
                         RCV->comm_sock = sock->partner;
                         RCV->setStateReset(RCV,0);
+
                     } else if ( sock->partner->is.adc_control ){
+
                         RCV->data_sock = sock->partner;
+
                     }
                 
                 } else if ( sock->is.rcv_interrupt ) {
-                    printf("rcv program execution interrupt\n");
-                    interrupt_readout = DREF32(RCV->interrupt_reg);
-                    printf("rcv interrupt reg:\n");
-                    printBinaryInterrupt(interrupt_readout);
+
+                    //printf("rcv program execution interrupt\n");
+                    //interrupt_readout = DREF32(RCV->interrupt_reg);
+                    //printf("rcv interrupt reg:\n");
+                    //printBinaryInterrupt(interrupt_readout);
                     RCV->queryData(RCV); 
                     TX->resetRcvTrig(TX);
-                    //RCV->setStateReset(RCV,0);
                
                 } else if ( sock->is.tx_interrupt ){
-                    //printf("tx program execution interrupt\n");
-                    interrupt_readout = DREF32(TX->interrupt_reg);
-                    printf("tx interrupt reg:\n");
-                    printBinaryInterrupt(interrupt_readout);
+
+                    //interrupt_readout = DREF32(TX->interrupt_reg);
+                    //printf("tx interrupt reg:\n");
+                    //printBinaryInterrupt(interrupt_readout);
                     TX->programExecutionHandler(TX);
 
                 } else if ( PS->events[n].events & EPOLLIN ){
-                    //printf("sock->portNum = %d\n",sock->portNum);
+
                     if ( !(sock->is.tx_incoming_data) ){
+
                         nrecv = recv(sock->fd,&msg,10*sizeof(uint32_t),0);
                         
                     } else {
+
                         pd_size = TX->nSteeringLocs*8*sizeof(uint16_t) - TX->nPhaseDelaysWritten;
                         if(pd_size>FMSG_SIZE){
                             nrecv = recv(sock->fd,&msg,FMSG_SIZE*sizeof(uint8_t),0);
                         } else {
                             nrecv = recv(sock->fd,&msg,pd_size*sizeof(uint8_t ),0);
                         }
+
                     }
+
                     if( nrecv < 0 ){
+
                         perror("RECV ERROR:");
                         runner = 0;
                         break;
                     
                     } else if ( nrecv == 0 ) {
-                        printf("nrecv = 0, disconnecting sock\n");
+
+                        //printf("nrecv = 0, disconnecting sock\n");
                         disconnectPollSock(sock);
                         sock->is.alive=0;
-                        /*activeSocks--;
-                        if( activeSocks <= 0){
-                            printf("deleting TX->pio_cmd_list\n");
+                        if( sock->is.tx_control ){
                             TX->setControlState(TX,0);
-                            printf("exiting program\n");
-                            runner = 0;
-                        }*/
+                        }
                     
                     } else if ( sock->is.commsock ){
+
                         //printf("rcv sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",msg.u[0],msg.u[1],msg.u[2],msg.u[3],msg.u[4],msg.u[5],msg.u[6],msg.u[7],msg.u[8],msg.u[9]);
                         RCV->enetMsgHandler(RCV, &msg, &runner);
                     
                     } else if ( sock->is.tx_control ){
+
                         //printf("tx sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",msg.u[0],msg.u[1],msg.u[2],msg.u[3],msg.u[4],msg.u[5],msg.u[6],msg.u[7],msg.u[8],msg.u[9]);
                         TX->enetMsgHandler(TX, &msg, nrecv, &runner);
                     
                     } else if ( sock->is.tx_incoming_data ){
+
                         TX->storePhaseDelays(TX,nrecv,&msg);
                     
                     }
                 }
             }
-        } else if ( ( nfds == 0 ) && DREF32(RCV->dataReadyFlag) ){
-            RCV->setStateReset(RCV,1);
         }
 
-        if(!(tmp%10)){
-            printf("query data waiting... (%d s)\n",tmp/10);
-            RCV->setLEDs(RCV,(tmp/10));
+        clock_gettime(CLOCK_MONOTONIC,&et1);
+        dt1 = diff(st1,et1);
+        dt = dt1.tv_sec+(dt1.tv_nsec*1e-9);
+        if( dt >= 0.50 ){
+            dt1 = diff(st0,et1);
+            dt = dt1.tv_sec+(dt1.tv_nsec*1e-9);
+            printf("program running: uptime... (%0.2f s)\n", dt);
+            clock_gettime(CLOCK_MONOTONIC,&st1);
+            RCV->setLEDs(RCV,dt1.tv_sec);
         }
-        tmp++;
 
-        if( g_auto_shutdown_enabled && ( tmp>3000 ) ){
+        if( g_auto_shutdown_enabled && ( dt1.tv_sec > 3000 ) ){
             runner = 0;
             break;
         }
+
     }
 
+    TX->setControlState(TX,0);
+    
     for(n=0;n<MAX_SERVER_PORTS;n++){
         if(ENETserver[n].ps!=NULL){
             disconnectPollSock(&ENETserver[n]);

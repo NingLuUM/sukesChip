@@ -5,18 +5,32 @@ void txSetControlState(TXsys_t *TX, uint32_t control_state){
     uint32_t **pio_reg;
     pio_reg = TX->pio_reg;
 
-    if(control_state == 1){
+    if ( control_state == 1 ) {
         cmd_list = cmd_list->top;
-        while( cmd_list->next != NULL ){
+
+        /* the fpga issues commands when the commands change. if consecutive
+            commands are equivalent, execution will freeze. this makes sure no
+            adjacent commands are equivalent. 
+        */
+        while ( cmd_list->next != NULL ) {
             cmd_list->reg2.new_cmd_flag = ((cmd_list->cmdNumber)%2);
             cmd_list = cmd_list->next;
         }
         
-        if(cmd_list->flags.all){
+        /* execution halts when cmd->next == NULL. in order to execute the last
+            command issued by user, an empty command needs to be inserted at the
+            end of the list. 
+        */
+        if ( cmd_list->flags.all ) {
             TX->addCmd(TX);
             cmd_list->next->reg2.new_cmd_flag = ((cmd_list->next->cmdNumber)%2);
         }
         
+        /* the last user issued command in the program needs to issue an
+            interrupt in order for the program to end but not all commands
+            generate an interrupt. this makes sure that an interrupt is 
+            generated after the last user-issued command.
+        */
         if( !(cmd_list->flags.isAsyncWait) ){
             cmd_list->flags.isAsyncWait = 1;
             TX->bufferAsyncWait(TX,0);
@@ -34,7 +48,10 @@ void txSetControlState(TXsys_t *TX, uint32_t control_state){
         TX->issuePioCommand(TX);
 
     } else {
-
+        /* if control state set to idle, deletes all commands so nothing bad
+            will happen if the program somehow ran accidentally... cosmic rays
+            flipping bits and such. who knows.
+        */
         cmd_list = cmd_list->top;
         while(cmd_list->next != NULL){
             TX->delCmd(TX,0);
@@ -54,34 +71,19 @@ void txSetTrigRestLvls(TXsys_t *TX, uint32_t trigRestLvls){
 }
 
 void txSetActiveTransducers(TXsys_t *TX, uint32_t activeTransducers){
-    uint32_t **pio_reg;
-    pio_reg = TX->pio_reg;
-
     TX->reg1.activeTransducers = activeTransducers;
-    DREF32(pio_reg[1]) = TX->reg1.all;
+    DREF32(TX->pio_reg[1]) = TX->reg1.all;
 }
 
 void txIssuePioCommand(TXsys_t *TX){
-    uint32_t **pio_reg;
-    pio_reg = TX->pio_reg;
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
-    //printf("issued cmd->cmdNumber = %d, cmd->flags = %d. ",cmd->cmdNumber, cmd->flags.isFlags);
-    //printBinary(cmd->flags.all); 
-    //printf("cmd->reg2 = ");
-    //printBinary(cmd->reg2.all); 
-    //printf("cmd->reg8 = %u\n",cmd->reg8.all);
-    //printf("cmd->reg25_26 = %llu\n",cmd->reg25_26.all);
     TX->reg2.pio_cmds = cmd->reg2.pio_cmds;
-    DREF32(pio_reg[2]) = TX->reg2.all;
-    usleep(5);
-    //DREF32(pio_reg[2]) = 0;
+    DREF32(TX->pio_reg[2]) = TX->reg2.all;
 }
 
 void txSetTrigs(TXsys_t *TX){
-    uint32_t **pio_reg;
-    pio_reg = TX->pio_reg;
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
@@ -103,33 +105,27 @@ void txSetTrigs(TXsys_t *TX){
     TX->reg9_24[15].all = ( cmd->flags.setTrig15 ) ? cmd->reg9_24[15].all : 0;
 
     for(int i=0;i<16;i++){
-        DREF32(pio_reg[i+9]) = TX->reg9_24[i].all;
+        DREF32(TX->pio_reg[i+9]) = TX->reg9_24[i].all;
     }
 }
 
 void txSetChargeTime(TXsys_t *TX){
-    uint32_t **pio_reg;
-    pio_reg = TX->pio_reg;
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
     TX->reg7.chargeTime = cmd->reg7.chargeTime;
-    DREF32(pio_reg[7]) = TX->reg7.all;
+    DREF32(TX->pio_reg[7]) = TX->reg7.all;
 }
 
 void txSetFireCmdDelay(TXsys_t *TX){
-    uint32_t **pio_reg;
-    pio_reg = TX->pio_reg;
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
     TX->reg7.fireDelay = cmd->reg7.fireDelay;
-    DREF32(pio_reg[7]) = TX->reg7.all;
+    DREF32(TX->pio_reg[7]) = TX->reg7.all;
 }
 
 void txSetPhaseDelay(TXsys_t *TX){
-    uint32_t **pio_reg;
-    pio_reg = TX->pio_reg;
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
@@ -137,33 +133,28 @@ void txSetPhaseDelay(TXsys_t *TX){
     TX->reg4.all = cmd->reg4.all;
     TX->reg5.all = cmd->reg5.all;
     TX->reg6.all = cmd->reg6.all;
-    DREF32(pio_reg[3]) = TX->reg3.all;
-    DREF32(pio_reg[4]) = TX->reg4.all;
-    DREF32(pio_reg[5]) = TX->reg5.all;
-    DREF32(pio_reg[6]) = TX->reg6.all;
+    DREF32(TX->pio_reg[3]) = TX->reg3.all;
+    DREF32(TX->pio_reg[4]) = TX->reg4.all;
+    DREF32(TX->pio_reg[5]) = TX->reg5.all;
+    DREF32(TX->pio_reg[6]) = TX->reg6.all;
 }
 
 void txSetRecvTrigDelay(TXsys_t *TX){
-    uint32_t **pio_reg;
-    pio_reg = TX->pio_reg;
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
     TX->reg8.recvTrigDelay = cmd->reg8.recvTrigDelay;
-    DREF32(pio_reg[8]) = TX->reg8.all;
+    DREF32(TX->pio_reg[8]) = TX->reg8.all;
 }
 
 void txSetAsyncWait(TXsys_t *TX){
-    uint32_t **pio_reg;
-    pio_reg = TX->pio_reg;
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
     TX->reg25_26.all = cmd->reg25_26.all;
-    DREF32(pio_reg[25]) = TX->reg25_26.reg25;
-    DREF32(pio_reg[26]) = TX->reg25_26.reg26;
+    DREF32(TX->pio_reg[25]) = TX->reg25_26.reg25;
+    DREF32(TX->pio_reg[26]) = TX->reg25_26.reg26;
 }
-
 
 void txAddPioCmd_f(TXsys_t *TX){
 
@@ -269,7 +260,6 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
             if(next->next != NULL)  next->next->prev = cmd_list;
             if(next->reg9_24 != NULL) free(next->reg9_24);
             free(next); 
-            printf("free(TX.pio_cmd_list[cmdNumber: %d])\n", loopCmdNum);
         }
     }
 
@@ -281,7 +271,7 @@ void txMakeLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, uint32_t s
     cmd = *(TX->pio_cmd_list);
     
     if( cmd->flags.all ){ 
-        txAddPioCmd_f(TX);
+        TX->addCmd(TX);
         cmd = *(TX->pio_cmd_list);
     }
 
@@ -307,7 +297,7 @@ void txMakeLoopEnd(TXsys_t *TX){
     cmd = *(TX->pio_cmd_list);
     
     if( ( cmd->flags.all && cmd->flags.hasNonWaitCmds ) || ( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ) ){ 
-        txAddPioCmd_f(TX);
+        TX->addCmd(TX);
         cmd = *(TX->pio_cmd_list);
     }
     
@@ -344,7 +334,7 @@ void txMakeSteeringLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, ui
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
     if( cmd->flags.all ){ 
-        txAddPioCmd_f(TX);
+        TX->addCmd(TX);
         cmd = *(TX->pio_cmd_list);
     }
     while(cmd->next != NULL){
@@ -367,7 +357,7 @@ void txMakeSteeringLoopEnd(TXsys_t *TX){
     TXpiocmd_t *cmd,*tmp;
     cmd = *(TX->pio_cmd_list);
     if( ( cmd->flags.all && cmd->flags.hasNonWaitCmds ) || ( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ) ){ 
-        txAddPioCmd_f(TX);
+        TX->addCmd(TX);
         cmd = *(TX->pio_cmd_list);
     }
     while(cmd->next != NULL){
@@ -403,7 +393,7 @@ void txMakePioCmd(TXsys_t *TX){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
     if( cmd->flags.all && cmd->flags.isFlags ){ 
-        txAddPioCmd_f(TX);
+        TX->addCmd(TX);
         cmd = *(TX->pio_cmd_list);
     }
     while(cmd->next != NULL){
@@ -501,7 +491,7 @@ void txBufferAsyncWaitCmd(TXsys_t *TX, uint64_t timerVal){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
     if( cmd->flags.isCmd0 ){ 
-        txAddPioCmd_f(TX);
+        TX->addCmd(TX);
         cmd = *(TX->pio_cmd_list);
     }
     cmd->flags.isAsyncWait = 1;
@@ -515,54 +505,40 @@ void txBufferAsyncWaitCmd(TXsys_t *TX, uint64_t timerVal){
 
 void txResetTxInterrupt(TXsys_t *TX){
     TXpioreg2_t intr_reset;
-    uint32_t **pio_reg;
-    pio_reg = TX->pio_reg;
 
     intr_reset.all = 0;
     intr_reset.reset_interrupt = 1;
-    DREF32(pio_reg[2]) = intr_reset.all;
-    usleep(5);
-    DREF32(pio_reg[2]) = 0;
+    DREF32(TX->pio_reg[2]) = intr_reset.all;
 }
 
 void txResetRcvTrig(TXsys_t *TX){
     TXpioreg2_t rcv_trig_reset;
-    uint32_t **pio_reg;
-    pio_reg = TX->pio_reg;
 
     rcv_trig_reset.all = 0;
     rcv_trig_reset.reset_rcv_trig = 1;
-    DREF32(pio_reg[2]) = rcv_trig_reset.all;
-    usleep(5);
-    DREF32(pio_reg[2]) = 0;
+    DREF32(TX->pio_reg[2]) = rcv_trig_reset.all;
 }
 
 void txSetNumSteeringLocs(TXsys_t *TX, uint32_t nSteeringLocs){
-    uint16_t *tmp;
     uint32_t ns;
     
     ns = ( nSteeringLocs ) ? nSteeringLocs : 1;
 
     if( ns != TX->nSteeringLocs ){
-        tmp = (uint16_t *)calloc(8*ns,sizeof(uint16_t));
-        free(*(TX->phaseDelays));
-        *(TX->phaseDelays) = tmp;
+        free( TX->phaseDelays[0] );
+        TX->phaseDelays[0] = (uint16_t *)calloc(8*ns,sizeof(uint16_t));
         TX->nSteeringLocs = ns;
     }
     TX->nPhaseDelaysWritten = 0;
 }
 
 void txStorePhaseDelays(TXsys_t *TX, int nrecv, FMSG_t *msg){
-    printf("tx store phase delays\n");
     char *pdin;
     char *pdtx;
-    uint16_t *pd16;
     int i;
 
-    pd16 = *(TX->phaseDelays);
-
     pdin = (char *)msg;
-    pdtx = (char *)pd16;
+    pdtx = (char *)TX->phaseDelays[0];
     i=0;
     while(i<nrecv){
         pdtx[TX->nPhaseDelaysWritten+i] = pdin[i];
@@ -571,10 +547,13 @@ void txStorePhaseDelays(TXsys_t *TX, int nrecv, FMSG_t *msg){
     }
     if ( TX->nPhaseDelaysWritten == TX->nSteeringLocs*8*sizeof(uint16_t) ){
         if ( send(TX->pd_data_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
-            printf("phase delays stored successfully\n");
-        } else {
-            printf("phase delays not stored successfully\n");
+            //printf("phase delays stored successfully\n");
+            i = 0;
         }
         TX->nPhaseDelaysWritten = 0;
     }
 }
+
+
+
+
