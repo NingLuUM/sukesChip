@@ -136,6 +136,10 @@ int sendData(RCVsys_t *RCV, char *data, size_t dsize){
         nsent0 += send(enet->fd,&data[nsent0],toSend,MSG_CONFIRM);
         recv(enet->fd,&nrecvd,sizeof(uint32_t),MSG_WAITALL);
         recvcount+=nrecvd;
+        
+    //clock_gettime(CLOCK_MONOTONIC,&et1);
+    //dt1 = diff(st1,et1);
+    //printf("nsent: %d/%d (%d) -- time: %ld us\n",nsent0,dsize,toSend,dt1.tv_nsec/1000);
     }
     //clock_gettime(CLOCK_MONOTONIC,&et1);
     //dt1 = diff(st1,et1);
@@ -173,8 +177,9 @@ void rcvQueryData(RCVsys_t *RCV){
     usleep(1);
 	
     if( RCV->queryMode.realTime ){
+
         dataStatus = sendData(RCV,DREFPCHAR(RCV->ramBank),8*recLen*sizeof(uint16_t));
-            
+    
     } else {
         
         rcvmemcpy( &(RCV->data[1][pulse_counter*8*recLen*sizeof(uint16_t)]), DREFPCHAR(RCV->ramBank), 8*recLen*sizeof(uint16_t));
@@ -227,17 +232,18 @@ void setupInternalStorage(RCVsys_t *RCV){
 	//char *tmp;    
 	
 	//tmp = (char *)malloc(RCV->refVals.recLen*RCV->npulses*8*sizeof(uint16_t));
-	//printf("internal storage2\n");
+	printf("internal storage2\n");
 
 	if( RCV->data[1] != NULL ){
 		free( RCV->data[1] );
         RCV->data[1] = NULL;
-	    //printf("internal storage3\n");
+	    printf("internal storage3\n");
 	} 
 	
 	//printf("internal storage4\n"); 
 	//RCV->data[1] = tmp;
 	RCV->data[1] = (char *)malloc(RCV->refVals.recLen*RCV->npulses*8*sizeof(uint16_t));
+	printf("internal storage4\n"); 
 }
 
 

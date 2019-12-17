@@ -206,7 +206,7 @@ ADC_Control_Module u2(
 	.iADC_SCLK					(ADC_SCLK),
 	.iADC_INPUT_DATA_LINES		(ADC_DATA_LINES),
 	
-	.oVAR_ATTEN					(VAR_ATTEN),
+	//.oVAR_ATTEN					(VAR_ATTEN),
 	
 	.itxTrig					(trigLines_txAdc[0]),
 	.otxTrigAck					(trigLines_txAdc[1]),
@@ -233,9 +233,10 @@ Output_Control_Module_PIO u3(
 	.itxControlComms					(tx_pio_reg[0]), // tx_pio_reg0
 	
 	// static settings
-	.itxIOLineOutputRestLevels			(tx_pio_reg[1][31:16]),
-	.itxTransducerOutputIsActive		(tx_pio_reg[1][15:8]),	// tx_pio_reg1
 	.itxBoardIdentifiers				(tx_pio_reg[1][7:0]),	// tx_pio_reg1
+	.itxTransducerOutputIsActive		(tx_pio_reg[1][15:8]),	// tx_pio_reg1
+	.itxIOLineOutputRestLevels			(tx_pio_reg[1][20:16]),
+	.itxVarAttenRestLevel				(tx_pio_reg[1][21]),
 	
 	.itxPioCommands						(tx_pio_reg[2]), // tx_pio_reg2
 	
@@ -249,7 +250,9 @@ Output_Control_Module_PIO u3(
 	
 	.itxRecvTrigDelay					(tx_pio_reg[8]),
 	
-	.itxIOLineOutputDurationAndDelay	(tx_pio_reg[24:9]),	// tx_pio_reg9-24	
+	.itxVarAttenOutputDurationAndDelay	(tx_pio_reg[9]),
+	
+	.itxIOLineOutputDurationAndDelay	(tx_pio_reg[14:10]),	// tx_pio_reg9-24
 	.itxTimeUntilNextInterrupt			(tx_pio_reg[26:25]),
 	
 	.itxExternalTrigger					(EXTERNAL_TRIGGER_INPUT),
@@ -258,6 +261,8 @@ Output_Control_Module_PIO u3(
 	
 	.otxIOLineOutput					(IO_LINE_OUTPUTS),
 	.itxIOLineInput						(IO_LINE_INPUTS),
+	
+	.oVAR_ATTEN							(VAR_ATTEN),
 	
 	.itxADCTriggerAck					(trigLines_txAdc[1]),
 	.otxADCTriggerLine					(trigLines_txAdc[0]),

@@ -44,88 +44,103 @@ end
 always @(posedge clk)
 begin
 
-	if( !rst & !dangerCntr[9] & isActive )
+	if( isActive )
 	begin
 	
-		if( transducerOutput_reg )
+		if( !rst & !dangerCntr[9] )
 		begin
-			dangerCntr <= dangerCntr + 1'b1;
+		
+			if( transducerOutput_reg )
+			begin
+				dangerCntr <= dangerCntr + 1'b1;
+			end
+			else
+			begin
+				if( dangerCntr ) dangerCntr <= 10'b0;
+			end
+			
+			if( onYourMark & !GOGOGO_EXCLAMATION & !state[0] )
+			begin
+				state[0] <= 1'b1;
+			end
+			
+			if( onYourMark & GOGOGO_EXCLAMATION & !state[1] )
+			begin
+				state[1] <= 1'b1;
+			end
+			
+			case( state )
+				MARK:
+					begin
+						pd <= phaseDelay;
+						ct <= chargeTime;
+						if( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
+					end
+					
+				UNMARKED_GO:
+					begin
+						pd <= phaseDelay;
+						ct <= chargeTime;
+						if( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
+						if( onYourMark ) state[0] <= 1'b1;
+					end
+					
+				GOGOGO:
+					begin
+						if( pd )
+						begin
+							pd <= pd - 1'b1;
+						end
+						else if ( ct )
+						begin
+							if( !transducerOutput_reg ) transducerOutput_reg <= 1'b1;
+							ct <= ct - 1'b1;
+						end
+						else
+						begin
+							if( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
+							if( !fireComplete_reg ) fireComplete_reg <= 1'b1;
+						end
+					end
+					
+				default:
+					begin
+						if( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
+						if( fireComplete_reg ) fireComplete_reg <= 1'b0;
+					end
+					
+			endcase
+			
 		end
 		else
 		begin
-			if( dangerCntr ) dangerCntr <= 10'b0;
-		end
 		
-		if( onYourMark & !GOGOGO_EXCLAMATION & !state[0] )
-		begin
-			state[0] <= 1'b1;
+			if ( state ) state <= 2'b0;
+			if ( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
+			
+			if ( dangerCntr[9] )
+			begin
+				warning_reg <= 1'b1;
+				fireComplete_reg <= 1'b1;
+			end	
+			else if ( rst )
+			begin
+				if( dangerCntr ) dangerCntr <= 10'b0;
+				if( warning_reg ) warning_reg <= 1'b0;
+				if( fireComplete_reg ) fireComplete_reg <= 1'b0;
+			end
+			
 		end
-		
-		if( onYourMark & GOGOGO_EXCLAMATION & !state[1] )
-		begin
-			state[1] <= 1'b1;
-		end
-		
-		case( state )
-			MARK:
-				begin
-					pd <= phaseDelay;
-					ct <= chargeTime;
-					if( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
-				end
-				
-			UNMARKED_GO:
-				begin
-					pd <= phaseDelay;
-					ct <= chargeTime;
-					if( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
-					if( onYourMark ) state[0] <= 1'b1;
-				end
-				
-			GOGOGO:
-				begin
-					if( pd )
-					begin
-						pd <= pd - 1'b1;
-					end
-					else if ( ct )
-					begin
-						if( !transducerOutput_reg ) transducerOutput_reg <= 1'b1;
-						ct <= ct - 1'b1;
-					end
-					else
-					begin
-						if( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
-						if( !fireComplete_reg ) fireComplete_reg <= 1'b1;
-					end
-				end
-				
-			default:
-				begin
-					if( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
-					if( fireComplete_reg ) fireComplete_reg <= 1'b0;
-				end
-				
-		endcase
 		
 	end
 	else
 	begin
 	
 		if ( state ) state <= 2'b0;
-		if ( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
+		if( dangerCntr ) dangerCntr <= 10'b0;
+		if( warning_reg ) warning_reg <= 1'b0;
+		if( !fireComplete_reg ) fireComplete_reg <= 1'b1;
 		
-		if ( dangerCntr[9] )
-		begin
-			warning_reg <= 1'b1;
-			fireComplete_reg <= 1'b1;
-		end	
-		else if ( rst | !isActive )
-		begin
-			if( dangerCntr ) dangerCntr <= 10'b0;
-			if( warning_reg ) warning_reg <= 1'b0;
-			if( fireComplete_reg ) fireComplete_reg <= 1'b0;
-		end
 	end
 	
 end

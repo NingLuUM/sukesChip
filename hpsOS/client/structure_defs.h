@@ -16,6 +16,7 @@ union TXpioreg5_;
 union TXpioreg6_;
 union TXpioreg7_;
 union TXpioreg8_;
+union TXpioreg9_;
 union TXtrigtimings_;
 union TXpioreg2526_;
 struct TXpiocmd_;
@@ -36,6 +37,7 @@ typedef union TXpioreg5_ TXpioreg5_t;
 typedef union TXpioreg6_ TXpioreg6_t;
 typedef union TXpioreg7_ TXpioreg7_t;
 typedef union TXpioreg8_ TXpioreg8_t;
+typedef union TXpioreg9_ TXpioreg9_t;
 typedef union TXtrigtimings_ TXtrigtimings_t;
 typedef union TXpioreg2526_ TXpioreg2526_t;
 typedef struct TXpiocmd_ TXpiocmd_t;
@@ -62,6 +64,7 @@ void adcSetFilterBW(ADCvars_t *ADC, uint32_t filter);
 void adcSetInternalAcCoupling(ADCvars_t *ADC, uint32_t accoupling);
 void adcIssueDirectCmd(ADCvars_t *ADC, FMSG_t *msg);
 void adcSetDefaultSettings(ADCvars_t *ADC);
+void adcDisableClamp(ADCvars_t *ADC, uint32_t clampVal);
 void adcSync(ADCvars_t *ADC);
 void adcInitializerSequence(ADCvars_t *ADC);
 
@@ -70,9 +73,11 @@ int txProgramExecutionHandler(TXsys_t *TX);
 void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner);
 void txSetControlState(TXsys_t *TX, uint32_t control_state);
 void txSetTrigRestLvls(TXsys_t *TX, uint32_t trigRestLvls);
+void txSetVarAttenRestLvl(TXsys_t *TX, uint32_t varAttenRestLvl);
 void txSetActiveTransducers(TXsys_t *TX, uint32_t activeTransducers);
 
 void txSetTrigs(TXsys_t *TX);
+void txSetVarAtten(TXsys_t *TX);
 void txSetChargeTime(TXsys_t *TX);
 void txSetFireCmdDelay(TXsys_t *TX);
 void txSetPhaseDelay(TXsys_t *TX);
@@ -89,6 +94,7 @@ void txMakeSteeringLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, ui
 void txMakeSteeringLoopEnd(TXsys_t *TX);
 void txMakePioCmd(TXsys_t *TX);
 void txBufferTrigTimingCmd(TXsys_t *TX, uint32_t *trigs);
+void txBufferVarAttenTimingCmd(TXsys_t *TX, uint32_t duration, uint32_t delay);
 void txBufferChargeTimeCmd(TXsys_t *TX, uint32_t chargeTime);
 void txBufferFireDelayCmd(TXsys_t *TX, uint32_t fireDelay);
 void txBufferPhaseDelayCmd(TXsys_t *TX, uint16_t *phaseDelays);
@@ -143,7 +149,6 @@ typedef struct FPGAvars_{ // structure to hold variables that are mapped to the 
 typedef struct ADCvars_{
     // shared with RCVsys	
 	uint32_t volatile *controlComms;
-
 	uint32_t volatile *serialCommand;
 	
     GPREG0_t gpreg0;
@@ -190,6 +195,8 @@ typedef struct ADCvars_{
     void (*issueDirectCommand)(ADCvars_t *,FMSG_t *);
     void (*sync)(ADCvars_t *);
     void (*initialize)(ADCvars_t *);
+    void (*disableClamp)(ADCvars_t *, uint32_t);
+
 } ADCvars_t;
 
 
@@ -269,6 +276,7 @@ typedef struct TXpiocmd_{
     TXpioreg6_t reg6;
     TXpioreg7_t reg7;
     TXpioreg8_t reg8;
+    TXpioreg9_t reg9;
     
     uint32_t startIdx;
     uint32_t endIdx;
@@ -298,25 +306,17 @@ typedef struct TXpiocmd_{
             uint32_t setTrig2 : 1;
             uint32_t setTrig3 : 1;
             uint32_t setTrig4 : 1;
-            uint32_t setTrig5 : 1;
-            uint32_t setTrig6 : 1;
-            uint32_t setTrig7 : 1;
-            uint32_t setTrig8 : 1;
-            uint32_t setTrig9 : 1;
-            uint32_t setTrig10 : 1;
-            uint32_t setTrig11 : 1;
-            uint32_t setTrig12 : 1;
-            uint32_t setTrig13 : 1;
-            uint32_t setTrig14 : 1;
-            uint32_t setTrig15 : 1;
+            
+            uint32_t setVarAtten : 1;
 
-            uint32_t blnkFlags : 2;
+            uint32_t blnkFlags : 12;
         };
         struct{
             uint32_t isFlags : 7;
             uint32_t nextFlags : 7;
-            uint32_t trigFlags : 16;
-            uint32_t blnkFlags2 : 2;
+            uint32_t trigFlags : 5;
+            uint32_t varAttenFlag : 1;
+            uint32_t blnkFlags2 : 12;
         };
         struct{
             uint32_t hasNonWaitCmds : 6;
@@ -326,7 +326,7 @@ typedef struct TXpiocmd_{
     } flags;
     
     TXpioreg2526_t reg25_26;
-    TXtrigtimings_t *reg9_24;
+    TXtrigtimings_t *reg10_14;
     
     TXpiocmd_t *top;
     TXpiocmd_t *prev;
@@ -349,9 +349,9 @@ typedef struct TXsys_{
     TXpioreg6_t reg6;
     TXpioreg7_t reg7;
     TXpioreg8_t reg8;
+    TXpioreg9_t reg9;
 
-    TXtrigtimings_t *reg9_24; // trig/led durations and delays
-	
+    TXtrigtimings_t *reg10_14; // trig/led durations and delays
     TXpioreg2526_t reg25_26;
 		
 	uint32_t **pio_reg;
@@ -371,9 +371,11 @@ typedef struct TXsys_{
     void (*enetMsgHandler)(TXsys_t *, FMSG_t *, int, int *);
     void (*setControlState)(TXsys_t *, uint32_t);
     void (*setTrigRestLvls)(TXsys_t *, uint32_t);
+    void (*setVarAttenRestLvl)(TXsys_t *, uint32_t);
     void (*setActiveTransducers)(TXsys_t *, uint32_t);
     
     void (*setTrigs)(TXsys_t *);
+    void (*setVarAtten)(TXsys_t *);
     void (*setChargeTime)(TXsys_t *);
     void (*setFireCmdDelay)(TXsys_t *);
     void (*setPhaseDelay)(TXsys_t *);
@@ -391,6 +393,7 @@ typedef struct TXsys_{
     void (*makePioCmd)(TXsys_t *);
 
     void (*bufferTrigTimings)(TXsys_t *, uint32_t *);
+    void (*bufferVarAttenTiming)(TXsys_t *, uint32_t, uint32_t);
     void (*bufferChargeTime)(TXsys_t *, uint32_t);
     void (*bufferFireCmd)(TXsys_t *, uint32_t);
     void (*bufferPhaseDelays)(TXsys_t *, uint16_t *);
@@ -402,7 +405,6 @@ typedef struct TXsys_{
 
     void (*setNumSteeringLocs)(TXsys_t *, uint32_t);
     void (*storePhaseDelays)(TXsys_t *, int, FMSG_t *);
-
 
 } TXsys_t;
 

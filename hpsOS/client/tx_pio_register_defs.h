@@ -14,7 +14,9 @@ typedef union TXpioreg1_{ // reg1: trig/led rest levels and transducer output ma
         uint32_t isExternallyTriggered : 1;
         uint32_t blnk : 5;
         uint32_t activeTransducers : 8;
-        uint32_t trigRestLvls : 16;
+        uint32_t trigRestLvls : 5;
+        uint32_t varAttenRestLvl : 1;
+        uint32_t blnk10 : 10;
     };
     uint32_t all;
 } TXpioreg1_t;
@@ -26,10 +28,11 @@ typedef union TXpioreg2_{ // reg2: pioCommands
         uint32_t set_trig_leds : 1;
         uint32_t issue_rcv_trig : 1;
         uint32_t fire : 1;
+        uint32_t set_var_atten : 1;
         uint32_t set_async_wait : 1;
         uint32_t set_amp : 1;
         uint32_t set_phase : 1;
-        uint32_t blnk6_13 : 7;
+        uint32_t blnk7_13 : 6;
         uint32_t reset_rcv_trig : 1;
         uint32_t reset_interrupt : 1;
         uint32_t new_cmd_flag : 1;
@@ -88,6 +91,14 @@ typedef union TXpioreg8_{ // reg7: tranducer chargetime & fire cmd delay
     uint32_t recvTrigDelay;
     uint32_t all;
 } TXpioreg8_t;
+
+typedef union TXpioreg9_{
+    struct{
+        uint32_t duration : 16;
+        uint32_t delay : 16;
+    };
+    uint32_t all;
+} TXpioreg9_t;
 
 typedef union TXtrigtimings_{
     struct{

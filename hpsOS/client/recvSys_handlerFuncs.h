@@ -232,6 +232,14 @@ void rcvSysMsgHandler(RCVsys_t *RCV, FMSG_t *msg, int *runner){
             break;
         }
 
+        case(CASE_ADC_DISABLE_CLAMP):{
+            RCV->ADC->disableClamp(RCV->ADC,msg->u[1]);
+            if ( send(RCV->comm_sock->fd,&(RCV->npulses),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
+                printf("adc clamp disable state set successfully\n");
+            }
+            break;
+        }
+
         case(CASE_EXIT_PROGRAM):{
             *runner=0;
             break;
@@ -262,16 +270,4 @@ void rcvSysMsgHandler(RCVsys_t *RCV, FMSG_t *msg, int *runner){
 }
 
 
-void controlMsgHandler(POLLserver_t *PS, FMSG_t *msg, int *runner){
-
-    switch(msg->u[0]){
-        case(CASE_ADD_DATA_SOCKET):{
-            break;
-        }
-        
-        default:{
-            break;
-        }
-    }
-}
 

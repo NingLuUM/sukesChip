@@ -3,7 +3,9 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
 
     static uint32_t printMsgs = 0;
     static uint32_t currentTimer;
-    static TXtrigtimings_t trigs[16];
+    static uint32_t innerTimer;
+
+    static TXtrigtimings_t trigs[5];
     static int cmdCntr;
     TXpioreg2526_t timerVal;
     timerVal.all = 0;
@@ -15,7 +17,6 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
     
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
-
 
     switch(msg->u[0]){
         case(CASE_TX_SET_CONTROL_STATE):{
@@ -34,6 +35,14 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             break;
         }
 
+        case(CASE_TX_SET_VAR_ATTEN_REST_LVL):{
+            TX->setVarAttenRestLvl(TX,msg->u[1]);
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
+                printf("var atten rest lvl set successfully\n");
+            }
+            break;
+        }
+
         case(CASE_TX_SET_ACTIVE_TRANSDUCERS):{
             TX->setActiveTransducers(TX,msg->u[1]);
             if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
@@ -44,7 +53,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
 
         case(CASE_TX_MAKE_PIO_CMD):{
             currentTimer = 0;
-            for(int i=0;i<16;i++){
+            for(int i=0;i<5;i++){
                 trigs[i].all = 0;
             }
             if( cmd->flags.all && cmd->flags.isFlags ){ 
@@ -61,7 +70,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             timeOutVal = currentTimer;
             TX->bufferAsyncWait(TX,timeOutVal);
             TX->addCmd(TX);
-            for(int i=0;i<16;i++){
+            for(int i=0;i<5;i++){
                 trigs[i].all = 0;
             }
             cmdCntr++;
@@ -74,7 +83,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
 
         case(CASE_TX_MAKE_LOOP_START):{
             currentTimer = 0;
-            for(int i=0;i<16;i++){
+            for(int i=0;i<5;i++){
                 trigs[i].all = 0;
             }
             if( cmd->flags.all ){ 
@@ -89,7 +98,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
 
         case(CASE_TX_MAKE_LOOP_END):{
             currentTimer = 0;
-            for(int i=0;i<16;i++){
+            for(int i=0;i<5;i++){
                 trigs[i].all = 0;
             }
             if( ( cmd->flags.all && cmd->flags.hasNonWaitCmds ) || ( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ) ){ 
@@ -106,7 +115,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
 
         case(CASE_TX_MAKE_STEERING_LOOP_START):{
             currentTimer = 0;
-            for(int i=0;i<16;i++){
+            for(int i=0;i<5;i++){
                 trigs[i].all = 0;
             }
             stepSize = (msg->u[3]) ? msg->u[3] : 1;
@@ -122,7 +131,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
 
         case(CASE_TX_MAKE_STEERING_LOOP_END):{
             currentTimer = 0;
-            for(int i=0;i<16;i++){
+            for(int i=0;i<5;i++){
                 trigs[i].all = 0;
             }
             if( ( cmd->flags.all && cmd->flags.hasNonWaitCmds ) || ( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ) ){ 
@@ -139,7 +148,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
 
         case(CASE_TX_BUFFER_TRIG_TIMINGS):{
             for(int i=1; i<ncmds; i+=2){
-                if( ( msg->u[i] ) && ( (msg->u[i])<17 ) ){
+                if( ( msg->u[i] ) && ( (msg->u[i])<6 ) ){
                     trigs[msg->u[i]-1].duration = msg->u[i+1];
                     trigs[msg->u[i]-1].delay = currentTimer;
                 }
@@ -151,7 +160,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             TX->bufferTrigTimings(TX,&(trigs[0].all));
             if( stepSize ){ // as dummy variable
                 TX->addCmd(TX);
-                for(int i=0;i<16;i++){
+                for(int i=0;i<5;i++){
                     trigs[i].all = 0;
                 }
                 cmdCntr++;
@@ -163,12 +172,29 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             break;
         }
 
+        case(CASE_TX_BUFFER_VAR_ATTEN_TIMINGS):{
+            TX->bufferVarAttenTiming(TX,msg->u[1],currentTimer);
+            if ( !(cmd->flags.all) ){
+                TX->makePioCmd(TX);
+                TX->addCmd(TX);
+                for(int i=0;i<5;i++){
+                    trigs[i].all = 0;
+                }
+                cmdCntr++;
+                currentTimer = 0;
+            }
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
+                printf("var atten set successfully\n");
+            }
+            break;
+        }
+
         case(CASE_TX_BUFFER_CHARGE_TIME):{
             TX->bufferChargeTime(TX,msg->u[1]);
             if ( !(cmd->flags.all) ){
                 TX->makePioCmd(TX);
                 TX->addCmd(TX);
-                for(int i=0;i<16;i++){
+                for(int i=0;i<5;i++){
                     trigs[i].all = 0;
                 }
                 cmdCntr++;
@@ -186,7 +212,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             if ( !(cmd->flags.all) ){
                 TX->makePioCmd(TX);
                 TX->addCmd(TX);
-                for(int i=0;i<16;i++){
+                for(int i=0;i<5;i++){
                     trigs[i].all = 0;
                 }
                 cmdCntr++;
@@ -203,7 +229,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             if ( !(cmd->flags.all) ){
                 TX->makePioCmd(TX);
                 TX->addCmd(TX);
-                for(int i=0;i<16;i++){
+                for(int i=0;i<5;i++){
                     trigs[i].all = 0;
                 }
                 cmdCntr++;
@@ -220,7 +246,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             if ( !(cmd->flags.all) ){
                 TX->makePioCmd(TX);
                 TX->addCmd(TX);
-                for(int i=0;i<16;i++){
+                for(int i=0;i<5;i++){
                     trigs[i].all = 0;
                 }
                 cmdCntr++;
@@ -237,7 +263,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             timeOutVal = timerVal.all+currentTimer;
             if( cmd->flags.isCmd0 ){ 
                 cmdCntr++;
-                for(int i=0;i<16;i++){
+                for(int i=0;i<5;i++){
                     trigs[i].all = 0;
                 }
             }
@@ -278,7 +304,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             if ( !(cmd->flags.all) ){
                 TX->makePioCmd(TX);
                 TX->addCmd(TX);
-                for(int i=0;i<16;i++){
+                for(int i=0;i<5;i++){
                     trigs[i].all = 0;
                 }
                 cmdCntr++;

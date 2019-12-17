@@ -12,12 +12,11 @@ module Output_Control_Module_PIO (
 	// static settings for outputs	
 	input	[7:0]			itxBoardIdentifiers,			// pio_tx_reg1
 	input	[7:0]			itxTransducerOutputIsActive,	// pio_tx_reg1
-	input	[15:0]			itxIOLineOutputRestLevels,		// pio_tx_reg1
-	
+	input	[4:0]			itxIOLineOutputRestLevels,		// pio_tx_reg1
+	input					itxVarAttenRestLevel,			// pio_tx_reg1
 	
 	input	[31:0]			itxPioCommands, 				// pio_tx_reg2
 	
-
 	// PIO output control registers
 	input	[31:0]			itxPioPhaseDelay_ch0_ch1, 		// pio_tx_reg3
 	input	[31:0]			itxPioPhaseDelay_ch2_ch3, 		// pio_tx_reg4
@@ -29,10 +28,11 @@ module Output_Control_Module_PIO (
 	
 	input	[31:0]			itxRecvTrigDelay,				// pio_tx_reg8
 	
-	input	[15:0][31:0]	itxIOLineOutputDurationAndDelay,		// pio_tx_reg9-24
+	input	[4:0][31:0]		itxIOLineOutputDurationAndDelay,		// pio_tx_reg9-24
+	input	[31:0]			itxVarAttenOutputDurationAndDelay,		// pio_tx_reg9-24
+	
 	input	[1:0][31:0]		itxTimeUntilNextInterrupt,		// pio_tx_reg25-26
 	
-
 	// input triggers and 'fast' comm lines
 	input					itxExternalTrigger,
 	
@@ -41,30 +41,15 @@ module Output_Control_Module_PIO (
 	output [4:0]			otxIOLineOutput,
 	input  [4:0]			itxIOLineInput,
 	
+	output					oVAR_ATTEN,
+	
 	input					itxADCTriggerAck,
 	output					otxADCTriggerLine,
 	
 	output reg	[31:0]		otxInterrupt
 );
 
-/**********************************************************************/
-/*** CASE VARIABLE DEFINITIONS ****************************************/
-/**********************************************************************/
-// CONTROL STATES
-parameter	[1:0]	CASE_IDLE 			= 2'b00;
-parameter	[1:0]	CASE_PIO_CONTROL	= 2'b01;
 
-// COMMANDS THAT CAN BE ISSUED THROUGH PIOs
-parameter	[15:0]	PIO_CMD_IDLE					= 16'b0000000000000000;
-parameter	[15:0]	PIO_CMD_SET_TRIG_LEDS			= 16'b0000000000000001;
-parameter	[15:0]	PIO_CMD_ISSUE_RCV_TRIG			= 16'b0000000000000010;
-parameter	[15:0]	PIO_CMD_FIRE 					= 16'b0000000000000100;
-parameter	[15:0]	PIO_CMD_TIME_UNTIL_INTERRUPT	= 16'b0000000000001000;
-parameter	[15:0]	PIO_CMD_SET_AMP		 			= 16'b0000000000010000;
-parameter	[15:0]	PIO_CMD_SET_PHASE	 			= 16'b0000000000100000;
-parameter	[15:0]	PIO_CMD_RESET_RCV_TRIG			= 16'b0010000000000000;
-parameter	[15:0]	PIO_CMD_RESET_INTERRUPT			= 16'b0100000000000000;
-parameter	[15:0]	PIO_CMD_NEW_COMMAND_FLAG		= 16'b1000000000000000;
 
 /**********************************************************************/
 /*** TX CONTROL REGISTER(S) *******************************************/
@@ -91,6 +76,11 @@ assign itxIOLineOutputDuration[3] 	= itxIOLineOutputDurationAndDelay[3][10:0];
 assign itxIOLineOutputDelay[3] 		= itxIOLineOutputDurationAndDelay[3][31:11];
 assign itxIOLineOutputDuration[4] 	= itxIOLineOutputDurationAndDelay[4][10:0];
 assign itxIOLineOutputDelay[4] 		= itxIOLineOutputDurationAndDelay[4][31:11];
+
+wire [15:0] varAttenDuration;
+wire [15:0] varAttenDelay;
+assign varAttenRestLvl = itxVarAttenOutputDurationAndDelay[15:0];
+assign varAttenDuration = itxVarAttenOutputDurationAndDelay[31:16];
 
 
 // needs to know if its master so it doesn't issue 'otxWaitForMe'
@@ -127,12 +117,35 @@ reg					ioLineOutputFlag;
 reg					ioLineOutputReset;
 wire [4:0]			ioLineOutputComplete;
 
+reg					varAttenOutputFlag;
+reg					varAttenOutputReset;
+wire				varAttenOutputComplete;
+
 reg	fireDelayTimerFlag;
 reg	recvTrigTimerFlag;
 reg	interruptRequestTimerFlag;
 reg	txResetFlag;
 reg	ioLineOutputStop;
 
+/**********************************************************************/
+/*** CASE VARIABLE DEFINITIONS ****************************************/
+/**********************************************************************/
+// CONTROL STATES
+parameter	[1:0]	CASE_IDLE 			= 2'b00;
+parameter	[1:0]	CASE_PIO_CONTROL	= 2'b01;
+
+// COMMANDS THAT CAN BE ISSUED THROUGH PIOs
+parameter	[15:0]	PIO_CMD_IDLE					= 16'b0000000000000000;
+parameter	[15:0]	PIO_CMD_SET_TRIG_LEDS			= 16'b0000000000000001;
+parameter	[15:0]	PIO_CMD_ISSUE_RCV_TRIG			= 16'b0000000000000010;
+parameter	[15:0]	PIO_CMD_FIRE 					= 16'b0000000000000100;
+parameter	[15:0]	PIO_CMD_SET_VAR_ATTEN			= 16'b0000000000001000;
+parameter	[15:0]	PIO_CMD_TIME_UNTIL_INTERRUPT	= 16'b0000000000010000;
+parameter	[15:0]	PIO_CMD_SET_AMP		 			= 16'b0000000000100000;
+parameter	[15:0]	PIO_CMD_SET_PHASE	 			= 16'b0000000001000000;
+parameter	[15:0]	PIO_CMD_RESET_RCV_TRIG			= 16'b0010000000000000;
+parameter	[15:0]	PIO_CMD_RESET_INTERRUPT			= 16'b0100000000000000;
+parameter	[15:0]	PIO_CMD_NEW_COMMAND_FLAG		= 16'b1000000000000000;
 
 initial
 begin
@@ -150,6 +163,7 @@ begin
 	fireFlag = 1'b0;
 	fireDelayTimerFlag = 1'b0;
 	ioLineOutputFlag = 1'b0;
+	varAttenOutputFlag = 1'b0;
 	recvTrigTimerFlag = 1'b0;
 	txResetFlag = 1'b0;
 	interruptRequestTimerFlag = 1'b0;
@@ -161,6 +175,7 @@ begin
 	
 	fireReset = 1'b1;
 	ioLineOutputReset = 1'b1;
+	varAttenOutputReset = 1'b1;
 	
 	ioLineOutputStop = 1'b0;
 	
@@ -175,7 +190,7 @@ end
 
 always @(posedge txCLK)
 begin
-	if( transducer_is_active ^ itxTransducerOutputIsActive ) transducer_is_active <= itxTransducerOutputIsActive;
+	
 	if( isSolo ^ itxBoardIdentifiers[0] ) isSolo <= itxBoardIdentifiers[0];
 	if( isMaster ^ itxBoardIdentifiers[1]) isMaster <= itxBoardIdentifiers[1];
 	if( isExternallyTriggered ^ itxBoardIdentifiers[2] ) isExternallyTriggered <= itxBoardIdentifiers[2];
@@ -183,20 +198,15 @@ begin
 	case ( control_state )
 		CASE_IDLE:
 			begin
-				transducer_is_active <= 8'b0;
-				transducer_chargetime <= 9'b0;
-				transducer_phasedelay[0] <= 16'b0;
-				transducer_phasedelay[1] <= 16'b0;
-				transducer_phasedelay[2] <= 16'b0;
-				transducer_phasedelay[3] <= 16'b0;
-				transducer_phasedelay[4] <= 16'b0;
-				transducer_phasedelay[5] <= 16'b0;
-				transducer_phasedelay[6] <= 16'b0;
-				transducer_phasedelay[7] <= 16'b0;
+				if( transducer_is_active ^ itxTransducerOutputIsActive )
+				begin
+					transducer_is_active <= itxTransducerOutputIsActive;
+				end
 				
 				fireFlag <= 1'b0;
 				fireDelayTimerFlag <= 1'b0;
 				ioLineOutputFlag <= 1'b0;
+				varAttenOutputFlag <= 1'b0;
 				recvTrigTimerFlag <= 1'b0;
 				txResetFlag <= 1'b0;
 				interruptRequestTimerFlag <= 1'b0;
@@ -208,6 +218,7 @@ begin
 				
 				fireReset <= 1'b1;
 				ioLineOutputReset <= 1'b1;
+				varAttenOutputReset <= 1'b1;
 				
 				ioLineOutputStop <= 1'b0;
 				
@@ -230,12 +241,12 @@ begin
 					if ( pio_output_commands ^ pio_cmd_previous ) 
 					begin
 						pio_cmd_previous <= pio_output_commands;
-						otxInterrupt[31:16] <= pio_output_commands;
+						//otxInterrupt[31:16] <= pio_output_commands;
 						otxInterrupt[1] <= 1'b1;
 						/******************************************************/
 						/*** GENERATE INTERRUPT *******************************/
 						/******************************************************/
-						if ( pio_output_commands & 16'b0000000000001111 ) 
+						if ( pio_output_commands & 16'b0000000000011111 ) 
 						begin
 							txResetFlag <= 1'b1;
 							otxInterrupt[2] <= 1'b1;
@@ -244,7 +255,7 @@ begin
 						/******************************************************/
 						/*** INTERNAL TRIGGER FOR SOLO BOARDS *****************/
 						/******************************************************/
-						if ( pio_output_commands & 16'b0000000000000111 )
+						if ( pio_output_commands & 16'b0000000000001111 )
 						begin
 							if ( isSolo & !isExternallyTriggered )
 							begin
@@ -305,6 +316,15 @@ begin
 							ioLineOutputFlag <= 1'b1;
 							ioLineOutputReset <= 1'b0;
 							otxInterrupt[7] <= 1'b1;
+						end
+						
+						/******************************************************/
+						/*** SET TRIGS AND FROM PIO COMMAND *******************/
+						/******************************************************/
+						if( ( pio_output_commands & PIO_CMD_SET_VAR_ATTEN ) && !varAttenOutputFlag )
+						begin
+							varAttenOutputFlag <= 1'b1;
+							varAttenOutputReset <= 1'b0;
 						end
 						
 						/******************************************************/
@@ -387,12 +407,19 @@ begin
 								fireDelayTimerFlag <= 1'b0;
 								otxInterrupt[9] <= 1'b1;
 							end
+							if( otxInterrupt[23:16]^fireComplete ) otxInterrupt[23:16] <= fireComplete;
+							if( otxInterrupt[24]^fireReset) otxInterrupt[24] <= fireReset;
 						end
 						else if ( ( fireComplete == 8'b11111111 ) && !fireReset )
 						begin
 							fireFlag <= 1'b0;
 							fireReset <= 1'b1;
 							otxInterrupt[10] <= 1'b1;
+						end
+						else
+						begin
+							if( otxInterrupt[23:16] ^ fireComplete ) otxInterrupt[23:16] <= fireComplete;
+							if( otxInterrupt[24]^fireReset) otxInterrupt[24] <= fireReset;
 						end
 						
 						/******************************************************/
@@ -403,6 +430,24 @@ begin
 							ioLineOutputFlag <= 1'b0;
 							ioLineOutputReset <= 1'b1;
 							otxInterrupt[11] <= 1'b1;
+						end
+						else
+						begin
+							if (otxInterrupt[29:25]^ioLineOutputComplete) otxInterrupt[29:25] <= ioLineOutputComplete;
+							if( otxInterrupt[30]^ioLineOutputReset) otxInterrupt[30] <= ioLineOutputReset;
+						end
+						
+						/******************************************************/
+						/*** NO NEW FIRE CMDS UNTIL PREVIOUS FIRE COMPLETE ****/
+						/******************************************************/
+						if ( ( varAttenOutputComplete == 1'b1 ) && !varAttenOutputReset )
+						begin
+							varAttenOutputFlag <= 1'b0;
+							varAttenOutputReset <= 1'b1;
+						end
+						else
+						begin
+							if( otxInterrupt[31] ^ varAttenOutputReset ) otxInterrupt[31] <= varAttenOutputReset;
 						end
 						
 						/******************************************************/
@@ -428,7 +473,7 @@ begin
 						/******************************************************/
 						/*** SIGNAL ARM THAT SYNCHRONOUS COMMANDS FINISHED ****/
 						/******************************************************/
-						if ( ( ioLineOutputReset & fireReset & txResetFlag & !recvTrigTimerFlag ) && !time_until_next_interrupt && !adcTrigFlag )
+						if ( ( ioLineOutputReset & varAttenOutputReset & fireReset & txResetFlag & !recvTrigTimerFlag ) && !time_until_next_interrupt && !adcTrigFlag )
 						begin
 							if( !otxInterrupt[0] ) otxInterrupt[0] <= 1'b1;
 						end
@@ -457,6 +502,7 @@ begin
 					fireFlag <= 1'b0;
 					fireDelayTimerFlag <= 1'b0;
 					ioLineOutputFlag <= 1'b0;
+					varAttenOutputFlag <= 1'b0;
 					recvTrigTimerFlag <= 1'b0;
 					txResetFlag <= 1'b0;
 					interruptRequestTimerFlag <= 1'b0;
@@ -468,6 +514,7 @@ begin
 					
 					fireReset <= 1'b1;
 					ioLineOutputReset <= 1'b1;
+					varAttenOutputReset <= 1'b1;
 					
 					ioLineOutputStop <= 1'b1;
 					
@@ -498,6 +545,7 @@ begin
 				fireFlag <= 1'b0;
 				fireDelayTimerFlag <= 1'b0;
 				ioLineOutputFlag <= 1'b0;
+				varAttenOutputFlag <= 1'b0;
 				recvTrigTimerFlag <= 1'b0;
 				txResetFlag <= 1'b0;
 				interruptRequestTimerFlag <= 1'b0;
@@ -509,6 +557,7 @@ begin
 				
 				fireReset <= 1'b1;
 				ioLineOutputReset <= 1'b1;
+				varAttenOutputReset <= 1'b1;
 				
 				ioLineOutputStop <= 1'b0;
 				
@@ -714,6 +763,24 @@ ioOutputLine_ControlModule tl4(
 	
 	.outputState(otxIOLineOutput[4]),
 	.outputComplete(ioLineOutputComplete[4]),
+	
+	.hardStop(ioLineOutputStop)
+);
+
+ioVarAtten_ControlModule va0(
+	.clk(txCLK),
+	.rst(varAttenOutputReset),
+	
+	.restLevel(itxVarAttenRestLevel),
+	
+	.onYourMark(varAttenOutputFlag),
+	.GOGOGO_EXCLAMATION(triggerSignal),
+	
+	.duration(varAttenDuration),
+	.delay(varAttenDelay),
+	
+	.outputState(oVAR_ATTEN),
+	.outputComplete(varAttenOutputComplete),
 	
 	.hardStop(ioLineOutputStop)
 );

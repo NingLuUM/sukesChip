@@ -5,8 +5,9 @@ import struct
 import time
 #~ import select
 import numpy as np
-import matplotlib.pyplot as plt
 
+import matplotlib.pyplot as plt
+import subprocess
 import os
 import signal
 
@@ -27,7 +28,12 @@ class transmitter():
 		msg = struct.pack(self.cmsg,self.CASE_TX_SET_TRIG_REST_LVLS,rstLvls,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
-		
+	
+	def setVarAttenRestLvl(self,rstLvl=0):
+		msg = struct.pack(self.cmsg,self.CASE_TX_SET_VAR_ATTEN_REST_LVL,rstLvl,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+			
 	def setActiveTransducers(self,activeTrans = 0):
 		msg = struct.pack(self.cmsg,self.CASE_TX_SET_ACTIVE_TRANSDUCERS,activeTrans,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
@@ -66,6 +72,12 @@ class transmitter():
 	def setTrig(self,trigN=0,duration_us=0):
 		duration = np.uint32(duration_us*100)
 		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_TRIG_TIMINGS,trigN,duration,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+		
+	def setVarAtten(self,duration_us=0):
+		duration = np.uint32(duration_us*100)
+		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_VAR_ATTEN_TIMINGS,duration,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
@@ -164,6 +176,9 @@ class transmitter():
 		self.CASE_TX_WAIT_CMD = 16
 		self.CASE_TX_SET_NSTEERING_LOCS = 17
 		self.CASE_TX_CONNECT_INTERRUPT = 18
+		self.CASE_TX_SET_EXTERNAL_TRIGGER_MODE = 19
+		self.CASE_TX_BUFFER_VAR_ATTEN_TIMINGS = 20
+		self.CASE_TX_SET_VAR_ATTEN_REST_LVL = 21
 		self.CASE_EXIT_PROGRAM = 100
 		
 		# ethernet sockets for transferring data to/from arm
@@ -193,12 +208,16 @@ class receiver():
 	def activateRecvr(self):
 		self.pid = os.fork()
 		if (self.pid == 0):
+			#~ self.pt = subprocess.Popen(['gnuplot','-e','-p'],shell=True,stdin=subprocess.PIPE,)
+			#~ self.pt.stdin.write("set term x11 size 650,650 font 'Helvetica,16'\n")
 			self.connectRcvDataSock()
 			n=0
 			while n<self.nplotpulses:
 				self.queryData()
 				n+=1
 			os._exit(0)
+			
+
 			
 		else:
 			self.stateReset(0)
@@ -233,6 +252,7 @@ class receiver():
 			self.recLen = 2048
 			print 'max duration = ', np.round(self.MAX_RECLEN/self.ADC_CLK,2)
 		self.cmsg4 = '{}{}{}{}'.format(self.recLen,'q',self.recLen,'I')
+		
 		msg = struct.pack(self.cmsg,self.CASE_RCV_SET_RECLEN,self.recLen,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)	
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
@@ -286,7 +306,28 @@ class receiver():
 			self.nrows = nrows
 		if ncols > 0:
 			self.ncols = ncols
+	
+	def plotDatasRealTime(self,datas):
 		
+		print 'npulses',self.npulses
+		
+		if self.samplingMode:
+			clockDiv = (self.clockDiv+1.0)
+		else:
+			clockDiv = 1
+			
+		t = np.linspace(0,self.recLen/self.ADC_CLK*clockDiv,self.recLen)
+		
+		dd = np.zeros((self.recLen,9))
+		dd[:,0] = t
+		for npls in range(0,self.npulses):
+			dd[:,npls+1] = datas[npls*self.recLen:(npls+1)*self.recLen,0]/clockDiv
+		
+		np.savetxt("fdata.dat",dd,delimiter=' ')
+		
+		self.pt.stdin.write("plot 'fdata.dat' u 1:8 w lines noti\n")
+		
+			
 	def plotDatas(self,datas):
 		
 		print 'npulses',self.npulses
@@ -311,7 +352,7 @@ class receiver():
 			for nc in range(0,self.ncols):
 				for nr in range(0,self.nrows):	
 					for npls in range(0,self.npulses):
-						ax[nr,nc].plot(t+npls*t[-1],datas[npls*self.recLen:(npls+1)*self.recLen,n]/clockDiv,'-o')
+						ax[nr,nc].plot(t+npls*t[-1],datas[npls*self.recLen:(npls+1)*self.recLen,n]/clockDiv,'-')
 						pk2pk = (np.max(datas[npls*self.recLen:(npls+1)*self.recLen,n])-np.min(datas[npls*self.recLen:(npls+1)*self.recLen,n]))/clockDiv
 					ax[nr,nc].set_title('{}{}{}{}'.format('Ch[',n,'], pk-pk ',pk2pk))
 					ax[nr,nc].set_ylim((self.ylims[0],self.ylims[1]))
@@ -540,9 +581,23 @@ class receiver():
 		msg = struct.pack(self.cmsg,self.CASE_ADC_SET_POWER_ON_OFF,power_up,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
-				
+	
+	def disableAdcClamp(self):
+		self.clampVal = 1
+		msg = struct.pack(self.cmsg,self.CASE_ADC_DISABLE_CLAMP,self.clampVal,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+	
+	def enableAdcClamp(self):
+		self.clampVal = 0	
+		msg = struct.pack(self.cmsg,self.CASE_ADC_DISABLE_CLAMP,self.clampVal,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+					
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3400))
+		
+		
 		
 	def connectRcvDataSock(self):
 		self.dsock.connect(('192.168.1.101',3500))
@@ -579,6 +634,7 @@ class receiver():
 		self.CASE_RCV_SET_COMPRESSOR_MODE = 19
 		self.CASE_RCV_INTERRUPT_THYSELF = 20
 		self.CASE_ADC_SET_POWER_ON_OFF = 21
+		self.CASE_ADC_DISABLE_CLAMP = 22
 		
 		self.CASE_ADC_SET_FCLOCK_DELAY = 52
 		self.CASE_EXIT_PROGRAM = 100
@@ -596,7 +652,7 @@ class receiver():
 		
 		self.allocated = 0
 		
-		
+		self.clampVal = 0
 		
 		# for allocating storage on arm/setting up enet transfer
 		self.npulses = 1
@@ -630,6 +686,7 @@ class receiver():
 		self.figheight = 18
 		self.nrows = 4
 		self.ncols = 2
+		self.pt = 0
 
 		
 		# bitwise masks to convert recv'd data if 'is16bit'==0
@@ -660,6 +717,8 @@ class receiver():
 		#	'd' = double (8bytes)
 		'''
 		
+		
+		
 
 
 r = receiver()
@@ -667,27 +726,25 @@ r.connectToFpga()
 r.resetToDefaultAdcSettings()
 r.setAutoShutdown(0)
 
-#~ r.powerDownAdc()
-#~ time.sleep(5)
-#~ r.powerUpAdc()
-
-r.powerDownAdcChannels(0b00000000)
 # can't do 'moving sum' with compression. will corrupt data
 r.setClockDivisor(1)
 r.setFclkDelay(0) # accepts values 0-5
 
 r.setSamplingMode(r.EVERY_NTH)
 r.setCompressorMode(r.RAW16)
-r.setRecLen(1000)
-
+#~ r.setRecLen(10000)
+r.setRecDuration(30.0)
+#~ r.disableAdcClamp()
+#~ r.enableAdcClamp()
 
 r.setAdcGain(0)
-r.setPioVarAtten(0)
-#~ r.setNPulses(1)
 
+#~ r.setPioVarAtten(0)
+
+#~ r.setNPulses(1)
+#~ r.setAdcInternalAcCoupling(1)
 #~ r.setAdcLowNoiseMode(0)
 #~ r.setAdcFilterBw(0)
-#~ r.setAdcInternalAcCoupling(1)
 #~ r.setAdcUnsigned(0)
 #~ r.setRamp()
 
@@ -695,8 +752,9 @@ r.setQueryMode(realTime=1,transferData=0,saveData=0)
 #~ r.plotterSetup(figheight = 15, figwidth = 10, nrows = 4, ncols = 2)
 #~ r.plotterSetup(ylims = [-200,4300], xlims = [-100,2600], figheight = 10, figwidth = 30, nrows = 4, ncols = 2)
 
-r.plotNPulses(5)
+r.plotNPulses(10)
 #~ r.powerDownAdc()
+
 r.activateRecvr()
 
 #~ r.interruptSelf(1)
@@ -706,34 +764,42 @@ r.activateRecvr()
 t = transmitter()
 t.connectToFpga()
 
-t.setTrigRestLvls(0x0000)
-t.setActiveTransducers(0xff)
+t.setTrigRestLvls(0x1f)
+#~ t.setVarAttenRestLvl(0x0)
+t.setActiveTransducers(0xf0)
 phaseDelays = np.zeros((100,8)).astype(np.uint16)
 t.uploadPhaseDelays(phaseDelays)
 
-t.startLoop(0,0,5)
+t.startLoop(0,0,10)
 if 1:
+	
 	t.startSteeringLoop(0,0,1)
 	if 1:
-		t.beginSyncCmd()
-
-		t.setChargeTime(5)
-		t.setTrig(1,10)
-		t.setTrig(2,5)
-		t.wait_us(5)
-		t.rcvData()
-		t.fire()
-		t.wait_us(5)
 		
+		t.beginSyncCmd()
+		if 1:
+			t.setChargeTime(4)
+			t.setTrig(1,10)
+			t.setTrig(2,5)
+			t.wait_us(5)		
+			t.fire()
+			t.rcvData()
+			t.wait_us(50)
+			#~ t.setTrig(1,20)
+			t.setVarAtten(duration_us=50)
+			t.wait_us(55)	
+			
 		t.endSyncCmd()
 		
 		t.async_wait_sec(0.1)
 
-	t.endSteeringLoop(0)
-	
+	t.endSteeringLoop(0)	
 t.endLoop(0)
 
+
+
 t.executeProgram()
+print 'hello'
 
 if (r.pid):
 	os.waitpid(r.pid,0)

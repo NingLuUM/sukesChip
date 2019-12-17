@@ -8,6 +8,8 @@ int txProgramExecutionHandler(TXsys_t *TX){
     phaseDelays = *(TX->phaseDelays);
     cmd = *(TX->pio_cmd_list);
 
+    //printf("tx current:\n");
+    //printBinary(cmd->reg2.pio_cmds);
     // reset the interrupt BEFORE updating command
     TX->resetTxInterrupt(TX);
     
@@ -30,6 +32,8 @@ int txProgramExecutionHandler(TXsys_t *TX){
 
     } 
     
+    //printf("tx next:\n");
+    //printBinary(cmd->next->reg2.pio_cmds);
     if ( cmd->next != NULL ) {
 
         cmd = cmd->next;    
@@ -37,6 +41,10 @@ int txProgramExecutionHandler(TXsys_t *TX){
         
         if ( cmd->reg2.set_trig_leds ) {
             TX->setTrigs(TX);
+        }
+
+        if ( cmd->reg2.set_var_atten ) {
+            TX->setVarAtten(TX);
         }
 
         if ( cmd->reg2.issue_rcv_trig ) {

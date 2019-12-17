@@ -64,8 +64,21 @@ void adcSetDefaultSettings(ADCvars_t *ADC){
     ADC->gpreg4.DFS = 1;
     ADC->issueSerialCommand(ADC,ADC->gpreg4.adccmd);
     
-    // DISABLE THE CLAMP!!!
-    ADC->gpreg70.CLAMP_DISABLE = 1;
+    // ENABLE THE CLAMP!!!
+    ADC->gpreg70.CLAMP_DISABLE = 0;
+    ADC->issueSerialCommand(ADC,ADC->gpreg70.adccmd);
+}
+
+void adcDisableClamp(ADCvars_t *ADC, uint32_t clampVal){
+	if( ADC->gpreg0.TGC_REGISTER_WREN ){
+		ADC->gpreg0.TGC_REGISTER_WREN = 0;
+		ADC->issueSerialCommand(ADC,ADC->gpreg0.adccmd);
+	}
+    if(clampVal){
+        ADC->gpreg70.CLAMP_DISABLE = 1;
+    } else {
+        ADC->gpreg70.CLAMP_DISABLE = 0;
+    }
     ADC->issueSerialCommand(ADC,ADC->gpreg70.adccmd);
 }
 

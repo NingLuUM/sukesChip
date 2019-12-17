@@ -2,8 +2,6 @@
 void txSetControlState(TXsys_t *TX, uint32_t control_state){
     TXpiocmd_t *cmd_list;
     cmd_list = *(TX->pio_cmd_list);
-    uint32_t **pio_reg;
-    pio_reg = TX->pio_reg;
 
     if ( control_state == 1 ) {
         cmd_list = cmd_list->top;
@@ -14,6 +12,8 @@ void txSetControlState(TXsys_t *TX, uint32_t control_state){
         */
         while ( cmd_list->next != NULL ) {
             cmd_list->reg2.new_cmd_flag = ((cmd_list->cmdNumber)%2);
+            //printf("cmd %d:",cmd_list->cmdNumber);
+            //printBinary(cmd_list->reg2.pio_cmds);
             cmd_list = cmd_list->next;
         }
         
@@ -39,11 +39,11 @@ void txSetControlState(TXsys_t *TX, uint32_t control_state){
         *(TX->pio_cmd_list) = cmd_list->top;
         
         TX->reg0.control_state = control_state;
-        DREF32(pio_reg[0]) = TX->reg0.all;
+        DREF32(TX->pio_reg[0]) = TX->reg0.all;
 
         TX->resetTxInterrupt(TX);
         TX->resetRcvTrig(TX);
-        DREF32(pio_reg[2]) = 0;
+        DREF32(TX->pio_reg[2]) = 0;
         usleep(5);
         TX->issuePioCommand(TX);
 
@@ -57,17 +57,19 @@ void txSetControlState(TXsys_t *TX, uint32_t control_state){
             TX->delCmd(TX,0);
         }
         TX->reg0.control_state = control_state;
-        DREF32(pio_reg[0]) = TX->reg0.all;
+        DREF32(TX->pio_reg[0]) = TX->reg0.all;
     
     }
 }
 
 void txSetTrigRestLvls(TXsys_t *TX, uint32_t trigRestLvls){
-    uint32_t **pio_reg;
-    pio_reg = TX->pio_reg;
-
     TX->reg1.trigRestLvls = trigRestLvls;
-    DREF32(pio_reg[1]) = TX->reg1.all;
+    DREF32(TX->pio_reg[1]) = TX->reg1.all;
+}
+
+void txSetVarAttenRestLvl(TXsys_t *TX, uint32_t varAttenRestLvl){
+    TX->reg1.varAttenRestLvl = varAttenRestLvl;
+    DREF32(TX->pio_reg[1]) = TX->reg1.all;
 }
 
 void txSetActiveTransducers(TXsys_t *TX, uint32_t activeTransducers){
@@ -87,26 +89,23 @@ void txSetTrigs(TXsys_t *TX){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
-    TX->reg9_24[0].all = ( cmd->flags.setTrig0 ) ? cmd->reg9_24[0].all : 0;
-    TX->reg9_24[1].all = ( cmd->flags.setTrig1 ) ? cmd->reg9_24[1].all : 0;
-    TX->reg9_24[2].all = ( cmd->flags.setTrig2 ) ? cmd->reg9_24[2].all : 0;
-    TX->reg9_24[3].all = ( cmd->flags.setTrig3 ) ? cmd->reg9_24[3].all : 0;
-    TX->reg9_24[4].all = ( cmd->flags.setTrig4 ) ? cmd->reg9_24[4].all : 0;
-    TX->reg9_24[5].all = ( cmd->flags.setTrig5 ) ? cmd->reg9_24[5].all : 0;
-    TX->reg9_24[6].all = ( cmd->flags.setTrig6 ) ? cmd->reg9_24[6].all : 0;
-    TX->reg9_24[7].all = ( cmd->flags.setTrig7 ) ? cmd->reg9_24[7].all : 0;
-    TX->reg9_24[8].all = ( cmd->flags.setTrig8 ) ? cmd->reg9_24[8].all : 0;
-    TX->reg9_24[9].all = ( cmd->flags.setTrig9 ) ? cmd->reg9_24[9].all : 0;
-    TX->reg9_24[10].all = ( cmd->flags.setTrig10 ) ? cmd->reg9_24[10].all : 0;
-    TX->reg9_24[11].all = ( cmd->flags.setTrig11 ) ? cmd->reg9_24[11].all : 0;
-    TX->reg9_24[12].all = ( cmd->flags.setTrig12 ) ? cmd->reg9_24[12].all : 0;
-    TX->reg9_24[13].all = ( cmd->flags.setTrig13 ) ? cmd->reg9_24[13].all : 0;
-    TX->reg9_24[14].all = ( cmd->flags.setTrig14 ) ? cmd->reg9_24[14].all : 0;
-    TX->reg9_24[15].all = ( cmd->flags.setTrig15 ) ? cmd->reg9_24[15].all : 0;
+    TX->reg10_14[0].all = ( cmd->flags.setTrig0 ) ? cmd->reg10_14[0].all : 0;
+    TX->reg10_14[1].all = ( cmd->flags.setTrig1 ) ? cmd->reg10_14[1].all : 0;
+    TX->reg10_14[2].all = ( cmd->flags.setTrig2 ) ? cmd->reg10_14[2].all : 0;
+    TX->reg10_14[3].all = ( cmd->flags.setTrig3 ) ? cmd->reg10_14[3].all : 0;
+    TX->reg10_14[4].all = ( cmd->flags.setTrig4 ) ? cmd->reg10_14[4].all : 0;
 
-    for(int i=0;i<16;i++){
-        DREF32(TX->pio_reg[i+9]) = TX->reg9_24[i].all;
+    for(int i=0;i<5;i++){
+        DREF32(TX->pio_reg[i+10]) = TX->reg10_14[i].all;
     }
+}
+
+void txSetVarAtten(TXsys_t *TX){
+    TXpiocmd_t *cmd;
+    cmd = *(TX->pio_cmd_list);
+
+    TX->reg9.all = cmd->reg9.all;
+    DREF32(TX->pio_reg[9]) = TX->reg9.all;
 }
 
 void txSetChargeTime(TXsys_t *TX){
@@ -184,10 +183,11 @@ void txAddPioCmd_f(TXsys_t *TX){
     tmp->reg6.all = 0;
     tmp->reg7.all = 0;
     tmp->reg8.all = 0;
+    tmp->reg9.all = 0;
     tmp->flags.all = 0;
     tmp->reg25_26.all = 0;
     
-    tmp->reg9_24 = NULL;
+    tmp->reg10_14 = NULL;
 
     *(TX->pio_cmd_list) = tmp;
 }
@@ -227,7 +227,7 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
                 next->prev = prev;
                 prev->flags.nextFlags = next->flags.isFlags;
             }
-            if(tmp->reg9_24 != NULL) free(tmp->reg9_24);
+            if(tmp->reg10_14 != NULL) free(tmp->reg10_14);
             free(tmp);
 
             if(loopCmdNum){
@@ -239,7 +239,7 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
                     next->prev = prev;
                     prev->flags.nextFlags = next->flags.isFlags;
                 }
-                if( loopCmd->reg9_24 != NULL ) free(loopCmd->reg9_24);
+                if( loopCmd->reg10_14 != NULL ) free(loopCmd->reg10_14);
                 free(loopCmd);
             }
 
@@ -258,7 +258,7 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
         if(next != NULL){
             cmd_list->next = next->next;
             if(next->next != NULL)  next->next->prev = cmd_list;
-            if(next->reg9_24 != NULL) free(next->reg9_24);
+            if(next->reg10_14 != NULL) free(next->reg10_14);
             free(next); 
         }
     }
@@ -412,32 +412,34 @@ void txBufferTrigTimingCmd(TXsys_t *TX, uint32_t *trigs){
         cmd = cmd->next;
     }
 
-    if(cmd->reg9_24 == NULL){
-        cmd->reg9_24 = (TXtrigtimings_t *)calloc(16,sizeof(TXtrigtimings_t));
+    if(cmd->reg10_14 == NULL){
+        cmd->reg10_14 = (TXtrigtimings_t *)calloc(16,sizeof(TXtrigtimings_t));
     }
 
-    for(int i=0;i<16;i++){
-        cmd->reg9_24[i].all = trigs[i];
+    for(int i=0;i<5;i++){
+        cmd->reg10_14[i].all = trigs[i];
     }
 
-    cmd->flags.setTrig0 = ( cmd->reg9_24[0].duration ) ? 1 : 0;
-    cmd->flags.setTrig1 = ( cmd->reg9_24[1].duration ) ? 1 : 0;
-    cmd->flags.setTrig2 = ( cmd->reg9_24[2].duration ) ? 1 : 0;
-    cmd->flags.setTrig3 = ( cmd->reg9_24[3].duration ) ? 1 : 0;
-    cmd->flags.setTrig4 = ( cmd->reg9_24[4].duration ) ? 1 : 0;
-    cmd->flags.setTrig5 = ( cmd->reg9_24[5].duration ) ? 1 : 0;
-    cmd->flags.setTrig6 = ( cmd->reg9_24[6].duration ) ? 1 : 0;
-    cmd->flags.setTrig7 = ( cmd->reg9_24[7].duration ) ? 1 : 0;
-    cmd->flags.setTrig8 = ( cmd->reg9_24[8].duration ) ? 1 : 0;
-    cmd->flags.setTrig9 = ( cmd->reg9_24[9].duration ) ? 1 : 0;
-    cmd->flags.setTrig10 = ( cmd->reg9_24[10].duration ) ? 1 : 0;
-    cmd->flags.setTrig11 = ( cmd->reg9_24[11].duration ) ? 1 : 0;
-    cmd->flags.setTrig12 = ( cmd->reg9_24[12].duration ) ? 1 : 0;
-    cmd->flags.setTrig13 = ( cmd->reg9_24[13].duration ) ? 1 : 0;
-    cmd->flags.setTrig14 = ( cmd->reg9_24[14].duration ) ? 1 : 0;
-    cmd->flags.setTrig15 = ( cmd->reg9_24[15].duration ) ? 1 : 0;
+    cmd->flags.setTrig0 = ( cmd->reg10_14[0].duration ) ? 1 : 0;
+    cmd->flags.setTrig1 = ( cmd->reg10_14[1].duration ) ? 1 : 0;
+    cmd->flags.setTrig2 = ( cmd->reg10_14[2].duration ) ? 1 : 0;
+    cmd->flags.setTrig3 = ( cmd->reg10_14[3].duration ) ? 1 : 0;
+    cmd->flags.setTrig4 = ( cmd->reg10_14[4].duration ) ? 1 : 0;
     
     cmd->reg2.set_trig_leds = 1;
+}
+
+void txBufferVarAttenTimingCmd(TXsys_t *TX, uint32_t duration, uint32_t delay){
+    TXpiocmd_t *cmd;
+    cmd = *(TX->pio_cmd_list);
+    while(cmd->next != NULL){
+        cmd = cmd->next;
+    }
+    if(duration){
+        cmd->reg9.duration = duration;
+        cmd->reg9.delay = delay;
+        cmd->reg2.set_var_atten = 1;
+    }
 }
 
 void txBufferChargeTimeCmd(TXsys_t *TX, uint32_t chargeTime){

@@ -177,7 +177,8 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
     ADC->issueDirectCommand = &adcIssueDirectCmd;
     ADC->sync = &adcSync;
     ADC->initialize = &adcInitializerSequence;
-   
+    ADC->disableClamp = &adcDisableClamp; 
+
     return(1);
 }
 
@@ -268,7 +269,7 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     //TX->instructions = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_INSTRUCTIONMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 	//TX->phaseDelays = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_PHASEDELAYMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 	
-    TX->reg9_24 = (TXtrigtimings_t *)malloc(16*sizeof(TXtrigtimings_t));
+    TX->reg10_14 = (TXtrigtimings_t *)malloc(5*sizeof(TXtrigtimings_t));
 
     TX->pio_cmd_list = (TXpiocmd_t **)malloc(sizeof(TXpiocmd_t *));
     *(TX->pio_cmd_list) = (TXpiocmd_t *)malloc(sizeof(TXpiocmd_t));
@@ -285,12 +286,13 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     pio_cmd->reg6.all = 0;
     pio_cmd->reg7.all = 0;
     pio_cmd->reg8.all = 0;
+    pio_cmd->reg9.all = 0;
     pio_cmd->flags.all = 0;
     pio_cmd->flags.isCmd0 = 1;
     
     pio_cmd->reg25_26.all = 100000; // wait 1ms from when program begins before issuing commands
     
-    pio_cmd->reg9_24 = NULL;
+    pio_cmd->reg10_14 = NULL;
     pio_cmd->top = *(TX->pio_cmd_list);
     pio_cmd->prev = NULL;
     pio_cmd->next = NULL;
@@ -315,8 +317,10 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     TX->reg1.isSolo = 1;
     TX->reg1.isMaster = 1;
     TX->reg1.isExternallyTriggered = 0;
+    //TX->reg1.blnk = 0x1f;
     TX->reg1.activeTransducers = 0xff;
     TX->reg1.trigRestLvls = 0;
+    TX->reg1.varAttenRestLvl = 0;
     DREF32(TX->pio_reg[1]) = TX->reg1.all;
     
     // pio commands
@@ -347,10 +351,14 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     TX->reg8.all = 0;
     DREF32(TX->pio_reg[8]) = TX->reg8.all;
     
+    // var atten duration and delay
+    TX->reg9.all = 0;
+    DREF32(TX->pio_reg[9]) = TX->reg9.all;
+
     // trig/led delays and durations
-    for(int i=0;i<16;i++){
-        TX->reg9_24[i].all = 0;
-        DREF32(TX->pio_reg[9+i]) = TX->reg9_24[i].all;
+    for(int i=0;i<5;i++){
+        TX->reg10_14[i].all = 0;
+        DREF32(TX->pio_reg[10+i]) = TX->reg10_14[i].all;
     }
 
     // instruction request timer
@@ -363,9 +371,11 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     TX->enetMsgHandler = &txSysMsgHandler;
     TX->setControlState = &txSetControlState;
     TX->setTrigRestLvls = &txSetTrigRestLvls;
+    TX->setVarAttenRestLvl = &txSetVarAttenRestLvl;
     TX->setActiveTransducers = &txSetActiveTransducers;
     
     TX->setTrigs = &txSetTrigs;
+    TX->setVarAtten = &txSetVarAtten;
     TX->setChargeTime = &txSetChargeTime;
     TX->setFireCmdDelay = &txSetFireCmdDelay;
     TX->setPhaseDelay = &txSetPhaseDelay;
@@ -383,6 +393,7 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     TX->makePioCmd = &txMakePioCmd;
 
     TX->bufferTrigTimings = &txBufferTrigTimingCmd;
+    TX->bufferVarAttenTiming = &txBufferVarAttenTimingCmd;
     TX->bufferChargeTime = &txBufferChargeTimeCmd;
     TX->bufferFireCmd = &txBufferFireDelayCmd;
     TX->bufferPhaseDelays = &txBufferPhaseDelayCmd;
@@ -399,3 +410,22 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     TX->resetRcvTrig(TX);
     return(1);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

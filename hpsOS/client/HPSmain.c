@@ -98,6 +98,9 @@
 #define ADC_NBITS           ( 12 )
 #define ADC_NCHAN           ( 8 )
 
+#define TX_INTERRUPT_ID             ( 0 )
+#define RCV_INTERRUPT_ID            ( 1 )
+
 // states defined in the lvds.v module
 #define ADC_IDLE_STATE				( 0x00 )
 #define ADC_HARDWARE_RESET          ( 0x01 )
@@ -106,14 +109,6 @@
 #define ADC_SYNC_COMMAND			( 0x08 )
 #define ADC_POWER_OFF_COMMAND		( 0x10 )
 #define ADC_POWER_ON_COMMAND		( 0x20 )
-// TODO: make these into structs with initialized vars (like adc registers)?
-
-
-#define TX_INTERRUPT_ID             ( 0 )
-#define RCV_INTERRUPT_ID            ( 1 )
-// case defs for main controller
-#define CASE_ADD_DATA_SOCKET 0
-// TODO: separate recvSys and control handlers
 
 // case defs for recvSysMsgHandler
 #define CASE_RCV_SET_RECLEN                 ( 0 )
@@ -138,7 +133,7 @@
 #define CASE_RCV_SET_COMPRESSOR_MODE		( 19 )
 #define CASE_RCV_INTERRUPT_THYSELF          ( 20 )
 #define CASE_ADC_SET_POWER_ON_OFF           ( 21 )
-
+#define CASE_ADC_DISABLE_CLAMP              ( 22 )
 #define CASE_RCV_PRINT_FEEDBACK_MSGS        ( 50 )
 
 // TODO: delete these from rcv sys handler
@@ -163,7 +158,9 @@
 #define CASE_TX_WAIT_CMD                    ( 16 )
 #define CASE_TX_SET_NSTEERING_LOCS          ( 17 )
 #define CASE_TX_CONNECT_INTERRUPT           ( 18 )
-#define CASE_TX_SET_EXTERNAL_TRIGGER_MODE   ( 20 )
+#define CASE_TX_SET_EXTERNAL_TRIGGER_MODE   ( 19 )
+#define CASE_TX_BUFFER_VAR_ATTEN_TIMINGS    ( 20 )
+#define CASE_TX_SET_VAR_ATTEN_REST_LVL      ( 21 )
 #define CASE_TX_PRINT_FEEDBACK_MSGS         ( 50 )
 #define CASE_EXIT_PROGRAM 100
 
@@ -223,7 +220,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     int n;
     SOCK_t *sock;
     FMSG_t msg;
-    int timeout_ms = 100;
+    int timeout_ms = 1000;
     int nfds;
     int nrecv,pd_size;
     int runner = 1;
@@ -238,9 +235,6 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     while(runner==1){
         
         nfds = epoll_wait(PS->epfd,PS->events,MAX_POLL_EVENTS,timeout_ms);
-        //printf("ADC->controlComms:\n");
-        //printBinaryInterrupt(DREF32(ADC->controlComms));
-        //printf("\n");
         
         if( nfds > 0 ){
 
@@ -284,6 +278,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                     //printf("rcv interrupt reg:\n");
                     //printBinaryInterrupt(interrupt_readout);
                     RCV->queryData(RCV); 
+                    //printf("HERERE\n");
                     TX->resetRcvTrig(TX);
                
                 } else if ( sock->is.tx_interrupt ){
@@ -318,7 +313,6 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                     
                     } else if ( nrecv == 0 ) {
 
-                        //printf("nrecv = 0, disconnecting sock\n");
                         disconnectPollSock(sock);
                         sock->is.alive=0;
                         if( sock->is.tx_control ){
@@ -353,6 +347,14 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
             printf("program running: uptime... (%0.2f s)\n", dt);
             clock_gettime(CLOCK_MONOTONIC,&st1);
             RCV->setLEDs(RCV,dt1.tv_sec);
+            /*
+            interrupt_readout = DREF32(RCV->interrupt_reg);
+            printf("rcv interrupt reg:\n");
+            printBinaryInterrupt(interrupt_readout);
+            interrupt_readout = DREF32(TX->interrupt_reg);
+            printf("tx interrupt reg:\n");
+            printBinaryInterrupt(interrupt_readout);
+            */
         }
 
         if( g_auto_shutdown_enabled && ( dt1.tv_sec > 3000 ) ){
@@ -402,7 +404,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
         while(pio_cmd->next != NULL){
             TX->delCmd(TX,0);
         }
-        if(pio_cmd->reg9_24 != NULL) free(pio_cmd->reg9_24);
+        if(pio_cmd->reg10_14 != NULL) free(pio_cmd->reg10_14);
         free(pio_cmd);
         printf("free(TX->pio_cmd_list[cmdNumber: %d])\n", pio_cmd->cmdNumber);
     }

@@ -16,7 +16,7 @@ module ADC_Control_Module(
 	input					iADC_SCLK,
 	input [7:0]				iADC_INPUT_DATA_LINES,
 	
-	output					oVAR_ATTEN,
+	//output					oVAR_ATTEN,
 	
 	input					itxTrig,
 	output					otxTrigAck,
@@ -54,27 +54,27 @@ assign oADC_SEN 	= ADC_SEN;
 
 
 // set from adc_pio_settings
-wire		varAtten;						//adc_pio_settings[0]
+//wire		varAtten;						//adc_pio_settings[0]
 wire [3:0]	down_sample_clk_divisor;		//adc_pio_settings[4:1]
 wire [2:0]	fclk_delay;						//adc_pio_settings[7:5]
 wire [2:0]	sampling_mode_opts;				//adc_pio_settings[10:8]
 wire [1:0]	compressor_opts;				//adc_pio_settings[12:11]
 wire		interruptThyself;				//adc_pio_settings[13]
 
-assign varAtten 				= adc_pio_settings[0];
+//assign varAtten 				= adc_pio_settings[0];
 assign down_sample_clk_divisor 	= adc_pio_settings[4:1];
 assign fclk_delay 				= adc_pio_settings[7:5];
 assign sampling_mode_opts 		= adc_pio_settings[10:8];
 assign compressor_opts 			= adc_pio_settings[12:11];
 assign interruptThyself 		= adc_pio_settings[13];
 
-reg 		varAtten_reg; 					//adc_pio_settings[0]
+//reg 		varAtten_reg; 					//adc_pio_settings[0]
 reg [3:0]	down_sample_clk_divisor_reg;	//adc_pio_settings[4:1]
 reg [2:0]	fclk_delay_reg;					//adc_pio_settings[7:5]
 reg [2:0]	sampling_mode_opts_reg;			//adc_pio_settings[10:8]
 reg [1:0]	compressor_opts_reg;			//adc_pio_settings[12:11]
 reg			interruptThyself_reg;			//adc_pio_settings[13]
-assign oVAR_ATTEN = varAtten_reg;
+//assign oVAR_ATTEN = varAtten_reg;
 
 
 
@@ -130,7 +130,7 @@ begin
 	oCHIPSEL = 1'b0;
 	oBYTEEN = 16'b0000000000000000;
 	
-	varAtten_reg = 1'b0;
+	//varAtten_reg = 1'b0;
 	down_sample_clk_divisor_reg = 4'b0;
 	fclk_delay_reg = 3'b0;
 	sampling_mode_opts_reg = 3'b0;
@@ -454,10 +454,10 @@ begin
 	end
 	else // iStateReset == 1
 	begin
-		if ( varAtten_reg ^ varAtten ) 
-		begin
-			varAtten_reg <= varAtten;
-		end
+		//if ( varAtten_reg ^ varAtten ) 
+		//begin
+		//	varAtten_reg <= varAtten;
+		//end
 		
 		if( down_sample_clk_divisor_reg ^ down_sample_clk_divisor ) 
 		begin
