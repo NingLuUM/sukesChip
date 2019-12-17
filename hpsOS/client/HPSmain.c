@@ -99,11 +99,13 @@
 #define ADC_NCHAN           ( 8 )
 
 // states defined in the lvds.v module
-#define ADC_HARDWARE_RESET          ( 0xFF )
 #define ADC_IDLE_STATE				( 0x00 )
-#define ADC_BUFFER_SERIAL_COMMAND	( 0x01 )
-#define ADC_ISSUE_SERIAL_COMMAND	( 0x02 )
-#define ADC_SYNC_COMMAND			( 0x04 )
+#define ADC_HARDWARE_RESET          ( 0x01 )
+#define ADC_BUFFER_SERIAL_COMMAND	( 0x02 )
+#define ADC_ISSUE_SERIAL_COMMAND	( 0x04 )
+#define ADC_SYNC_COMMAND			( 0x08 )
+#define ADC_POWER_OFF_COMMAND		( 0x10 )
+#define ADC_POWER_ON_COMMAND		( 0x20 )
 // TODO: make these into structs with initialized vars (like adc registers)?
 
 
@@ -135,6 +137,8 @@
 #define CASE_RCV_SET_SAMPLING_MODE			( 18 )
 #define CASE_RCV_SET_COMPRESSOR_MODE		( 19 )
 #define CASE_RCV_INTERRUPT_THYSELF          ( 20 )
+#define CASE_ADC_SET_POWER_ON_OFF           ( 21 )
+
 #define CASE_RCV_PRINT_FEEDBACK_MSGS        ( 50 )
 
 // TODO: delete these from rcv sys handler
@@ -219,7 +223,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     int n;
     SOCK_t *sock;
     FMSG_t msg;
-    int timeout_ms = 1000;
+    int timeout_ms = 100;
     int nfds;
     int nrecv,pd_size;
     int runner = 1;
@@ -234,6 +238,9 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     while(runner==1){
         
         nfds = epoll_wait(PS->epfd,PS->events,MAX_POLL_EVENTS,timeout_ms);
+        //printf("ADC->controlComms:\n");
+        //printBinaryInterrupt(DREF32(ADC->controlComms));
+        //printf("\n");
         
         if( nfds > 0 ){
 
@@ -262,7 +269,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                     } else if ( sock->partner->is.commsock ){
 
                         RCV->comm_sock = sock->partner;
-                        RCV->setStateReset(RCV,0);
+                        ADC->initialize(ADC);
 
                     } else if ( sock->partner->is.adc_control ){
 

@@ -143,11 +143,12 @@ assign ADC_PDN		= adc_pdn;
 //  Structural coding
 //=======================================================
 
-wire [31:0] adc_pio_settings;
-assign VAR_ATTEN 		= adc_pio_settings[0];
+wire [31:0]			adc_control_comms;
+wire [31:0] 		adc_pio_settings;
+
 
 wire [23:0]			adc_serial_command;
-wire [7:0]			adc_control_comms;
+
 
 wire [14:0]			adc_write_addr;
 wire				adc_state_reset;
@@ -193,32 +194,27 @@ ADC_Control_Module u2(
 	.bit_clk					(CLK300),
 	
 	.adc_control_comm			(adc_control_comms),
+	.adc_pio_settings			(adc_pio_settings),
 	.adc_serial_cmd				(adc_serial_command),
 	
-	.ADC_RESET					(adc_reset),
-	.ADC_SDATA					(adc_sdata),
-	.ADC_SEN					(adc_sen),
-	.ADC_PDN					(adc_pdn),
-	.ADC_SYNC					(adc_sync),
+	.oADC_RESET					(adc_reset),
+	.oADC_SDATA					(adc_sdata),
+	.oADC_SEN					(adc_sen),
+	.oADC_PDN					(adc_pdn),
+	.oADC_SYNC					(adc_sync),
 	
-	.ADC_SCLK					(ADC_SCLK),
-	.ADC_INPUT_DATA_LINES		(ADC_DATA_LINES),
+	.iADC_SCLK					(ADC_SCLK),
+	.iADC_INPUT_DATA_LINES		(ADC_DATA_LINES),
+	
+	.oVAR_ATTEN					(VAR_ATTEN),
 	
 	.itxTrig					(trigLines_txAdc[0]),
 	.otxTrigAck					(trigLines_txAdc[1]),
-	
-	.fclk_delay					(adc_pio_settings[7:5]),
 	
 	.iRecLength					(adc_record_length),
 	.iStateReset				(adc_state_reset),
 	
 	.oRcvInterrupt				(rcv_interrupt),
-	
-	.down_sample_clk_divisor	(adc_pio_settings[4:1]),
-	.sampling_mode_opts			(adc_pio_settings[10:8]),
-	.compressor_opts			(adc_pio_settings[12:11]),
-	
-	.interruptThyself			(adc_pio_settings[13]),
 	
 	.oBYTEEN					(adc_byteen_bank),
 	.oADCData					(adc_writedata_bank),

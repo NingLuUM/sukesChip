@@ -2,104 +2,148 @@ module ADC_Control_Module(
 	input					adc_clkinp,
 	input					bit_clk,
 	
-	input [7:0]				adc_control_comm,
+	input [31:0]			adc_control_comm,
+	input [31:0]			adc_pio_settings,
+	
 	input [23:0]			adc_serial_cmd,
 	
-	output reg				ADC_RESET,
+	output					oADC_RESET,
+	output					oADC_SDATA,
+	output					oADC_SEN,
+	output					oADC_PDN,	
+	output					oADC_SYNC,	
 	
-	output reg				ADC_SDATA,
-	output reg				ADC_SEN,
-	output reg				ADC_PDN,	
-	output reg				ADC_SYNC,	
+	input					iADC_SCLK,
+	input [7:0]				iADC_INPUT_DATA_LINES,
 	
-	input					ADC_SCLK,
-	input [7:0]				ADC_INPUT_DATA_LINES,
+	output					oVAR_ATTEN,
 	
 	input					itxTrig,
 	output					otxTrigAck,
 	
-	input [2:0]			fclk_delay,
-
-	
 	input [15:0]			iRecLength,
 	input					iStateReset,
-	output reg [31:0]	oRcvInterrupt,
+	output reg [31:0]		oRcvInterrupt,
 	
-	input	[3:0]				down_sample_clk_divisor,
-	input	[2:0]				sampling_mode_opts,
-	input	[1:0]				compressor_opts,
+	output reg [15:0]		oBYTEEN,
+	output reg [127:0]		oADCData,
 	
-	input				interruptThyself,
-	
-	output reg [15:0]	oBYTEEN,
-	output reg [127:0]	oADCData,
-	
-	output reg 		oWREN,
-	output reg 		oCLKEN,
-	output reg 		oCHIPSEL,
+	output reg 				oWREN,
+	output reg 				oCLKEN,
+	output reg 				oCHIPSEL,
 
 	output reg [14:0]		oWAddr
 
 );
+
+// controlled from adc_control_comm
+wire [7:0] adc_control_state; 
+assign adc_control_state = adc_control_comm[7:0];
+
+reg	ADC_RESET;
+reg	ADC_SDATA;
+reg	ADC_SEN;
+reg	ADC_PDN;
+reg	ADC_SYNC;
+
+assign oADC_SYNC 	= ADC_SYNC;
+assign oADC_PDN 	= ADC_PDN;
+assign oADC_RESET 	= ADC_RESET;
+assign oADC_SDATA 	= ADC_SDATA;
+assign oADC_SEN 	= ADC_SEN;	
+
+
+// set from adc_pio_settings
+wire		varAtten;						//adc_pio_settings[0]
+wire [3:0]	down_sample_clk_divisor;		//adc_pio_settings[4:1]
+wire [2:0]	fclk_delay;						//adc_pio_settings[7:5]
+wire [2:0]	sampling_mode_opts;				//adc_pio_settings[10:8]
+wire [1:0]	compressor_opts;				//adc_pio_settings[12:11]
+wire		interruptThyself;				//adc_pio_settings[13]
+
+assign varAtten 				= adc_pio_settings[0];
+assign down_sample_clk_divisor 	= adc_pio_settings[4:1];
+assign fclk_delay 				= adc_pio_settings[7:5];
+assign sampling_mode_opts 		= adc_pio_settings[10:8];
+assign compressor_opts 			= adc_pio_settings[12:11];
+assign interruptThyself 		= adc_pio_settings[13];
+
+reg 		varAtten_reg; 					//adc_pio_settings[0]
+reg [3:0]	down_sample_clk_divisor_reg;	//adc_pio_settings[4:1]
+reg [2:0]	fclk_delay_reg;					//adc_pio_settings[7:5]
+reg [2:0]	sampling_mode_opts_reg;			//adc_pio_settings[10:8]
+reg [1:0]	compressor_opts_reg;			//adc_pio_settings[12:11]
+reg			interruptThyself_reg;			//adc_pio_settings[13]
+assign oVAR_ATTEN = varAtten_reg;
+
+
 
 reg otxTrigAck_reg;
 assign otxTrigAck = otxTrigAck_reg;
 
 reg [ 7: 0][11:0] data_sr;
 
-reg fclk_flag;
+reg 		fclk_flag;
 
-reg [7:0] adc_state;
-reg [7:0] last_adc_control_comm;
+reg [7:0] 	adc_state;
+reg [7:0]	last_adc_control_state;
 
-reg [23:0] cmd_buff; // initialize the buffer to software reset
-reg [4:0] senCnt;
+reg [23:0]	cmd_buff; // initialize the buffer to software reset
+reg [4:0]	senCnt;
 
-reg [1:0] trig_received_flag;
-reg write_complete_flag;
+reg [1:0]	trig_received_flag;
+reg			write_complete_flag;
 
-reg [14:0] 	waddr_cntr;
-wire waddr_overrun;
+reg [14:0]	waddr_cntr;
+
+wire		waddr_overrun;
 assign waddr_overrun = waddr_cntr[14];
 
-reg first_pulse;
-reg first_write;
-reg [3:0] sample_cntr;
+reg 		first_pulse;
+reg 		first_write;
+reg [3:0] 	sample_cntr;
 
-reg [2:0] fclk_delay_cntr;
+reg [2:0]	fclk_delay_reg_cntr;
 
-reg [127:0] data_to_ram;
-reg [127:0] data_out;
-wire [ 7: 0] data_out_h;
-wire [ 7: 0] data_out_l;
+reg [127:0]	data_to_ram;
+reg [127:0]	data_out;
+wire [7:0]	data_out_h;
+wire [7:0]	data_out_l;
 
-reg [1:0] data_compressor_buff_cntr;
-reg [95:0] data_buffer;
+reg [1:0]	data_compressor_buff_cntr;
+reg [95:0]	data_buffer;
 
-reg [127:0] last_data_out;
-reg [63:0] data_diff_out;
-reg [7:0] bit8_cntr;
+reg [127:0]	last_data_out;
+reg [63:0]	data_diff_out;
 
 initial
 begin
 	fclk_flag = 1'b0;
 	ADC_RESET = 1'b0;
 	ADC_SEN = 1'b1;
-	ADC_PDN = 1'b0;
+	ADC_PDN = 1'b1;
 	ADC_SDATA = 1'b0;
 	ADC_SYNC = 1'b0;
+	
 	oWREN = 1'b0;
 	oCLKEN = 1'b0;
 	oCHIPSEL = 1'b0;
 	oBYTEEN = 16'b0000000000000000;
+	
+	varAtten_reg = 1'b0;
+	down_sample_clk_divisor_reg = 4'b0;
+	fclk_delay_reg = 3'b0;
+	sampling_mode_opts_reg = 3'b0;
+	compressor_opts_reg = 2'b0;
+	interruptThyself_reg = 1'b0;
+	
+	fclk_delay_reg_cntr = 3'b0;
 	
 	otxTrigAck_reg = 1'b0;
 	
 	first_pulse = 1'b1;
 	first_write = 1'b1;
 	sample_cntr = 4'b0;
-	
-	fclk_delay_cntr = 3'b0;
 	
 	data_compressor_buff_cntr = 2'b0;
 	
@@ -110,7 +154,7 @@ begin
 	cmd_buff = 24'b0;
 	
 	adc_state = 8'b0;
-	last_adc_control_comm = 8'b0;
+	last_adc_control_state = 8'b0;
 	
 	oRcvInterrupt = 32'b0;
 	
@@ -123,24 +167,25 @@ begin
 	
 	last_data_out = 128'b0;
 	data_diff_out = 64'b0;
-	bit8_cntr = 8'b0;
+
 end
 
 
-
-parameter [7:0] hardware_reset = 8'b11111111;
-parameter [7:0] idle_state  = 8'b00000000;
-parameter [7:0] buffer_serial_command 	= 8'b00000001;
-parameter [7:0] issue_serial_command 	= 8'b00000010;
-parameter [7:0] sync_adc 					= 8'b00000100;
+parameter [7:0] STATE_ADC_IDLE  			= 8'b00000000;
+parameter [7:0] STATE_ADC_HARDWARE_RESET 	= 8'b00000001;
+parameter [7:0] STATE_ADC_BUFFER_SERIAL_CMD = 8'b00000010;
+parameter [7:0] STATE_ADC_ISSUE_SERIAL_CMD 	= 8'b00000100;
+parameter [7:0] STATE_ADC_SYNC 				= 8'b00001000;
+parameter [7:0] STATE_ADC_PDN_ONE			= 8'b00010000;
+parameter [7:0] STATE_ADC_PDN_ZERO			= 8'b00100000;
 
 always @(posedge adc_clkinp)
 begin
-
+	
 	if ( !iStateReset )
 	begin
 	
-		if ( !trig_received_flag && itxTrig )
+		if ( !trig_received_flag &&  itxTrig )
 		begin
 			trig_received_flag <= 2'b11;
 			waddr_cntr <= 15'b0;
@@ -154,8 +199,6 @@ begin
 			
 			last_data_out <= 128'b0;
 			data_diff_out <= 64'b0;
-			bit8_cntr <= 8'b0;
-			//if( !oRcvInterrupt ) oRcvInterrupt <= {32{1'b1}};
 		end
 	
 		
@@ -164,19 +207,19 @@ begin
 			if ( !write_complete_flag )
 			begin
 			
-				if ( !oWREN && !down_sample_clk_divisor ) 
+				if ( !oWREN && !down_sample_clk_divisor_reg ) 
 				begin
-					if( !compressor_opts ) oWREN <= 1'b1;
+					if( !compressor_opts_reg ) oWREN <= 1'b1;
 					oCLKEN <= 1'b1;
 					oCHIPSEL <= 1'b1;
-					if( !compressor_opts[1] ) oBYTEEN <= 16'b1111111111111111;
+					if( !compressor_opts_reg[1] ) oBYTEEN <= 16'b1111111111111111;
 					otxTrigAck_reg <= 1'b1;
 				end
-				else if ( down_sample_clk_divisor && first_pulse )
+				else if ( down_sample_clk_divisor_reg && first_pulse )
 				begin
 					oCLKEN <= 1'b1;
 					oCHIPSEL <= 1'b1;
-					if( !compressor_opts[1] ) oBYTEEN <= 16'b1111111111111111;
+					if( !compressor_opts_reg[1] ) oBYTEEN <= 16'b1111111111111111;
 					sample_cntr <= 4'b0;
 					data_to_ram <= 128'b0;
 				end
@@ -184,22 +227,13 @@ begin
 				if ( ( waddr_cntr < iRecLength ) && ( !waddr_overrun ) )
 				begin
 					
-					if(!down_sample_clk_divisor)
+					if(!down_sample_clk_divisor_reg)
 					begin
 						oWAddr <= waddr_cntr;
 						
-						if( !compressor_opts )
+						if( !compressor_opts_reg )
 						begin
 							oADCData <= data_out;
-							
-							//oADCData[14:0]<=waddr_cntr;
-							//oADCData[30:16]<=waddr_cntr;
-							//oADCData[46:32]<=waddr_cntr;
-							//oADCData[62:48]<=waddr_cntr;
-							//oADCData[78:64]<=waddr_cntr;
-							//oADCData[94:80]<=waddr_cntr;
-							//oADCData[110:96]<=waddr_cntr;
-							//oADCData[126:112]<=waddr_cntr;
 							waddr_cntr <= waddr_cntr + 1'b1;
 						end
 						else
@@ -271,50 +305,6 @@ begin
 							
 						end
 						
-						/*else if( compressor_opts == 2'b10 )
-						begin
-							last_data_out <= data_out;
-							data_diff_out[63:56] = (data_out[127:112] - last_data_out[127:112]);
-							data_diff_out[55:48] = (data_out[111:96] - last_data_out[111:96]);
-							data_diff_out[47:40] = (data_out[95:80] - last_data_out[95:80]);
-							data_diff_out[39:32] = (data_out[79:64] - last_data_out[79:64]);
-							data_diff_out[31:24] = (data_out[63:48] - last_data_out[64:48]);
-							data_diff_out[23:16] = (data_out[47:32] - last_data_out[47:32]);
-							data_diff_out[15:8] = (data_out[31:16] - last_data_out[31:16]);
-							data_diff_out[7:0] = (data_out[15:0] - last_data_out[15:0]);
-							
-							if( !bit8_cntr )
-							begin
-								oBYTEEN <= 16'b1111111111111111;
-								oADCData <= data_out;
-								waddr_cntr <= waddr_cntr + 1'b1;
-								bit8_cntr <= 8'b00000001;
-							end
-							else
-							begin
-								if( ( bit8_cntr == 8'b00000001 ) && ( waddr_cntr == 15'b000000000000001 ) )
-								begin
-									oBYTEEN <= 16'b0;
-								end
-								else
-								begin
-									if( bit8_cntr[0] )
-									begin
-										oBYTEEN <= 16'b0000000011111111;
-										oADCData <= { 64'b0, data_diff_out };
-										waddr_cntr <= waddr_cntr + 1'b1;
-									end
-									else
-									begin
-										oBYTEEN <= 16'b1111111100000000;
-										oADCData <= { data_diff_out, 64'b0 };
-									end
-								end
-								bit8_cntr <= bit8_cntr + 1'b1;
-								
-							end
-						end*/
-						
 					end
 					else
 					begin
@@ -323,7 +313,7 @@ begin
 							oWAddr <= waddr_cntr;
 							data_to_ram <= data_out;
 							sample_cntr <=4'b0001;
-							if( !compressor_opts )
+							if( !compressor_opts_reg )
 							begin
 								oWREN <= 1'b1;
 								oWAddr <= waddr_cntr;
@@ -399,58 +389,16 @@ begin
 								if ( data_compressor_buff_cntr ) waddr_cntr <= waddr_cntr + 1'b1;
 							end
 							
-							/*else if( compressor_opts == 2'b10 )
-							begin
-								last_data_out <= data_to_ram;
-								data_diff_out[63:56] = (data_to_ram[127:112] - last_data_out[127:112]);
-								data_diff_out[55:48] = (data_to_ram[111:96] - last_data_out[111:96]);
-								data_diff_out[47:40] = (data_to_ram[95:80] - last_data_out[95:80]);
-								data_diff_out[39:32] = (data_to_ram[79:64] - last_data_out[79:64]);
-								data_diff_out[31:24] = (data_to_ram[63:48] - last_data_out[64:48]);
-								data_diff_out[23:16] = (data_to_ram[47:32] - last_data_out[47:32]);
-								data_diff_out[15:8] = (data_to_ram[31:16] - last_data_out[31:16]);
-								data_diff_out[7:0] = (data_to_ram[15:0] - last_data_out[15:0]);
-								
-								if( !bit8_cntr )
-								begin
-									oBYTEEN <= 16'b1111111111111111;
-									oADCData <= data_to_ram;
-									waddr_cntr <= waddr_cntr + 1'b1;
-									bit8_cntr <= 8'b00000001;
-								end
-								else
-								begin
-									if( ( bit8_cntr == 8'b00000001 ) && ( waddr_cntr == 15'b000000000000001 ) )
-									begin
-										oBYTEEN <= 16'b0;
-									end
-									else
-									begin
-										if(bit8_cntr[0])
-										begin
-											oBYTEEN <= 16'b0000000011111111;
-											oADCData <= { 64'b0, data_diff_out };
-											waddr_cntr <= waddr_cntr + 1'b1;
-										end
-										else
-										begin
-											oBYTEEN <= 16'b1111111100000000;
-											oADCData <= { data_diff_out, 64'b0 };
-										end
-										bit8_cntr <= bit8_cntr + 1'b1;
-									end
-								end
-							end*/
 						end
 						else 
 						begin
 							if ( first_pulse ) first_pulse <= 1'b0;
 							
-							if( !sampling_mode_opts ) // capture every Nth timepoint
+							if( !sampling_mode_opts_reg ) // capture every Nth timepoint
 							begin
 								data_to_ram <= data_out;
 							end
-							else if( sampling_mode_opts == 3'b001 ) // temporal mean
+							else if( sampling_mode_opts_reg == 3'b001 ) // temporal mean
 							begin
 							
 								data_to_ram[15:0] <= data_to_ram[15:0] + data_out[15:0];
@@ -466,7 +414,7 @@ begin
 							
 							
 							oWREN <= 1'b0;
-							if( sample_cntr == down_sample_clk_divisor )
+							if( sample_cntr == down_sample_clk_divisor_reg )
 							begin
 								sample_cntr <= 4'b0000;
 							end
@@ -495,7 +443,6 @@ begin
 					
 					last_data_out <= 128'b0;
 					data_diff_out <= 64'b0;
-					bit8_cntr <= 8'b0;
 			
 					write_complete_flag <= 1'b1;
 					trig_received_flag[0] <= 1'b0;
@@ -507,6 +454,36 @@ begin
 	end
 	else // iStateReset == 1
 	begin
+		if ( varAtten_reg ^ varAtten ) 
+		begin
+			varAtten_reg <= varAtten;
+		end
+		
+		if( down_sample_clk_divisor_reg ^ down_sample_clk_divisor ) 
+		begin
+			down_sample_clk_divisor_reg <= down_sample_clk_divisor;
+		end
+		
+		if( fclk_delay_reg ^ fclk_delay ) 
+		begin
+			fclk_delay_reg <= fclk_delay;
+		end
+		
+		if( sampling_mode_opts_reg ^ sampling_mode_opts ) 
+		begin
+			sampling_mode_opts_reg <= sampling_mode_opts;
+		end
+		
+		if( compressor_opts_reg ^ compressor_opts )
+		begin
+			compressor_opts_reg <= compressor_opts;
+		end
+		
+		if( interruptThyself_reg ^ interruptThyself )
+		begin
+			interruptThyself_reg <= interruptThyself;
+		end
+		
 		oWREN <= 1'b0;
 		oCLKEN <= 1'b0;
 		oCHIPSEL <= 1'b0;
@@ -521,12 +498,11 @@ begin
 		
 		last_data_out <= 128'b0;
 		data_diff_out <= 64'b0;
-		bit8_cntr <= 8'b0;
 			
 		trig_received_flag <= 2'b00;
 		write_complete_flag <= 1'b0;
 		waddr_cntr <= 15'b0;
-		if( !interruptThyself )
+		if( !interruptThyself_reg )
 		begin
 			if( oRcvInterrupt ) oRcvInterrupt <= 32'b0;
 		end
@@ -539,64 +515,81 @@ begin
 end
 
 
-always @ (negedge ADC_SCLK) //SCLK = 2MHz
+always @ (negedge iADC_SCLK) //SCLK = 2MHz
 begin
 
-	if( adc_control_comm != last_adc_control_comm )
+	if( adc_control_state != last_adc_control_state )
 	begin
-		last_adc_control_comm <= adc_control_comm;
-		adc_state <= adc_control_comm;
+		last_adc_control_state <= adc_control_state;
+		adc_state <= adc_control_state;
 	end
 	
 	case( adc_state )
-		hardware_reset:
+		STATE_ADC_HARDWARE_RESET:
 			begin
-				ADC_RESET <= 1'b1;
-				ADC_SEN <= 1'b1;
-				ADC_SDATA <= 1'b0;
+				if( !ADC_RESET ) ADC_RESET <= 1'b1;
+				if( !ADC_SEN ) ADC_SEN <= 1'b1;
+				if( ADC_SDATA ) ADC_SDATA <= 1'b0;
 				senCnt <= 5'b0;
 			end
 		
-		idle_state:
+		STATE_ADC_IDLE:
 			begin
-				ADC_RESET <= 1'b0;
-				ADC_SEN <= 1'b1;
-				ADC_SDATA <= 1'b0;
+				if( ADC_RESET ) ADC_RESET <= 1'b0;
+				if( !ADC_SEN ) ADC_SEN <= 1'b1;
+				if( ADC_SDATA ) ADC_SDATA <= 1'b0;
 				senCnt <= 5'b0;
 			end
 		
-		buffer_serial_command:
+		STATE_ADC_BUFFER_SERIAL_CMD:
 			begin
 				cmd_buff <= adc_serial_cmd;
-				ADC_SDATA <= 1'b0;
 				senCnt <= 5'b0;
-				if ( !ADC_SEN ) ADC_SEN <= 1'b1;
+				
+				if( ADC_SDATA ) ADC_SDATA <= 1'b0;
+				if( !ADC_SEN ) ADC_SEN <= 1'b1;
 			end
 			
-		issue_serial_command:
+		STATE_ADC_ISSUE_SERIAL_CMD:
 			begin
 				if ( senCnt < 24 )
 				begin
-					if ( !senCnt ) ADC_SEN <= 1'b0;
+					if( !senCnt ) ADC_SEN <= 1'b0;
 					ADC_SDATA <= cmd_buff[23];
 					cmd_buff <= {cmd_buff[22:0],1'b0};
 					senCnt <= senCnt + 1'b1;
 				end
 				else
 				begin
-					ADC_SEN <= 1'b1;
-					ADC_SDATA <= 1'b0;
+					if( !ADC_SEN ) ADC_SEN <= 1'b1;
+					if( ADC_SDATA ) ADC_SDATA <= 1'b0;
 				end	
 			end
 		
-		sync_adc:
+		STATE_ADC_SYNC:
 			begin
-				adc_state <= idle_state;
+				if ( adc_state ^ STATE_ADC_IDLE ) adc_state <= STATE_ADC_IDLE;
+			end
+			
+		STATE_ADC_PDN_ONE:
+			begin
+				if( !ADC_PDN ) ADC_PDN <= 1'b1;
+				if( !ADC_SEN ) ADC_SEN <= 1'b1;
+				if( ADC_SDATA ) ADC_SDATA <= 1'b0;
+				senCnt <= 5'b0;
+			end
+			
+		STATE_ADC_PDN_ZERO:
+			begin
+				if( ADC_PDN ) ADC_PDN <= 1'b0;
+				if( !ADC_SEN ) ADC_SEN <= 1'b1;
+				if( ADC_SDATA ) ADC_SDATA <= 1'b0;
+				senCnt <= 5'b0;
 			end
 			
 		default:
 			begin
-				adc_state <= idle_state;
+				adc_state <= STATE_ADC_IDLE;
 			end
 	endcase
 end
@@ -606,7 +599,7 @@ end
 // Double-data rate register
 // Converts the LVDS input to parallel double data outputs
 ddio d0(
-	.datain(ADC_INPUT_DATA_LINES),
+	.datain(iADC_INPUT_DATA_LINES),
 	.inclock(bit_clk),
 	.dataout_h(data_out_h),
 	.dataout_l(data_out_l)
@@ -620,18 +613,18 @@ begin
 	begin
 	
 		fclk_flag <= 1'b1;
-		fclk_delay_cntr <= 3'b0;
+		fclk_delay_reg_cntr <= 3'b0;
 			
 	end
 	else 
 	begin
 	
 		if( !adc_clkinp & fclk_flag ) fclk_flag <= 1'b0;
-		fclk_delay_cntr <= fclk_delay_cntr + 1'b1;
+		fclk_delay_reg_cntr <= fclk_delay_reg_cntr + 1'b1;
 			
 	end
 
-	if(fclk_delay_cntr == fclk_delay)
+	if(fclk_delay_reg_cntr == fclk_delay_reg)
 	begin
 	
 		data_sr[0] <= {data_out_h[0], data_out_l[0], 10'b0};

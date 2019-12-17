@@ -7,12 +7,24 @@ void adcSync(ADCvars_t *ADC){
 }
 
 void adcIssueSerialCmd(ADCvars_t *ADC, uint32_t cmd){
+    // DO NOT TOUCH, TIMINGS ARE IMPORTANT
 	DREF32(ADC->serialCommand) = cmd;
 	usleep(5);
 	DREF32(ADC->controlComms) = ADC_BUFFER_SERIAL_COMMAND;
 	usleep(5);
 	DREF32(ADC->controlComms) = ADC_ISSUE_SERIAL_COMMAND;
+	usleep(100); // NEEDS TO BE AT LEAST 13US!!!!!
+	DREF32(ADC->controlComms) = ADC_IDLE_STATE;
 	usleep(5);
+}
+
+void adcSetPowerState(ADCvars_t *ADC, uint32_t power_state){
+    if( power_state ){
+        DREF32(ADC->controlComms) = ADC_POWER_OFF_COMMAND;
+	} else {
+        DREF32(ADC->controlComms) = ADC_POWER_ON_COMMAND;
+    }
+    usleep(100000);
 	DREF32(ADC->controlComms) = ADC_IDLE_STATE;
 	usleep(5);
 }
@@ -56,6 +68,13 @@ void adcSetDefaultSettings(ADCvars_t *ADC){
     ADC->gpreg70.CLAMP_DISABLE = 1;
     ADC->issueSerialCommand(ADC,ADC->gpreg70.adccmd);
 }
+
+void adcInitializerSequence(ADCvars_t *ADC){
+    ADC->setPowerState(ADC,1); // turn ADC off
+    ADC->setPowerState(ADC,0); // turn ADC on
+    ADC->setDefaultSettings(ADC);
+}
+
 
 void adcSetGain(ADCvars_t *ADC, double gainVal){
 	

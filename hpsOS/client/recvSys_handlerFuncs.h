@@ -222,7 +222,16 @@ void rcvSysMsgHandler(RCVsys_t *RCV, FMSG_t *msg, int *runner){
             }
             break;
         }
-        
+ 
+        case(CASE_ADC_SET_POWER_ON_OFF):{
+            RCV->ADC->setPowerState(RCV->ADC,msg->u[1]);
+            printf("what the hell\n");
+            if ( send(RCV->comm_sock->fd,&(RCV->npulses),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
+                printf("adc power state set successfully\n");
+            }
+            break;
+        }
+
         case(CASE_EXIT_PROGRAM):{
             *runner=0;
             break;

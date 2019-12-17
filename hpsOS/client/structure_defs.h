@@ -53,6 +53,7 @@ void rcvSetLEDs(RCVsys_t *RCV, uint32_t val);
 
 // adc function prototypes
 void adcIssueSerialCmd(ADCvars_t *ADC, uint32_t cmd);
+void adcSetPowerState(ADCvars_t *ADC, uint32_t power_state);
 void adcSetGain(ADCvars_t *ADC, double gainVal);
 void adcSetUnsignedInt(ADCvars_t *ADC, uint32_t val);
 void adcSetLowNoiseMode(ADCvars_t *ADC, uint32_t val);
@@ -62,6 +63,7 @@ void adcSetInternalAcCoupling(ADCvars_t *ADC, uint32_t accoupling);
 void adcIssueDirectCmd(ADCvars_t *ADC, FMSG_t *msg);
 void adcSetDefaultSettings(ADCvars_t *ADC);
 void adcSync(ADCvars_t *ADC);
+void adcInitializerSequence(ADCvars_t *ADC);
 
 // tx system function prototypes
 int txProgramExecutionHandler(TXsys_t *TX);
@@ -141,6 +143,7 @@ typedef struct FPGAvars_{ // structure to hold variables that are mapped to the 
 typedef struct ADCvars_{
     // shared with RCVsys	
 	uint32_t volatile *controlComms;
+
 	uint32_t volatile *serialCommand;
 	
     GPREG0_t gpreg0;
@@ -176,6 +179,7 @@ typedef struct ADCvars_{
     uint32_t **reg_dict;
 	
     void (*issueSerialCommand)(ADCvars_t *,uint32_t);
+    void (*setPowerState)(ADCvars_t *, uint32_t);
     void (*setDefaultSettings)(ADCvars_t *);
     void (*setGain)(ADCvars_t *,double);
     void (*setUnsignedInt)(ADCvars_t *,uint32_t);
@@ -184,7 +188,8 @@ typedef struct ADCvars_{
     void (*setFilterBW)(ADCvars_t *,uint32_t);
     void (*setInternalAcCoupling)(ADCvars_t *,uint32_t);
     void (*issueDirectCommand)(ADCvars_t *,FMSG_t *);
-    void (*sync)(ADCvars_t *);	
+    void (*sync)(ADCvars_t *);
+    void (*initialize)(ADCvars_t *);
 } ADCvars_t;
 
 

@@ -1581,7 +1581,7 @@
   <parameter name="resetValue" value="0" />
   <parameter name="simDoTestBenchWiring" value="false" />
   <parameter name="simDrivenValue" value="0" />
-  <parameter name="width" value="8" />
+  <parameter name="width" value="32" />
  </module>
  <module
    name="pio_adc_fpga_state_reset"

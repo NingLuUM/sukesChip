@@ -199,6 +199,9 @@ class receiver():
 				self.queryData()
 				n+=1
 			os._exit(0)
+			
+		else:
+			self.stateReset(0)
 					
 	def stateReset(self,val=0):
 		msg = struct.pack(self.cmsg,self.CASE_RCV_STATE_RESET,val,0,0,0,0,0,0,0,0)
@@ -283,7 +286,7 @@ class receiver():
 			self.nrows = nrows
 		if ncols > 0:
 			self.ncols = ncols
-			
+		
 	def plotDatas(self,datas):
 		
 		print 'npulses',self.npulses
@@ -295,7 +298,6 @@ class receiver():
 			
 		t = np.linspace(0,self.recLen/self.ADC_CLK*clockDiv,self.recLen)
 		
-			
 		fig,ax = plt.subplots(self.nrows,self.ncols,sharey=True,sharex=True,figsize=(self.figwidth, self.figheight))
 		
 		if self.nrows==1 and self.ncols==1:
@@ -432,7 +434,7 @@ class receiver():
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
-	def toggleAdcChannelPower(self,chpwr):
+	def powerDownAdcChannels(self,chpwr):
 		msg = struct.pack(self.cmsg,self.CASE_ADC_TOGGLE_CHANNEL_POWER,chpwr,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
@@ -526,7 +528,19 @@ class receiver():
 		msg = struct.pack(self.cmsg,self.CASE_RCV_INTERRUPT_THYSELF,val,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
-			
+	
+	def powerDownAdc(self):
+		power_down = 1
+		msg = struct.pack(self.cmsg,self.CASE_ADC_SET_POWER_ON_OFF,power_down,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+	
+	def powerUpAdc(self):
+		power_up = 0
+		msg = struct.pack(self.cmsg,self.CASE_ADC_SET_POWER_ON_OFF,power_up,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+				
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3400))
 		
@@ -564,6 +578,7 @@ class receiver():
 		self.CASE_RCV_SET_SAMPLING_MODE	= 18
 		self.CASE_RCV_SET_COMPRESSOR_MODE = 19
 		self.CASE_RCV_INTERRUPT_THYSELF = 20
+		self.CASE_ADC_SET_POWER_ON_OFF = 21
 		
 		self.CASE_ADC_SET_FCLOCK_DELAY = 52
 		self.CASE_EXIT_PROGRAM = 100
@@ -580,6 +595,8 @@ class receiver():
 		self.dsock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 		
 		self.allocated = 0
+		
+		
 		
 		# for allocating storage on arm/setting up enet transfer
 		self.npulses = 1
@@ -613,6 +630,7 @@ class receiver():
 		self.figheight = 18
 		self.nrows = 4
 		self.ncols = 2
+
 		
 		# bitwise masks to convert recv'd data if 'is16bit'==0
 		self.c0mask = 0xfff
@@ -648,18 +666,25 @@ r = receiver()
 r.connectToFpga()
 r.resetToDefaultAdcSettings()
 r.setAutoShutdown(0)
-r.toggleAdcChannelPower(0b11111111)
+
+#~ r.powerDownAdc()
+#~ time.sleep(5)
+#~ r.powerUpAdc()
+
+r.powerDownAdcChannels(0b00000000)
 # can't do 'moving sum' with compression. will corrupt data
 r.setClockDivisor(1)
+r.setFclkDelay(0) # accepts values 0-5
+
 r.setSamplingMode(r.EVERY_NTH)
 r.setCompressorMode(r.RAW16)
 r.setRecLen(1000)
-#~ r.setRecDuration(20.00) # us (max = 327.68)
 
-r.setAdcGain(20)
+
+r.setAdcGain(0)
 r.setPioVarAtten(0)
 #~ r.setNPulses(1)
-r.setFclkDelay(1) # accepts values 0-5
+
 #~ r.setAdcLowNoiseMode(0)
 #~ r.setAdcFilterBw(0)
 #~ r.setAdcInternalAcCoupling(1)
@@ -669,10 +694,9 @@ r.setFclkDelay(1) # accepts values 0-5
 r.setQueryMode(realTime=1,transferData=0,saveData=0)
 #~ r.plotterSetup(figheight = 15, figwidth = 10, nrows = 4, ncols = 2)
 #~ r.plotterSetup(ylims = [-200,4300], xlims = [-100,2600], figheight = 10, figwidth = 30, nrows = 4, ncols = 2)
-r.stateReset(0)
 
-r.plotNPulses(1)
-
+r.plotNPulses(5)
+#~ r.powerDownAdc()
 r.activateRecvr()
 
 #~ r.interruptSelf(1)
@@ -687,7 +711,7 @@ t.setActiveTransducers(0xff)
 phaseDelays = np.zeros((100,8)).astype(np.uint16)
 t.uploadPhaseDelays(phaseDelays)
 
-t.startLoop(0,0,1)
+t.startLoop(0,0,5)
 if 1:
 	t.startSteeringLoop(0,0,1)
 	if 1:

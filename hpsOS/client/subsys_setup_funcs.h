@@ -166,6 +166,7 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
     
     // setup function pointers
     ADC->issueSerialCommand = &adcIssueSerialCmd;
+    ADC->setPowerState = &adcSetPowerState;
     ADC->setDefaultSettings = &adcSetDefaultSettings;
     ADC->setGain = &adcSetGain;
     ADC->setUnsignedInt = &adcSetUnsignedInt;
@@ -175,8 +176,7 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
     ADC->setInternalAcCoupling = &adcSetInternalAcCoupling;
     ADC->issueDirectCommand = &adcIssueDirectCmd;
     ADC->sync = &adcSync;
-	
-    ADC->setDefaultSettings(ADC);
+    ADC->initialize = &adcInitializerSequence;
    
     return(1);
 }
