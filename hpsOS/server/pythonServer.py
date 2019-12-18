@@ -215,6 +215,7 @@ class receiver():
 			while n<self.nplotpulses:
 				self.queryData()
 				n+=1
+				self.disconnectDataSock()
 			os._exit(0)
 			
 
@@ -597,13 +598,14 @@ class receiver():
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3400))
 		
-		
-		
 	def connectRcvDataSock(self):
 		self.dsock.connect(('192.168.1.101',3500))
 	
-	def disconnectFromFpga(self):
+	def disconnectCommSock(self):
 		self.sock.close()
+		
+	def disconnectDataSock(self):
+		self.dsock.close()
 		
 	def closeProgram(self):
 		msg = struct.pack(self.cmsg,self.CASE_EXIT_PROGRAM,0,0,0,0,0,0,0,0,0)
@@ -720,6 +722,7 @@ class receiver():
 		
 		
 
+npulses = 1
 
 r = receiver()
 r.connectToFpga()
@@ -732,10 +735,8 @@ r.setFclkDelay(0) # accepts values 0-5
 
 r.setSamplingMode(r.EVERY_NTH)
 r.setCompressorMode(r.RAW16)
-#~ r.setRecLen(10000)
-r.setRecDuration(30.0)
-#~ r.disableAdcClamp()
-#~ r.enableAdcClamp()
+r.setRecLen(10211)
+#~ r.setRecDuration(110.0)
 
 r.setAdcGain(0)
 
@@ -752,7 +753,7 @@ r.setQueryMode(realTime=1,transferData=0,saveData=0)
 #~ r.plotterSetup(figheight = 15, figwidth = 10, nrows = 4, ncols = 2)
 #~ r.plotterSetup(ylims = [-200,4300], xlims = [-100,2600], figheight = 10, figwidth = 30, nrows = 4, ncols = 2)
 
-r.plotNPulses(10)
+r.plotNPulses(npulses)
 #~ r.powerDownAdc()
 
 r.activateRecvr()
@@ -760,49 +761,50 @@ r.activateRecvr()
 #~ r.interruptSelf(1)
 #~ time.sleep(0.1)
 #~ r.interruptSelf(0)
-
-t = transmitter()
-t.connectToFpga()
-
-t.setTrigRestLvls(0x1f)
-#~ t.setVarAttenRestLvl(0x0)
-t.setActiveTransducers(0xf0)
-phaseDelays = np.zeros((100,8)).astype(np.uint16)
-t.uploadPhaseDelays(phaseDelays)
-
-t.startLoop(0,0,10)
-if 1:
+if (r.pid):
+	t = transmitter()
+	t.connectToFpga()
 	
-	t.startSteeringLoop(0,0,1)
+	t.setTrigRestLvls(0x1f)
+	#~ t.setVarAttenRestLvl(0x0)
+	t.setActiveTransducers(0xf0)
+	phaseDelays = np.zeros((100,8)).astype(np.uint16)
+	t.uploadPhaseDelays(phaseDelays)
+	
+	t.startLoop(0,0,npulses)
 	if 1:
 		
-		t.beginSyncCmd()
+		t.startSteeringLoop(0,0,1)
 		if 1:
-			t.setChargeTime(4)
-			t.setTrig(1,10)
-			t.setTrig(2,5)
-			t.wait_us(5)		
-			t.fire()
-			t.rcvData()
-			t.wait_us(50)
-			#~ t.setTrig(1,20)
-			t.setVarAtten(duration_us=50)
-			t.wait_us(55)	
 			
-		t.endSyncCmd()
-		
-		t.async_wait_sec(0.1)
+			t.beginSyncCmd()
+			if 1:
+				t.setChargeTime(4)
+				t.setTrig(1,10)
+				t.setTrig(2,5)
+				t.wait_us(5)		
+				t.fire()
+				t.rcvData()
+				t.wait_us(50)
+				#~ t.setTrig(1,20)
+				t.setVarAtten(duration_us=50)
+				t.wait_us(55)	
+				
+			t.endSyncCmd()
+			
+			t.async_wait_sec(0.1)
+	
+		t.endSteeringLoop(0)	
+	t.endLoop(0)
+	
+	
+	
+	t.executeProgram()
+	print 'hello'
 
-	t.endSteeringLoop(0)	
-t.endLoop(0)
 
-
-
-t.executeProgram()
-print 'hello'
-
-if (r.pid):
 	os.waitpid(r.pid,0)
+	r.disconnectCommSock()
 	print "the child is dead"
 
 

@@ -522,15 +522,15 @@ void txResetRcvTrig(TXsys_t *TX){
 }
 
 void txSetNumSteeringLocs(TXsys_t *TX, uint32_t nSteeringLocs){
-    uint32_t ns;
     
-    ns = ( nSteeringLocs ) ? nSteeringLocs : 1;
+    TX->nSteeringLocs = ( nSteeringLocs ) ? nSteeringLocs : 1;
 
-    if( ns != TX->nSteeringLocs ){
-        free( TX->phaseDelays[0] );
-        TX->phaseDelays[0] = (uint16_t *)calloc(8*ns,sizeof(uint16_t));
-        TX->nSteeringLocs = ns;
-    }
+    printf("hello from numlocks\n");
+    if( TX->phaseDelays[0] ) free( TX->phaseDelays[0] );
+    
+    printf("hello from numlocks2\n");
+    TX->phaseDelays[0] = (uint16_t *)calloc(8*(TX->nSteeringLocs+2),sizeof(uint16_t));
+    printf("hello from numlocks3\n");
     TX->nPhaseDelaysWritten = 0;
 }
 
@@ -547,6 +547,7 @@ void txStorePhaseDelays(TXsys_t *TX, int nrecv, FMSG_t *msg){
         TX->nPhaseDelaysWritten++;
         i++;
     }
+    printf("pdwritten %d/%d\n",TX->nPhaseDelaysWritten,TX->nSteeringLocs*8*sizeof(uint16_t));
     if ( TX->nPhaseDelaysWritten == TX->nSteeringLocs*8*sizeof(uint16_t) ){
         if ( send(TX->pd_data_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
             //printf("phase delays stored successfully\n");

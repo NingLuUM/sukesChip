@@ -227,23 +227,29 @@ void rcvQueryData(RCVsys_t *RCV){
 
 
 
-void setupInternalStorage(RCVsys_t *RCV){  
-	//printf("internal storage1\n");
+int setupInternalStorage(RCVsys_t *RCV){  
+	printf("internal storage1\n");
 	//char *tmp;    
-	
+    unsigned long dsize;
+    dsize = RCV->refVals.recLen*RCV->npulses*8;
 	//tmp = (char *)malloc(RCV->refVals.recLen*RCV->npulses*8*sizeof(uint16_t));
-	printf("internal storage2\n");
-
+	//printf("internal storage2\n");
+    printf("RCV->data[0,1] = %p,%p\n", RCV->data[0],RCV->data[1]);
 	if( RCV->data[1] != NULL ){
 		free( RCV->data[1] );
+        usleep(1000);
         RCV->data[1] = NULL;
+        usleep(1000);
 	    printf("internal storage3\n");
 	} 
 	
-	//printf("internal storage4\n"); 
+	printf("internal storage4, sizeof(refVals) %d\n", sizeof(RCV->refVals)); 
 	//RCV->data[1] = tmp;
-	RCV->data[1] = (char *)malloc(RCV->refVals.recLen*RCV->npulses*8*sizeof(uint16_t));
-	printf("internal storage4\n"); 
+	RCV->data[1] = (char *)malloc((dsize+1)*sizeof(uint16_t));
+    printf("RCV->data[0,1] = %p,%p\n", RCV->data[0],RCV->data[1]);
+	printf("ramBank-data[1] = %u\n",(uint32_t *)RCV->ramBank-(uint32_t *)RCV->data[1]);
+    printf("internal storage5\n"); 
+    return(1);
 }
 
 

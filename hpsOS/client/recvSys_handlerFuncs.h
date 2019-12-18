@@ -8,7 +8,9 @@ void rcvSysMsgHandler(RCVsys_t *RCV, FMSG_t *msg, int *runner){
         case(CASE_RCV_SET_RECLEN):{
             RCV->setRecLen(RCV,msg->u[1]);
             if( msg->u[2] ){
+                printf("hello from here\n");
 				setupInternalStorage(RCV);
+                printf("hello from here\n");
 			}
             if ( send(RCV->comm_sock->fd,&(RCV->npulses),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("reclen set successfully\n");
@@ -154,7 +156,9 @@ void rcvSysMsgHandler(RCVsys_t *RCV, FMSG_t *msg, int *runner){
                 RCV->npulses = 1;
             }
             if( msg->u[2] ){
+                printf("hello from there\n");
 				setupInternalStorage(RCV);
+                printf("hello from there\n");
 			}
             if ( send(RCV->comm_sock->fd,&(RCV->npulses),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("rcv npulses set successfully\n");
@@ -163,7 +167,10 @@ void rcvSysMsgHandler(RCVsys_t *RCV, FMSG_t *msg, int *runner){
         }
         
         case(CASE_RCV_SETUP_LOCAL_STORAGE):{
+            
+            printf("hello from where\n");
             setupInternalStorage(RCV);
+            printf("hello from where\n");
             if ( send(RCV->comm_sock->fd,&(RCV->npulses),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("rcv internal storage set successfully\n");
             }

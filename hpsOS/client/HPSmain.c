@@ -189,13 +189,13 @@ struct timespec gstart, gend, gdifftime;
 
 int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
 	
-    POLLserver_t *PS = (POLLserver_t *)malloc(sizeof(POLLserver_t));
-    FPGAvars_t *FPGA = (FPGAvars_t *)malloc(sizeof(FPGAvars_t));
-    ADCvars_t *ADC = (ADCvars_t *)malloc(sizeof(ADCvars_t));
-    RCVsys_t *RCV = (RCVsys_t *)malloc(sizeof(RCVsys_t));
-    TXsys_t *TX = (TXsys_t *)malloc(sizeof(TXsys_t));
-    SOCK_t *ENETserver = (SOCK_t *)malloc(MAX_SERVER_PORTS*sizeof(SOCK_t));
-    SOCK_t *ENETclient = (SOCK_t *)malloc(MAX_SERVER_PORTS*sizeof(SOCK_t));
+    POLLserver_t *PS = (POLLserver_t *)calloc(1,sizeof(POLLserver_t));
+    FPGAvars_t *FPGA = (FPGAvars_t *)calloc(1,sizeof(FPGAvars_t));
+    ADCvars_t *ADC = (ADCvars_t *)calloc(1,sizeof(ADCvars_t));
+    RCVsys_t *RCV = (RCVsys_t *)calloc(1,sizeof(RCVsys_t));
+    TXsys_t *TX = (TXsys_t *)calloc(1,sizeof(TXsys_t));
+    SOCK_t *ENETserver = (SOCK_t *)calloc(MAX_SERVER_PORTS,sizeof(SOCK_t));
+    SOCK_t *ENETclient = (SOCK_t *)calloc(MAX_SERVER_PORTS,sizeof(SOCK_t));
 
     PS->epfd = epoll_create(MAX_POLL_EVENTS);
 	
@@ -255,11 +255,19 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                     if( sock->partner->is.tx_control ){
 
                         TX->comm_sock = sock->partner;
+                        if( *(TX->phaseDelays) == NULL){
+                            printf("allocating from tx_control\n");
+                            *(TX->phaseDelays) = (uint16_t *)calloc(8,sizeof(uint16_t));
+                        }
 
                     } else if ( sock->partner->is.tx_incoming_data ){
 
                         TX->pd_data_sock = sock->partner;
 
+                        if( *(TX->phaseDelays) == NULL){
+                            printf("allocating from tx_incoming\n");
+                            *(TX->phaseDelays) = (uint16_t *)calloc(8,sizeof(uint16_t));
+                        }
                     } else if ( sock->partner->is.commsock ){
 
                         RCV->comm_sock = sock->partner;
@@ -312,25 +320,54 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                         break;
                     
                     } else if ( nrecv == 0 ) {
-
-                        disconnectPollSock(sock);
-                        sock->is.alive=0;
+                        printf("closing sock\n");
                         if( sock->is.tx_control ){
                             TX->setControlState(TX,0);
+                            printf("closing tx control sock\n");
+                            if( *(TX->phaseDelays) ){
+                                free( *(TX->phaseDelays) );
+                                *(TX->phaseDelays) = NULL;
+                                TX->nPhaseDelaysWritten = 0;
+                            }
+                        } else if ( sock->is.commsock ) {
+                            printf("closing from commsock\n");
+                            for(n=0;n<2;n++){
+                                if( RCV->data[n] != NULL){
+                                    free(RCV->data[n]); printf("free(RCV->data[%d])\n",n);
+                                    RCV->data[n] = NULL;
+                                }
+                            }
+                        } else if ( sock->is.tx_incoming_data ){
+                            printf("closing from pd sock\n");
+                            if( *(TX->phaseDelays) ){
+                                free( *(TX->phaseDelays) );
+                                *(TX->phaseDelays) = NULL;
+                                TX->nPhaseDelaysWritten = 0;
+                            }
+                        } else {
+                            printf("closing from data sock\n");
+                            for(n=0;n<2;n++){
+                                if( RCV->data[n] != NULL){
+                                    free(RCV->data[n]); printf("free(RCV->data[%d])\n",n);
+                                    RCV->data[n] = NULL;
+                                }
+                            }
                         }
+                        disconnectPollSock(sock);
+                        sock->is.alive=0;
                     
                     } else if ( sock->is.commsock ){
 
-                        //printf("rcv sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",msg.u[0],msg.u[1],msg.u[2],msg.u[3],msg.u[4],msg.u[5],msg.u[6],msg.u[7],msg.u[8],msg.u[9]);
+                        printf("rcv sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",msg.u[0],msg.u[1],msg.u[2],msg.u[3],msg.u[4],msg.u[5],msg.u[6],msg.u[7],msg.u[8],msg.u[9]);
                         RCV->enetMsgHandler(RCV, &msg, &runner);
                     
                     } else if ( sock->is.tx_control ){
 
-                        //printf("tx sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",msg.u[0],msg.u[1],msg.u[2],msg.u[3],msg.u[4],msg.u[5],msg.u[6],msg.u[7],msg.u[8],msg.u[9]);
+                        printf("tx sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",msg.u[0],msg.u[1],msg.u[2],msg.u[3],msg.u[4],msg.u[5],msg.u[6],msg.u[7],msg.u[8],msg.u[9]);
                         TX->enetMsgHandler(TX, &msg, nrecv, &runner);
                     
                     } else if ( sock->is.tx_incoming_data ){
-
+                        printf("birds\n");
                         TX->storePhaseDelays(TX,nrecv,&msg);
                     
                     }

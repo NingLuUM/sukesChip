@@ -193,7 +193,17 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV, POLLserver_t *PS){
 	RCV->dataReadyFlag = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + RCV_INTERRUPT_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	RCV->leds = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_LED_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	RCV->ramBank = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
-    
+   
+    printf("&interrupt_reg %p\n", (uint32_t *)RCV->interrupt_reg);
+    printf("&stateRest %p\n", (uint32_t *)RCV->stateReset);
+    printf("&controlComms %p\n", (uint32_t *)RCV->controlComms);
+    printf("&pioSettings %p\n", (uint32_t *)RCV->recLen);
+    printf("&serialCommand %p\n", (uint32_t *)RCV->serialCommand);
+    printf("&dataReadyFlag %p\n", (uint32_t *)RCV->dataReadyFlag);
+    printf("&leds %p\n", (uint32_t *)RCV->leds);
+    printf("&ramBank %p\n", (uint32_t *)RCV->ramBank);
+
+    //mlock((uint32_t*)RCV->ramBank,MAX_RECLEN*8*sizeof(uint16_t));
     // setup function pointers
     RCV->enetMsgHandler = &rcvSysMsgHandler;
     RCV->queryData = &rcvQueryData;
@@ -227,8 +237,8 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV, POLLserver_t *PS){
     RCV->queryMode.all = 0;
     RCV->queryMode.realTime = 1;
     RCV->data = (char **)calloc(2,sizeof(char *));
-    RCV->data[0] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));
-    RCV->data[1] = (char *)calloc(8*MAX_RECLEN,sizeof(uint16_t));	
+    RCV->data[0] = NULL;//(char *)calloc(16*MAX_RECLEN,sizeof(char));
+    RCV->data[1] = NULL;//(char *)calloc(16*MAX_RECLEN,sizeof(char));	
     
     //~ RCV->setLEDs(RCV,0x1f);
    
@@ -265,7 +275,9 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     TX->pio_reg[24] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG24_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
     TX->pio_reg[25] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG25_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
     TX->pio_reg[26] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG26_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
-	
+
+    for(int n=0;n<27;n++)
+    printf("TX->pio_reg[%d] = %p\n",n,(uint32_t *)TX->pio_reg[n]);
     //TX->instructions = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_INSTRUCTIONMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 	//TX->phaseDelays = FPGA->axi_virtual_base + ( ( uint32_t  )( TX_PHASEDELAYMEM_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
 	
@@ -300,7 +312,7 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     TX->nSteeringLocs = 1;
     TX->nPhaseDelaysWritten = 0;
     TX->phaseDelays = (uint16_t **)malloc(sizeof(uint16_t *));
-    *(TX->phaseDelays) = (uint16_t *)calloc(8,sizeof(uint16_t));
+    *(TX->phaseDelays) = NULL;//(uint16_t *)calloc(8,sizeof(uint16_t));
 
     TX->ps = PS;
     TX->comm_sock = NULL;

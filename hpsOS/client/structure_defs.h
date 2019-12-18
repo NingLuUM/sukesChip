@@ -213,6 +213,8 @@ typedef struct RCVsys_{
 	uint32_t volatile *leds;
     char volatile *ramBank;
 
+    char **data;
+
     union{
         struct{
             uint32_t realTime : 1;
@@ -246,7 +248,6 @@ typedef struct RCVsys_{
         uint32_t recLen;
     } refVals;
 
-    char **data;
 
     POLLserver_t *ps;
     SOCK_t *comm_sock;
