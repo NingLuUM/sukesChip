@@ -282,6 +282,14 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             break;
         }
 
+        case(CASE_TX_SET_SYNC_CMD_TIME_VAL):{
+            currentTimer = msg->u[1];
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
+                printf("wait cmd issued successfully\n");
+            }
+            break;
+        }
+
         case(CASE_TX_SET_NSTEERING_LOCS):{
             TX->setNumSteeringLocs(TX,msg->u[1]);
             if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){

@@ -127,6 +127,7 @@ reg gnd = 1'b0;
 
 wire [7:0] led_pins;
 
+
 wire CLK2, CLK50, CLK100, CLK200, CLK300;
 wire adc_reset, adc_sen, adc_sdata, adc_sync, adc_pdn;
 

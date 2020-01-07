@@ -103,7 +103,7 @@ class transmitter():
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
-	def async_wait_us(self,waitVal_us=0):
+	def async_wait_usec(self,waitVal_us=0):
 		wv = np.uint64(waitVal_us*100)
 		msg = struct.pack(self.async_msg,self.CASE_TX_BUFFER_ASYNC_WAIT,0,wv,0,0,0,0,0,0)
 		self.sock.send(msg)
@@ -115,9 +115,15 @@ class transmitter():
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 	
-	def wait_us(self,waitVal=0):
+	def wait_usec(self,waitVal=0):
 		wv = np.uint32(waitVal*100)
 		msg = struct.pack(self.cmsg,self.CASE_TX_WAIT_CMD,wv,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)	
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+		
+	def at_usec(self,atusVal=0):
+		usval = np.uint32(atusVal*100)
+		msg = struct.pack(self.cmsg,self.CASE_TX_SET_SYNC_CMD_TIME_VAL,usval,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)	
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
@@ -174,11 +180,12 @@ class transmitter():
 		self.CASE_TX_BUFFER_RECV_TRIG = 14
 		self.CASE_TX_BUFFER_ASYNC_WAIT= 15
 		self.CASE_TX_WAIT_CMD = 16
-		self.CASE_TX_SET_NSTEERING_LOCS = 17
-		self.CASE_TX_CONNECT_INTERRUPT = 18
-		self.CASE_TX_SET_EXTERNAL_TRIGGER_MODE = 19
-		self.CASE_TX_BUFFER_VAR_ATTEN_TIMINGS = 20
-		self.CASE_TX_SET_VAR_ATTEN_REST_LVL = 21
+		self.CASE_TX_SET_SYNC_CMD_TIME_VAL = 17
+		self.CASE_TX_SET_NSTEERING_LOCS = 18
+		self.CASE_TX_CONNECT_INTERRUPT = 19
+		self.CASE_TX_SET_EXTERNAL_TRIGGER_MODE = 20
+		self.CASE_TX_BUFFER_VAR_ATTEN_TIMINGS = 21
+		self.CASE_TX_SET_VAR_ATTEN_REST_LVL = 22
 		self.CASE_EXIT_PROGRAM = 100
 		
 		# ethernet sockets for transferring data to/from arm
@@ -215,7 +222,8 @@ class receiver():
 			while n<self.nplotpulses:
 				self.queryData()
 				n+=1
-				self.disconnectDataSock()
+				
+			self.disconnectDataSock()
 			os._exit(0)
 			
 
@@ -290,7 +298,6 @@ class receiver():
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 
-
 	def plotterSetup(self,ylims = [0,0], xlims = [0,0], figheight = 0, figwidth = 0, nrows = 0, ncols = 0):
 		if ylims[0] != ylims[1]:
 			self.ylims = ylims
@@ -327,8 +334,7 @@ class receiver():
 		np.savetxt("fdata.dat",dd,delimiter=' ')
 		
 		self.pt.stdin.write("plot 'fdata.dat' u 1:8 w lines noti\n")
-		
-			
+				
 	def plotDatas(self,datas):
 		
 		print 'npulses',self.npulses
@@ -355,7 +361,9 @@ class receiver():
 					for npls in range(0,self.npulses):
 						ax[nr,nc].plot(t+npls*t[-1],datas[npls*self.recLen:(npls+1)*self.recLen,n]/clockDiv,'-')
 						pk2pk = (np.max(datas[npls*self.recLen:(npls+1)*self.recLen,n])-np.min(datas[npls*self.recLen:(npls+1)*self.recLen,n]))/clockDiv
-					ax[nr,nc].set_title('{}{}{}{}'.format('Ch[',n,'], pk-pk ',pk2pk))
+						rmsval = (np.sqrt(np.mean((datas[npls*self.recLen:(npls+1)*self.recLen,n]-np.mean(datas[npls*self.recLen:(npls+1)*self.recLen,n]))**2)))/clockDiv
+
+					ax[nr,nc].set_title('{}{}{}{}{}{}'.format('Ch[',n,'], pk-pk ',pk2pk,', RMS: ',np.round(rmsval,2) ))
 					ax[nr,nc].set_ylim((self.ylims[0],self.ylims[1]))
 					if self.xlims[2] > 0:
 						ax[nr,nc].set_xlim((self.xlims[0],self.xlims[1]))
@@ -391,13 +399,27 @@ class receiver():
 		self.cmsg5 = '{}{}'.format(8*self.recLen*self.npulses,'H')
 		self.cmsg6 = '{}{}'.format(4*self.recLen*self.npulses,'I')
 		
-		
-		cc = np.array(struct.unpack(self.cmsg5,bb)).astype(np.uint16)
+		if self.isUnsigned:
+			self.ylims = [-200,4300]
+		else:
+			num_bits = 12
+			mask = 2**(num_bits - 1)
+			self.ylims = [-2200,2200]
+			
+		if self.isUnsigned:
+			cc0 = np.array(struct.unpack(self.cmsg5,bb)).astype(np.uint16)
+			cc = (cc0 & 0x0fff)
+		else:
+			cc0 = np.array(struct.unpack(self.cmsg5,bb)).astype(np.int16)
+			cc = -(cc0 & mask) + (cc0 & ~mask)
+			
 		dd = np.zeros((self.npulses*self.recLen,8))
 		print 'dd:',dd.shape,'cc:',cc.shape
-		for n in range(0,8):
-			dd[:,n] = cc[n::8]&0xffff
 		
+			
+		for n in range(0,8):
+			dd[:,n] = cc[n::8]
+
 		if pltr:	
 			self.plotDatas(dd)
 		
@@ -449,7 +471,7 @@ class receiver():
 		if(self.realTime or self.transferData):
 			
 			if(self.is16bit):
-				print 'helper'
+				print 'helper is 16bit'
 				self.queryDataLocal16(pltr)
 			else:
 				#~ print 'helper'
@@ -467,6 +489,10 @@ class receiver():
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def setAdcUnsigned(self,uns):
+		if uns:
+			self.isUnsigned = 1
+		else:
+			self.isUnsigned = 0
 		msg = struct.pack(self.cmsg,self.CASE_ADC_SET_UNSIGNED,uns,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
@@ -553,11 +579,8 @@ class receiver():
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def setFclkDelay(self,fclk):
-		# fclk_delay -> 0-5
-		# bit_lag -> 0-1
-		#~ fclk = fclk_delay/2
-		bclk = 0#fclk_delay%2
-		msg = struct.pack(self.cmsg,self.CASE_ADC_SET_FCLOCK_DELAY,fclk,bclk,0,0,0,0,0,0,0)
+		# fclk_delay -> 0-11
+		msg = struct.pack(self.cmsg,self.CASE_ADC_SET_FCLOCK_DELAY,fclk,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
@@ -594,7 +617,15 @@ class receiver():
 		msg = struct.pack(self.cmsg,self.CASE_ADC_DISABLE_CLAMP,self.clampVal,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
-					
+	
+	def toggleAdcSclk(self,adc_sclk=1):
+		if adc_sclk:	
+			msg = struct.pack(self.cmsg,self.CASE_ADC_SCLK_TOGGLE,1,0,0,0,0,0,0,0,0)
+		else:
+			msg = struct.pack(self.cmsg,self.CASE_ADC_SCLK_TOGGLE,0,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+						
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3400))
 		
@@ -637,6 +668,7 @@ class receiver():
 		self.CASE_RCV_INTERRUPT_THYSELF = 20
 		self.CASE_ADC_SET_POWER_ON_OFF = 21
 		self.CASE_ADC_DISABLE_CLAMP = 22
+		self.CASE_ADC_SCLK_TOGGLE = 23
 		
 		self.CASE_ADC_SET_FCLOCK_DELAY = 52
 		self.CASE_EXIT_PROGRAM = 100
@@ -665,6 +697,7 @@ class receiver():
 		self.transferData = 0
 		self.saveData = 0
 		self.is16bit = 1
+		self.isUnsigned = 1
 		self.sendOnRequest = 0
 		self.clockDiv = 0
 		self.samplingMode = 1
@@ -702,7 +735,7 @@ class receiver():
 		self.c6mask = 0xfff00
 		self.c7mask = 0xfff00000
 		
-		self.pid = 0
+		self.pid = 1
 		
 		# for for converting enet msg's into c-readable form
 		self.cmsg = '10I'
@@ -726,21 +759,20 @@ npulses = 1
 
 r = receiver()
 r.connectToFpga()
+
 r.resetToDefaultAdcSettings()
 r.setAutoShutdown(0)
 
 # can't do 'moving sum' with compression. will corrupt data
 r.setClockDivisor(1)
-r.setFclkDelay(0) # accepts values 0-5
+r.setFclkDelay(1) # accepts values 0-5
 
 r.setSamplingMode(r.EVERY_NTH)
 r.setCompressorMode(r.RAW16)
-r.setRecLen(10211)
-#~ r.setRecDuration(110.0)
+r.setRecLen(8000)
+#~ r.setRecDuration(101.0)
 
-r.setAdcGain(0)
-
-#~ r.setPioVarAtten(0)
+r.setAdcGain(31)
 
 #~ r.setNPulses(1)
 #~ r.setAdcInternalAcCoupling(1)
@@ -755,6 +787,9 @@ r.setQueryMode(realTime=1,transferData=0,saveData=0)
 
 r.plotNPulses(npulses)
 #~ r.powerDownAdc()
+time.sleep(1e-3)
+r.toggleAdcSclk(1)
+time.sleep(1e-3)
 
 r.activateRecvr()
 
@@ -766,8 +801,9 @@ if (r.pid):
 	t.connectToFpga()
 	
 	t.setTrigRestLvls(0x1f)
-	#~ t.setVarAttenRestLvl(0x0)
-	t.setActiveTransducers(0xf0)
+	t.setVarAttenRestLvl(0x0)
+	t.setActiveTransducers(0xff)
+	
 	phaseDelays = np.zeros((100,8)).astype(np.uint16)
 	t.uploadPhaseDelays(phaseDelays)
 	
@@ -779,16 +815,19 @@ if (r.pid):
 			
 			t.beginSyncCmd()
 			if 1:
+				
+				t.at_usec(0)
+				t.fire()
 				t.setChargeTime(4)
 				t.setTrig(1,10)
 				t.setTrig(2,5)
-				t.wait_us(5)		
-				t.fire()
+				
+				t.at_usec(0)		
 				t.rcvData()
-				t.wait_us(50)
-				#~ t.setTrig(1,20)
-				t.setVarAtten(duration_us=50)
-				t.wait_us(55)	
+				t.wait_usec(50)
+				
+				
+				#~ t.setVarAtten(50)
 				
 			t.endSyncCmd()
 			
@@ -804,6 +843,7 @@ if (r.pid):
 
 
 	os.waitpid(r.pid,0)
+	print "ohms"
 	r.disconnectCommSock()
 	print "the child is dead"
 

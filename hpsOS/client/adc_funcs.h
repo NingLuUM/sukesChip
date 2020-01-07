@@ -16,6 +16,10 @@ void adcIssueSerialCmd(ADCvars_t *ADC, uint32_t cmd){
 	usleep(100); // NEEDS TO BE AT LEAST 13US!!!!!
 	DREF32(ADC->controlComms) = ADC_IDLE_STATE;
 	usleep(5);
+
+    //printBinaryInterrupt(cmd);
+
+    //sleep(1);
 }
 
 void adcSetPowerState(ADCvars_t *ADC, uint32_t power_state){

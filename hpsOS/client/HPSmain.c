@@ -156,11 +156,12 @@
 #define CASE_TX_BUFFER_RECV_TRIG            ( 14 )
 #define CASE_TX_BUFFER_ASYNC_WAIT           ( 15 )
 #define CASE_TX_WAIT_CMD                    ( 16 )
-#define CASE_TX_SET_NSTEERING_LOCS          ( 17 )
-#define CASE_TX_CONNECT_INTERRUPT           ( 18 )
-#define CASE_TX_SET_EXTERNAL_TRIGGER_MODE   ( 19 )
-#define CASE_TX_BUFFER_VAR_ATTEN_TIMINGS    ( 20 )
-#define CASE_TX_SET_VAR_ATTEN_REST_LVL      ( 21 )
+#define CASE_TX_SET_SYNC_CMD_TIME_VAL       ( 17 )
+#define CASE_TX_SET_NSTEERING_LOCS          ( 18 )
+#define CASE_TX_CONNECT_INTERRUPT           ( 19 )
+#define CASE_TX_SET_EXTERNAL_TRIGGER_MODE   ( 20 )
+#define CASE_TX_BUFFER_VAR_ATTEN_TIMINGS    ( 21 )
+#define CASE_TX_SET_VAR_ATTEN_REST_LVL      ( 22 )
 #define CASE_TX_PRINT_FEEDBACK_MSGS         ( 50 )
 #define CASE_EXIT_PROGRAM 100
 

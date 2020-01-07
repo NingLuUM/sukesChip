@@ -107,8 +107,11 @@ reg [2:0]	fclk_delay_reg_cntr;
 
 reg [127:0]	data_to_ram;
 reg [127:0]	data_out;
-wire [7:0]	data_out_h;
-wire [7:0]	data_out_l;
+
+wire [7:0]	flipmedata_out_h;
+wire [7:0]	flipmedata_out_l;
+reg [7:0]	data_out_h;
+reg [7:0]	data_out_l;
 
 reg [1:0]	data_compressor_buff_cntr;
 reg [95:0]	data_buffer;
@@ -601,13 +604,32 @@ end
 ddio d0(
 	.datain(iADC_INPUT_DATA_LINES),
 	.inclock(bit_clk),
-	.dataout_h(data_out_h),
-	.dataout_l(data_out_l)
+	.dataout_h(flipmedata_out_h),
+	.dataout_l(flipmedata_out_l)
 );
 
 
 always @ (posedge bit_clk)
 begin
+	
+	data_out_h[0] <= ~flipmedata_out_h[0];
+	data_out_h[1] <= ~flipmedata_out_h[1];
+	data_out_h[2] <= flipmedata_out_h[2];
+	data_out_h[3] <= ~flipmedata_out_h[3];
+	data_out_h[4] <= ~flipmedata_out_h[4];
+	data_out_h[5] <= ~flipmedata_out_h[5];
+	data_out_h[6] <= flipmedata_out_h[6];
+	data_out_h[7] <= ~flipmedata_out_h[7];
+	
+	data_out_l[0] <= ~flipmedata_out_l[0];
+	data_out_l[1] <= ~flipmedata_out_l[1];
+	data_out_l[2] <= flipmedata_out_l[2];
+	data_out_l[3] <= ~flipmedata_out_l[3];
+	data_out_l[4] <= ~flipmedata_out_l[4];
+	data_out_l[5] <= ~flipmedata_out_l[5];
+	data_out_l[6] <= flipmedata_out_l[6];
+	data_out_l[7] <= ~flipmedata_out_l[7];
+	
 	
 	if( adc_clkinp & !fclk_flag )
 	begin
@@ -636,13 +658,13 @@ begin
 		data_sr[6] <= {data_out_h[6], data_out_l[6], 10'b0};
 		data_sr[7] <= {data_out_h[7], data_out_l[7], 10'b0};
 		
-		data_out[127:112] <= {4'b0000,data_sr[7]};
-		data_out[111:96] <= {4'b0000,data_sr[6]}; // wired backwards, bits need flipping
-		data_out[95:80] <= {4'b0000,data_sr[5]};
-		data_out[79:64] <= {4'b0000,data_sr[4]};
+		data_out[127:112] <= {4'b0000,data_sr[7]}; 
+		data_out[111:96] <= {4'b0000,data_sr[6]}; 
+		data_out[95:80] <= {4'b0000,data_sr[5]}; 
+		data_out[79:64] <= {4'b0000,data_sr[4]}; 
 		data_out[63:48] <= {4'b0000,data_sr[3]};
 		data_out[47:32] <= {4'b0000,data_sr[2]};
-		data_out[31:16] <= {4'b0000,data_sr[1]}; 
+		data_out[31:16] <= {4'b0000,data_sr[1]};
 		data_out[15:0] <= {4'b0000,data_sr[0]};
 
 	end

@@ -460,7 +460,7 @@ set_location_assignment PIN_AE23 -to "ADC_DATA_LINES[6](n)"
 set_instance_assignment -name IO_STANDARD LVDS -to ADC_DATA_LINES[7]
 set_instance_assignment -name IO_STANDARD LVDS -to ADC_DATA_LINES
 set_location_assignment PIN_AG15 -to ADC_RESET
-set_location_assignment PIN_AF18 -to ADC_SCLK
+set_location_assignment PIN_AE19 -to ADC_SCLK
 set_location_assignment PIN_AE17 -to ADC_SDATA
 set_location_assignment PIN_AE20 -to ADC_SEN
 set_instance_assignment -name IO_STANDARD "2.5 V" -to ADC_RESET
@@ -499,7 +499,7 @@ set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[
 set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[6]
 set_instance_assignment -name INPUT_TERMINATION DIFFERENTIAL -to ADC_DATA_LINES[7]
 set_location_assignment PIN_AF20 -to ADC_SDOUT
-set_location_assignment PIN_AE19 -to ADC_SYNC
+set_location_assignment PIN_AF18 -to ADC_SYNC
 set_location_assignment PIN_AG18 -to ADC_PDN
 set_location_assignment PIN_AH22 -to TRANSDUCER_OUTPUTS[1]
 set_location_assignment PIN_AA20 -to TRANSDUCER_OUTPUTS[0]

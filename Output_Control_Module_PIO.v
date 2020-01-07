@@ -79,8 +79,8 @@ assign itxIOLineOutputDelay[4] 		= itxIOLineOutputDurationAndDelay[4][31:11];
 
 wire [15:0] varAttenDuration;
 wire [15:0] varAttenDelay;
-assign varAttenRestLvl = itxVarAttenOutputDurationAndDelay[15:0];
-assign varAttenDuration = itxVarAttenOutputDurationAndDelay[31:16];
+assign varAttenDuration = itxVarAttenOutputDurationAndDelay[15:0];
+assign varAttenDelay = itxVarAttenOutputDurationAndDelay[31:16];
 
 
 // needs to know if its master so it doesn't issue 'otxWaitForMe'
