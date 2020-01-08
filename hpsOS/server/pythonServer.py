@@ -757,7 +757,7 @@ r.setAutoShutdown(0)
 
 # can't do 'moving sum' with compression. will corrupt data
 r.setClockDivisor(1)
-r.setFclkDelay(0) # accepts values 0-5
+r.setFclkDelay(1) # accepts values 0-5
 
 r.setSamplingMode(r.EVERY_NTH)
 r.setCompressorMode(r.RAW16)
@@ -810,11 +810,11 @@ if (r.pid):
 				
 				t.at_usec(0)
 				t.fire()
-				t.setChargeTime(1)
+				t.setChargeTime(5)
 				t.setTrig(1,10)
 				t.setTrig(2,5)
 				
-				t.at_usec(0)		
+				t.at_usec(150)		
 				t.rcvData()
 				t.wait_usec(50)
 				

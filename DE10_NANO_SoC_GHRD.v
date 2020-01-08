@@ -124,16 +124,17 @@ assign stm_hw_events = {{15{1'b0}}, SW, fpga_led_internal, fpga_debounced_button
 //*****************************************//
 
 reg gnd = 1'b0;
+wire rst;
+assign rst = gnd;
 
 wire [7:0] led_pins;
-
+assign LED = led_pins;
 
 wire CLK2, CLK50, CLK100, CLK300;
 wire adc_reset, adc_sen, adc_sdata, adc_sync, adc_pdn;
 
-assign CLK50 = FPGA_CLK1_50;
 assign ADC_SCLK 	= CLK2;
-assign ADC_CLKIN 	= FPGA_CLK1_50;//CLK50;
+assign ADC_CLKIN 	= CLK50;
 assign ADC_RESET	= adc_reset; 
 assign ADC_SEN		= adc_sen;
 assign ADC_SDATA	= adc_sdata; 
@@ -169,22 +170,15 @@ wire [26:0][31:0]	tx_pio_reg;
 wire [1:0]			trigLines_txAdc;
 
 
-assign rst = 0;
-
 ADCclock u4 (
 	.refclk   			(FPGA_CLK1_50),
 	.rst      			(rst),
 	.outclk_0 			(CLK2),
-	//.outclk_1 			(CLK50),
-	.outclk_1			(CLK100)//,
-	//.outclk_2			(CLK300)
+	.outclk_1 			(CLK50),
+	.outclk_2			(CLK100),
+	.outclk_3			(CLK300)
 );
 
-BITclock u5 (
-	.refclk   			(FPGA_CLK1_50),
-	.rst      			(rst),
-	.outclk_0 			(CLK300)
-);
 		
 ADC_Control_Module u2(
 

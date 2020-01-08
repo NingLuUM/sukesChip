@@ -179,7 +179,7 @@ begin
 		if ( !trig_received_flag &&  itxTrig )
 		begin
 			trig_received_flag <= 2'b11;
-			otxTrigAck_reg <= 1'b1;
+			
 			
 			oCLKEN <= 1'b1;
 			oCHIPSEL <= 1'b1;
@@ -199,6 +199,7 @@ begin
 			if ( first_pulse )
 			begin
 				first_pulse <= 1'b0;
+				otxTrigAck_reg <= 1'b1;
 				data_to_ram <= data_out;
 				sample_cntr <= ( down_sample_clk_divisor_reg ) ? 4'b0001 : 4'b0000;	
 			end
