@@ -128,11 +128,12 @@ reg gnd = 1'b0;
 wire [7:0] led_pins;
 
 
-wire CLK2, CLK50, CLK100, CLK200, CLK300;
+wire CLK2, CLK50, CLK100, CLK300;
 wire adc_reset, adc_sen, adc_sdata, adc_sync, adc_pdn;
 
+assign CLK50 = FPGA_CLK1_50;
 assign ADC_SCLK 	= CLK2;
-assign ADC_CLKIN 	= CLK50;
+assign ADC_CLKIN 	= FPGA_CLK1_50;//CLK50;
 assign ADC_RESET	= adc_reset; 
 assign ADC_SEN		= adc_sen;
 assign ADC_SDATA	= adc_sdata; 
@@ -147,9 +148,7 @@ assign ADC_PDN		= adc_pdn;
 wire [31:0]			adc_control_comms;
 wire [31:0] 		adc_pio_settings;
 
-
 wire [23:0]			adc_serial_command;
-
 
 wire [14:0]			adc_write_addr;
 wire				adc_state_reset;
@@ -165,34 +164,33 @@ wire [127:0]		adc_writedata_bank;
 wire [31:0]			rcv_interrupt;
 wire [31:0]			tx_interrupt;
 
-wire [14:0]			tx_phasedelay_read_addr;
-wire [127:0]		tx_phasedelays;
-
-wire [14:0]			tx_instruction_read_addr;
-wire [127:0]		tx_instruction;
-
 wire [26:0][31:0]	tx_pio_reg;
 
 wire [1:0]			trigLines_txAdc;
+
 
 assign rst = 0;
 
 ADCclock u4 (
 	.refclk   			(FPGA_CLK1_50),
 	.rst      			(rst),
-	.outclk_0 			(CLK2),		// 2 MHz
-	.outclk_1 			(CLK50),		// 50mhz
-	.outclk_2			(CLK100),	// 100 MHz
-	
-	.outclk_3			(CLK200),	// 200MHz	
-	.outclk_4			(CLK300)		// **300mhz 0 phase delay
+	.outclk_0 			(CLK2),
+	//.outclk_1 			(CLK50),
+	.outclk_1			(CLK100)//,
+	//.outclk_2			(CLK300)
 );
 
+BITclock u5 (
+	.refclk   			(FPGA_CLK1_50),
+	.rst      			(rst),
+	.outclk_0 			(CLK300)
+);
 		
 ADC_Control_Module u2(
 
 	.adc_clkinp					(CLK50),
 	.bit_clk					(CLK300),
+	.adc_sclk					(ADC_SCLK),
 	
 	.adc_control_comm			(adc_control_comms),
 	.adc_pio_settings			(adc_pio_settings),
@@ -203,11 +201,8 @@ ADC_Control_Module u2(
 	.oADC_SEN					(adc_sen),
 	.oADC_PDN					(adc_pdn),
 	.oADC_SYNC					(adc_sync),
-	
-	.iADC_SCLK					(ADC_SCLK),
+
 	.iADC_INPUT_DATA_LINES		(ADC_DATA_LINES),
-	
-	//.oVAR_ATTEN					(VAR_ATTEN),
 	
 	.itxTrig					(trigLines_txAdc[0]),
 	.otxTrigAck					(trigLines_txAdc[1]),

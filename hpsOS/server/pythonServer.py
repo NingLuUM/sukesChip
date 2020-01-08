@@ -618,13 +618,6 @@ class receiver():
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 	
-	def toggleAdcSclk(self,adc_sclk=1):
-		if adc_sclk:	
-			msg = struct.pack(self.cmsg,self.CASE_ADC_SCLK_TOGGLE,1,0,0,0,0,0,0,0,0)
-		else:
-			msg = struct.pack(self.cmsg,self.CASE_ADC_SCLK_TOGGLE,0,0,0,0,0,0,0,0,0)
-		self.sock.send(msg)
-		bb = self.sock.recv(4,socket.MSG_WAITALL)
 						
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3400))
@@ -668,7 +661,6 @@ class receiver():
 		self.CASE_RCV_INTERRUPT_THYSELF = 20
 		self.CASE_ADC_SET_POWER_ON_OFF = 21
 		self.CASE_ADC_DISABLE_CLAMP = 22
-		self.CASE_ADC_SCLK_TOGGLE = 23
 		
 		self.CASE_ADC_SET_FCLOCK_DELAY = 52
 		self.CASE_EXIT_PROGRAM = 100
@@ -765,7 +757,7 @@ r.setAutoShutdown(0)
 
 # can't do 'moving sum' with compression. will corrupt data
 r.setClockDivisor(1)
-r.setFclkDelay(1) # accepts values 0-5
+r.setFclkDelay(0) # accepts values 0-5
 
 r.setSamplingMode(r.EVERY_NTH)
 r.setCompressorMode(r.RAW16)
@@ -787,9 +779,9 @@ r.setQueryMode(realTime=1,transferData=0,saveData=0)
 
 r.plotNPulses(npulses)
 #~ r.powerDownAdc()
-time.sleep(1e-3)
-r.toggleAdcSclk(1)
-time.sleep(1e-3)
+#~ time.sleep(1e-3)
+#~ r.toggleAdcSclk(1)
+#~ time.sleep(1e-3)
 
 r.activateRecvr()
 
@@ -818,7 +810,7 @@ if (r.pid):
 				
 				t.at_usec(0)
 				t.fire()
-				t.setChargeTime(4)
+				t.setChargeTime(1)
 				t.setTrig(1,10)
 				t.setTrig(2,5)
 				
@@ -845,6 +837,7 @@ if (r.pid):
 	os.waitpid(r.pid,0)
 	print "ohms"
 	r.disconnectCommSock()
+	#~ r.closeProgram()
 	print "the child is dead"
 
 

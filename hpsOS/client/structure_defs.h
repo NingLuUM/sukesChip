@@ -308,9 +308,9 @@ typedef struct TXpiocmd_{
             uint32_t setTrig3 : 1;
             uint32_t setTrig4 : 1;
             
-            uint32_t setVarAtten : 1;
+            //uint32_t setVarAtten : 1;
 
-            uint32_t blnkFlags : 12;
+            uint32_t blnkFlags : 13;
         };
         struct{
             uint32_t isFlags : 7;
