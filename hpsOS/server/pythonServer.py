@@ -17,8 +17,9 @@ class transmitter():
 		msg = struct.pack(self.cmsg,self.CASE_TX_SET_CONTROL_STATE,1,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
-		bb = self.sock.recv(4,socket.MSG_WAITALL)	
-	
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+		#~ self.pd_sock.close()
+		
 	def terminateProgram(self):
 		msg = struct.pack(self.cmsg,self.CASE_TX_SET_CONTROL_STATE,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
@@ -75,7 +76,7 @@ class transmitter():
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
-	def setVarAtten(self,duration_us=0):
+	def toggleVarAtten(self,duration_us=0):
 		duration = np.uint32(duration_us*100)
 		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_VAR_ATTEN_TIMINGS,duration,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
@@ -84,6 +85,11 @@ class transmitter():
 	def setChargeTime(self,chargeTime_us=0):
 		chargeTime = np.uint32(chargeTime_us*100)
 		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_CHARGE_TIME,chargeTime,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+		
+	def setMask(self,mask_val=0):
+		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_TMP_MASK_CMD,np.uint32(mask_val),0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
@@ -135,32 +141,29 @@ class transmitter():
 		print 'numlocs len(bb)',len(bb)
 		
 	def uploadPhaseDelays(self,pd=np.zeros((1,8))):
+		self.pd_sock.connect(('192.168.1.101',3700))
+		
 		a = np.shape(pd)
 		nlocs = a[0]
 		self.setNumSteeringLocs(nlocs)
-		nloops = a[0]/64
-		pd_array = np.zeros(nlocs*8).astype(np.uint16)
+		nloops = a[0]/64+1
+			
+		pd_array = np.zeros((1,nloops*64*8)).astype(np.uint16)
 		
 		for nl in range(0,nlocs):
-			pd_array[8*nl:(8*(nl+1))] = pd[nl,:]
+			pd_array[0,8*nl:(8*(nl+1))] = pd[nl,:]*100
+		
 		
 		for nl in range(0,nloops):
 			print nl
-			msg = struct.pack(self.pd_msg,*pd_array[512*nl:(512*(nl+1))])
+			msg = struct.pack(self.pd_msg,*pd_array[0,512*nl:(512*(nl+1))])
 			self.pd_sock.send(msg)	
-			
-		if (nlocs%64):
-			print 'nlocs%64', nlocs%64
-			npds = (nlocs%64)*8
-			pd_msg_tmp = '{}{}'.format(npds,'H')
-			msg = struct.pack(pd_msg_tmp,*pd_array[512*nl:(512*nl+npds)])
-			self.pd_sock.send(msg)
 			
 		bb = self.pd_sock.recv(4,socket.MSG_WAITALL)
 			
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3600))
-		self.pd_sock.connect(('192.168.1.101',3700))
+		
 	
 	def __init__(self):
 		# defined variables in the C code running on arm
@@ -186,6 +189,7 @@ class transmitter():
 		self.CASE_TX_SET_EXTERNAL_TRIGGER_MODE = 20
 		self.CASE_TX_BUFFER_VAR_ATTEN_TIMINGS = 21
 		self.CASE_TX_SET_VAR_ATTEN_REST_LVL = 22
+		self.CASE_TX_BUFFER_TMP_MASK_CMD = 23
 		self.CASE_EXIT_PROGRAM = 100
 		
 		# ethernet sockets for transferring data to/from arm
@@ -237,7 +241,7 @@ class receiver():
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
 	def setRecLen(self,recLen,allocate=0):
-		if recLen < self.MAX_RECLEN:
+		if recLen <= self.MAX_RECLEN:
 			self.recLen = recLen
 		else:
 			self.recLen = 2048
@@ -255,7 +259,7 @@ class receiver():
 		
 	def setRecDuration(self,duration):
 		recLen = int(duration*self.ADC_CLK/(self.clockDiv+1.0))
-		if recLen < self.MAX_RECLEN:
+		if recLen <= self.MAX_RECLEN:
 			self.recLen = recLen
 		else:
 			self.recLen = 2048
@@ -339,10 +343,7 @@ class receiver():
 		
 		print 'npulses',self.npulses
 		
-		if self.samplingMode:
-			clockDiv = (self.clockDiv+1.0)
-		else:
-			clockDiv = 1
+		clockDiv = self.clockDiv + 1
 			
 		t = np.linspace(0,self.recLen/self.ADC_CLK*clockDiv,self.recLen)
 		
@@ -401,6 +402,7 @@ class receiver():
 		
 		if self.isUnsigned:
 			self.ylims = [-200,4300]
+			#~ self.ylims = [1800,2300]
 		else:
 			num_bits = 12
 			mask = 2**(num_bits - 1)
@@ -420,7 +422,8 @@ class receiver():
 		for n in range(0,8):
 			dd[:,n] = cc[n::8]
 
-		if pltr:	
+		if pltr:
+			print "pltr", pltr	
 			self.plotDatas(dd)
 		
 	def queryDataLocal(self):
@@ -621,6 +624,12 @@ class receiver():
 						
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3400))
+		self.resetToDefaultAdcSettings()
+		self.setAutoShutdown(0)
+
+		# can't do 'moving sum' with compression. will corrupt data
+		#~ self.setClockDivisor(1)
+		#~ self.setFclkDelay(2) # accepts values 0-5
 		
 	def connectRcvDataSock(self):
 		self.dsock.connect(('192.168.1.101',3500))
@@ -668,7 +677,7 @@ class receiver():
 		# it is what it says
 		self.ADC_CLK = 50.0
 		
-		self.MAX_RECLEN = 16384
+		self.MAX_RECLEN = 32768
 		
 		# ethernet sockets for transferring data to/from arm
 		# 'sock' is used to send data to arm
@@ -692,7 +701,7 @@ class receiver():
 		self.isUnsigned = 1
 		self.sendOnRequest = 0
 		self.clockDiv = 0
-		self.samplingMode = 1
+		self.samplingMode = 0
 		self.compressorMode = 0
 		
 		# sampling mode names
@@ -751,23 +760,20 @@ npulses = 1
 
 r = receiver()
 r.connectToFpga()
+#~ r.resetToDefaultAdcSettings()
+#~ r.setAutoShutdown(0)
 
-r.resetToDefaultAdcSettings()
-r.setAutoShutdown(0)
-
-# can't do 'moving sum' with compression. will corrupt data
 r.setClockDivisor(1)
-r.setFclkDelay(1) # accepts values 0-5
+#~ r.setFclkDelay(2) # accepts values 0-5
+#~ r.setSamplingMode(r.EVERY_NTH)
+#~ r.setCompressorMode(r.RAW16)
+#~ r.setRecLen(32768/2)
+r.setRecDuration(250.0)
 
-r.setSamplingMode(r.EVERY_NTH)
-r.setCompressorMode(r.RAW16)
-r.setRecLen(8000)
-#~ r.setRecDuration(101.0)
-
-r.setAdcGain(31)
+r.setAdcGain(31.875)
 
 #~ r.setNPulses(1)
-#~ r.setAdcInternalAcCoupling(1)
+#~ r.setAdcInternalAcCoupling(0)
 #~ r.setAdcLowNoiseMode(0)
 #~ r.setAdcFilterBw(0)
 #~ r.setAdcUnsigned(0)
@@ -779,9 +785,6 @@ r.setQueryMode(realTime=1,transferData=0,saveData=0)
 
 r.plotNPulses(npulses)
 #~ r.powerDownAdc()
-#~ time.sleep(1e-3)
-#~ r.toggleAdcSclk(1)
-#~ time.sleep(1e-3)
 
 r.activateRecvr()
 
@@ -789,14 +792,25 @@ r.activateRecvr()
 #~ time.sleep(0.1)
 #~ r.interruptSelf(0)
 if (r.pid):
+	
 	t = transmitter()
 	t.connectToFpga()
 	
 	t.setTrigRestLvls(0x1f)
 	t.setVarAttenRestLvl(0x0)
-	t.setActiveTransducers(0xff)
+	t.setActiveTransducers(0b00100000)
 	
 	phaseDelays = np.zeros((100,8)).astype(np.uint16)
+	for mm in range(0,100):
+		phaseDelays[mm,0] = 12
+		phaseDelays[mm,1] = 14
+		phaseDelays[mm,2] = 16
+		phaseDelays[mm,3] = 18
+		phaseDelays[mm,4] = 5
+		phaseDelays[mm,5] = 0
+		phaseDelays[mm,6] = 5
+		phaseDelays[mm,7] = 10
+		
 	t.uploadPhaseDelays(phaseDelays)
 	
 	t.startLoop(0,0,npulses)
@@ -807,25 +821,24 @@ if (r.pid):
 			
 			t.beginSyncCmd()
 			if 1:
-				
-				t.at_usec(0)
-				t.fire()
+				#~ t.setMask(0b00001100)
 				t.setChargeTime(5)
+				
+				#~ t.at_usec(100)
+				#~ t.toggleVarAtten(50)
+				
+				t.at_usec(10)
+				t.fire()
 				t.setTrig(1,10)
 				t.setTrig(2,5)
-				
-				t.at_usec(150)		
 				t.rcvData()
-				t.wait_usec(50)
-				
-				
-				#~ t.setVarAtten(50)
 				
 			t.endSyncCmd()
 			
 			t.async_wait_sec(0.1)
 	
 		t.endSteeringLoop(0)	
+	
 	t.endLoop(0)
 	
 	

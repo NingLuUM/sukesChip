@@ -7,8 +7,8 @@ module ioOutputLine_ControlModule (
 	input			onYourMark,
 	input			GOGOGO_EXCLAMATION,
 	
-	input [10:0]	duration,
-	input [20:0]	delay,
+	input [31:0]	duration,
+	input [31:0]	delay,
 
 	output			outputState,
 	output 			outputComplete,
@@ -22,8 +22,8 @@ assign outputState = outputState_reg;
 reg outputComplete_reg;
 assign outputComplete = outputComplete_reg;
 
-reg	[10:0] 	tldur;
-reg [20:0] 	tldel;
+reg	[31:0] 	tldur;
+reg [31:0] 	tldel;
 
 reg	[1:0]	state;
 
@@ -34,8 +34,8 @@ parameter [1:0] GOGOGO = 2'b11;
 initial
 begin
 	state = 2'b0;
-	tldur = 11'b0;
-	tldel = 21'b0;
+	tldur = 32'b0;
+	tldel = 32'b0;
 	outputState_reg = 1'b0;
 	outputComplete_reg = 1'b0;
 end
@@ -112,8 +112,8 @@ begin
 		if ( outputComplete_reg ) outputComplete_reg <= 1'b1;
 		if ( outputState_reg ^ restLevel )  outputState_reg <= restLevel;
 		state <= 2'b0;
-		tldur = 11'b0;
-		tldel = 21'b0;
+		tldur = 32'b0;
+		tldel = 32'b0;
 	end
 	
 end

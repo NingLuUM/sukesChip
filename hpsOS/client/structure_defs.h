@@ -38,7 +38,10 @@ typedef union TXpioreg6_ TXpioreg6_t;
 typedef union TXpioreg7_ TXpioreg7_t;
 typedef union TXpioreg8_ TXpioreg8_t;
 typedef union TXpioreg9_ TXpioreg9_t;
-typedef union TXtrigtimings_ TXtrigtimings_t;
+typedef union TXpioreg10_ TXpioreg10_t;
+typedef union TXpioreg11_ TXpioreg11_t;
+typedef union TXtrigduration_ TXtrigduration_t;
+typedef union TXtrigdelay_ TXtrigdelay_t;
 typedef union TXpioreg2526_ TXpioreg2526_t;
 typedef struct TXpiocmd_ TXpiocmd_t;
 
@@ -47,7 +50,6 @@ void rcvSysMsgHandler(RCVsys_t *RCV, FMSG_t *msg, int *runner);
 void rcvQueryData(RCVsys_t *RCV);
 void rcvSetStateReset(RCVsys_t *RCV, uint32_t val);
 void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen);
-void rcvSetPioVarGain(RCVsys_t *RCV, uint32_t val);
 void rcvSetClkDivisor(RCVsys_t *RCV, uint32_t val);
 void rcvSetSamplingMode(RCVsys_t *RCV, uint32_t val);
 void rcvSetCompressorMode(RCVsys_t *RCV, uint32_t val);
@@ -79,6 +81,7 @@ void txSetActiveTransducers(TXsys_t *TX, uint32_t activeTransducers);
 void txSetTrigs(TXsys_t *TX);
 void txSetVarAtten(TXsys_t *TX);
 void txSetChargeTime(TXsys_t *TX);
+void txSetTmpMask(TXsys_t *TX);
 void txSetFireCmdDelay(TXsys_t *TX);
 void txSetPhaseDelay(TXsys_t *TX);
 void txSetRecvTrigDelay(TXsys_t *TX);
@@ -93,9 +96,10 @@ void txMakeLoopEnd(TXsys_t *TX);
 void txMakeSteeringLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, uint32_t stepSize);
 void txMakeSteeringLoopEnd(TXsys_t *TX);
 void txMakePioCmd(TXsys_t *TX);
-void txBufferTrigTimingCmd(TXsys_t *TX, uint32_t *trigs);
+void txBufferTrigTimingCmd(TXsys_t *TX, uint32_t *duration, uint32_t *delay);
 void txBufferVarAttenTimingCmd(TXsys_t *TX, uint32_t duration, uint32_t delay);
 void txBufferChargeTimeCmd(TXsys_t *TX, uint32_t chargeTime);
+void txBufferTmpMaskCmd(TXsys_t *TX, uint32_t tmpMask);
 void txBufferFireDelayCmd(TXsys_t *TX, uint32_t fireDelay);
 void txBufferPhaseDelayCmd(TXsys_t *TX, uint16_t *phaseDelays);
 void txBufferRecvTrigDelayCmd(TXsys_t *TX, uint32_t recvTrigDelay);
@@ -234,13 +238,12 @@ typedef struct RCVsys_{
     struct{
         union{
             struct{
-                uint32_t varGain : 1;
+                uint32_t interrupt_thyself : 1;
                 uint32_t clkDiv : 4;
                 uint32_t fclk_delay : 3;
                 uint32_t sampling_mode : 3;
                 uint32_t compressor_mode : 2;
-                uint32_t interrupt_thyself : 1;
-                uint32_t blnk : 18;
+                uint32_t blnk : 19;
             };
             uint32_t all;
         } pioSettings;
@@ -259,7 +262,6 @@ typedef struct RCVsys_{
     void (*queryData)(RCVsys_t *);
     void (*setStateReset)(RCVsys_t *,uint32_t);
     void (*setRecLen)(RCVsys_t *,uint32_t);   
-    void (*setPioVarGain)(RCVsys_t *,uint32_t); 
     void (*setLEDs)(RCVsys_t *,uint32_t);
     void (*setClkDivisor)(RCVsys_t *,uint32_t); 
     void (*setSamplingMode)(RCVsys_t *,uint32_t); 
@@ -278,6 +280,8 @@ typedef struct TXpiocmd_{
     TXpioreg7_t reg7;
     TXpioreg8_t reg8;
     TXpioreg9_t reg9;
+    TXpioreg10_t reg10;
+    TXpioreg11_t reg11;
     
     uint32_t startIdx;
     uint32_t endIdx;
@@ -327,7 +331,8 @@ typedef struct TXpiocmd_{
     } flags;
     
     TXpioreg2526_t reg25_26;
-    TXtrigtimings_t *reg10_14;
+    TXtrigduration_t *reg12_16;
+    TXtrigdelay_t *reg17_21;
     
     TXpiocmd_t *top;
     TXpiocmd_t *prev;
@@ -351,8 +356,11 @@ typedef struct TXsys_{
     TXpioreg7_t reg7;
     TXpioreg8_t reg8;
     TXpioreg9_t reg9;
+    TXpioreg10_t reg10;
+    TXpioreg11_t reg11;
 
-    TXtrigtimings_t *reg10_14; // trig/led durations and delays
+    TXtrigduration_t *reg12_16; // trig/led durations and delays
+    TXtrigdelay_t *reg17_21; // trig/led durations and delays
     TXpioreg2526_t reg25_26;
 		
 	uint32_t **pio_reg;
@@ -378,6 +386,7 @@ typedef struct TXsys_{
     void (*setTrigs)(TXsys_t *);
     void (*setVarAtten)(TXsys_t *);
     void (*setChargeTime)(TXsys_t *);
+    void (*setTmpMask)(TXsys_t *);
     void (*setFireCmdDelay)(TXsys_t *);
     void (*setPhaseDelay)(TXsys_t *);
     void (*setRecvTrigDelay)(TXsys_t *);
@@ -393,9 +402,10 @@ typedef struct TXsys_{
     void (*makeSteeringLoopEnd)(TXsys_t *);
     void (*makePioCmd)(TXsys_t *);
 
-    void (*bufferTrigTimings)(TXsys_t *, uint32_t *);
+    void (*bufferTrigTimings)(TXsys_t *, uint32_t *, uint32_t *);
     void (*bufferVarAttenTiming)(TXsys_t *, uint32_t, uint32_t);
     void (*bufferChargeTime)(TXsys_t *, uint32_t);
+    void (*bufferTmpMask)(TXsys_t *, uint32_t);
     void (*bufferFireCmd)(TXsys_t *, uint32_t);
     void (*bufferPhaseDelays)(TXsys_t *, uint16_t *);
     void (*bufferRecvTrig)(TXsys_t *, uint32_t);

@@ -61,6 +61,7 @@ int txProgramExecutionHandler(TXsys_t *TX){
 
         if ( cmd->reg2.set_amp ) {
             TX->setChargeTime(TX);
+            TX->setTmpMask(TX);
         }
 
         if ( cmd->reg2.set_phase ) {

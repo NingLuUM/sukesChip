@@ -79,34 +79,44 @@ typedef union TXpioreg6_{ // reg6: phase delays ch6 & ch7
     uint32_t all;
 } TXpioreg6_t;
 
-typedef union TXpioreg7_{ // reg7: tranducer chargetime & fire cmd delay
+typedef union TXpioreg7_{ // reg7: tranducer chargetime & fire delay 32bit overflow
     struct{
         uint32_t chargeTime : 9;
-        uint32_t fireDelay : 23;
+        uint32_t tmpMask : 8;
+        uint32_t blnk : 15;
     };
     uint32_t all;
 } TXpioreg7_t;
 
-typedef union TXpioreg8_{ // reg7: tranducer chargetime & fire cmd delay
-    uint32_t recvTrigDelay;
+typedef union TXpioreg8_{ // reg8: fire cmd delay
+    uint32_t fireDelay;
     uint32_t all;
 } TXpioreg8_t;
 
-typedef union TXpioreg9_{
-    struct{
-        uint32_t duration : 16;
-        uint32_t delay : 16;
-    };
+typedef union TXpioreg9_{ // reg9: rcv trig delay
+    uint32_t recvTrigDelay;
     uint32_t all;
 } TXpioreg9_t;
 
-typedef union TXtrigtimings_{
-    struct{
-        uint32_t duration : 11;
-        uint32_t delay : 21;
-    };
+typedef union TXpioreg10_{ // reg10: var atten duration
+    uint32_t duration;
     uint32_t all;
-} TXtrigtimings_t;
+} TXpioreg10_t;
+
+typedef union TXpioreg11_{ // reg11: var atten delay
+    uint32_t delay;
+    uint32_t all;
+} TXpioreg11_t;
+
+typedef union TXtrigduration_{
+    uint32_t duration;
+    uint32_t all;
+} TXtrigduration_t;
+
+typedef union TXtrigdelay_{
+    uint32_t delay;
+    uint32_t all;
+} TXtrigdelay_t;
 
 typedef union TXpioreg2526_{ // reg24_25: instruction request timer
     struct{

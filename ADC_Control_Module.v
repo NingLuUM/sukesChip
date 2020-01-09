@@ -30,7 +30,7 @@ module ADC_Control_Module(
 	output reg 				oCLKEN,
 	output reg 				oCHIPSEL,
 
-	output reg [14:0]		oWAddr
+	output reg [15:0]		oWAddr
 
 );
 
@@ -38,39 +38,25 @@ module ADC_Control_Module(
 wire [7:0] adc_control_state; 
 assign adc_control_state = adc_control_comm[7:0];
 
-//~ reg	oADC_RESET;
-//~ reg	oADC_SDATA;
-//~ reg	oADC_SEN;
-//~ reg	oADC_PDN;
-//~ reg	oADC_SYNC;
-
-//~ assign oADC_SYNC 	= oADC_SYNC;
-//~ assign oADC_PDN 	= oADC_PDN;
-//~ assign oADC_RESET 	= oADC_RESET;
-//~ assign oADC_SDATA 	= oADC_SDATA;
-//~ assign oADC_SEN 	= oADC_SEN;	
-
-
 // set from adc_pio_settings
+wire		interruptThyself;				//adc_pio_settings[0]
 wire [3:0]	down_sample_clk_divisor;		//adc_pio_settings[4:1]
 wire [2:0]	fclk_delay;						//adc_pio_settings[7:5]
 wire [2:0]	sampling_mode_opts;				//adc_pio_settings[10:8]
 wire [1:0]	compressor_opts;				//adc_pio_settings[12:11]
-wire		interruptThyself;				//adc_pio_settings[13]
 
-
+assign interruptThyself 		= adc_pio_settings[0];
 assign down_sample_clk_divisor 	= adc_pio_settings[4:1];
 assign fclk_delay 				= adc_pio_settings[7:5];
 assign sampling_mode_opts 		= adc_pio_settings[10:8];
 assign compressor_opts 			= adc_pio_settings[12:11];
-assign interruptThyself 		= adc_pio_settings[13];
 
-
+reg			interruptThyself_reg;			//adc_pio_settings[0]
 reg [3:0]	down_sample_clk_divisor_reg;	//adc_pio_settings[4:1]
 reg [2:0]	fclk_delay_reg;					//adc_pio_settings[7:5]
 reg [2:0]	sampling_mode_opts_reg;			//adc_pio_settings[10:8]
 reg [1:0]	compressor_opts_reg;			//adc_pio_settings[12:11]
-reg			interruptThyself_reg;			//adc_pio_settings[13]
+
 
 reg otxTrigAck_reg;
 assign otxTrigAck = otxTrigAck_reg;
@@ -89,10 +75,10 @@ reg [4:0]	senCnt;
 reg [1:0]	trig_received_flag;
 reg			write_complete_flag;
 
-reg [14:0]	waddr_cntr;
+reg [15:0]	waddr_cntr;
 
 wire		waddr_overrun;
-assign waddr_overrun = waddr_cntr[14];
+assign waddr_overrun = waddr_cntr[15];
 
 reg 		first_pulse;
 reg [3:0] 	sample_cntr;
@@ -100,7 +86,6 @@ reg [3:0] 	sample_cntr;
 reg [2:0]	fclk_delay_reg_cntr;
 
 reg [127:0]	data_to_ram;
-
 
 wire [7:0]	uncorrected_data_out_h;
 wire [7:0]	uncorrected_data_out_l;
@@ -126,11 +111,11 @@ begin
 	oCHIPSEL = 1'b0;
 	oBYTEEN = 16'b0000000000000000;
 
+	interruptThyself_reg = 1'b0;
 	down_sample_clk_divisor_reg = 4'b0;
 	fclk_delay_reg = 3'b0;
 	sampling_mode_opts_reg = 3'b0;
 	compressor_opts_reg = 2'b0;
-	interruptThyself_reg = 1'b0;
 	
 	fclk_delay_reg_cntr = 3'b0;
 	
@@ -143,7 +128,7 @@ begin
 	
 	trig_received_flag = 2'b0;
 	write_complete_flag = 1'b0;
-	waddr_cntr = 15'b0;
+	waddr_cntr = 16'b0;
 	senCnt = 5'b0;
 	cmd_buff = 24'b0;
 	
@@ -155,10 +140,11 @@ begin
 	data_sr[0] = 12'b0; data_sr[1] = 12'b0; data_sr[2] = 12'b0; data_sr[3] = 12'b0;
 	data_sr[4] = 12'b0; data_sr[5] = 12'b0; data_sr[6] = 12'b0; data_sr[7] = 12'b0;
 	
-	data_to_ram = 128'b0;
-
-	data_buffer = 96'b0;
+	data_out[0] = 12'b0; data_out[1] = 12'b0; data_out[2] = 12'b0; data_out[3] = 12'b0;
+	data_out[4] = 12'b0; data_out[5] = 12'b0; data_out[6] = 12'b0; data_out[7] = 12'b0;
 	
+	data_to_ram = 128'b0;
+	data_buffer = 96'b0;	
 end
 
 
@@ -176,16 +162,15 @@ begin
 	if ( !iStateReset )
 	begin
 	
-		if ( !trig_received_flag &&  itxTrig )
+		if ( !trig_received_flag && itxTrig )
 		begin
 			trig_received_flag <= 2'b11;
-			
 			
 			oCLKEN <= 1'b1;
 			oCHIPSEL <= 1'b1;
 			oBYTEEN <= 16'b1111111111111111;
 			
-			waddr_cntr <= 15'b0;
+			waddr_cntr <= 16'b0;
 			write_complete_flag <= 1'b0;
 			first_pulse <= 1'b1;
 			data_compressor_buff_cntr <= 2'b0;
@@ -200,7 +185,14 @@ begin
 			begin
 				first_pulse <= 1'b0;
 				otxTrigAck_reg <= 1'b1;
-				data_to_ram <= data_out;
+				data_to_ram[127:112] <= {4'b0000,data_out[7]}; 
+				data_to_ram[111:96] <= {4'b0000,data_out[6]}; 
+				data_to_ram[95:80] <= {4'b0000,data_out[5]}; 
+				data_to_ram[79:64] <= {4'b0000,data_out[4]}; 
+				data_to_ram[63:48] <= {4'b0000,data_out[3]};
+				data_to_ram[47:32] <= {4'b0000,data_out[2]};
+				data_to_ram[31:16] <= {4'b0000,data_out[1]};
+				data_to_ram[15:0] <= {4'b0000,data_out[0]};
 				sample_cntr <= ( down_sample_clk_divisor_reg ) ? 4'b0001 : 4'b0000;	
 			end
 			else if ( ( waddr_cntr < iRecLength ) && ( !waddr_overrun ) )
@@ -400,7 +392,7 @@ begin
 
 		trig_received_flag <= 2'b00;
 		write_complete_flag <= 1'b0;
-		waddr_cntr <= 15'b0;
+		waddr_cntr <= 16'b0;
 		if( !interruptThyself_reg )
 		begin
 			if( oRcvInterrupt ) oRcvInterrupt <= 32'b0;

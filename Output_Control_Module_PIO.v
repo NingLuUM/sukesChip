@@ -10,10 +10,7 @@ module Output_Control_Module_PIO (
 	input	[31:0]			itxControlComms, 				// pio_tx_reg0
 	
 	// static settings for outputs	
-	input	[7:0]			itxBoardIdentifiers,			// pio_tx_reg1
-	input	[7:0]			itxTransducerOutputIsActive,	// pio_tx_reg1
-	input	[4:0]			itxIOLineOutputRestLevels,		// pio_tx_reg1
-	input					itxVarAttenRestLevel,			// pio_tx_reg1
+	input	[31:0]			itxStaticSettings,				// pio_tx_reg1
 	
 	input	[31:0]			itxPioCommands, 				// pio_tx_reg2
 	
@@ -23,13 +20,19 @@ module Output_Control_Module_PIO (
 	input	[31:0]			itxPioPhaseDelay_ch4_ch5, 		// pio_tx_reg5
 	input	[31:0]			itxPioPhaseDelay_ch6_ch7, 		// pio_tx_reg6
 	
-	input	[8:0]			itxPioChargetime_reg,			// pio_tx_reg7
-	input	[22:0]			itxFireDelay,					// pio_tx_reg7
+	input	[8:0]			itxPioChargetime_reg,			// pio_tx_reg7[8:0]
+	input	[7:0]			itxPioTmpFireMask,				// pio_tx_reg7[16:9]
 	
-	input	[31:0]			itxRecvTrigDelay,				// pio_tx_reg8
+	input	[31:0]			itxFireDelay,					// pio_tx_reg8
 	
-	input	[4:0][31:0]		itxIOLineOutputDurationAndDelay,		// pio_tx_reg9-24
-	input	[31:0]			itxVarAttenOutputDurationAndDelay,		// pio_tx_reg9-24
+	input	[31:0]			itxRecvTrigDelay,				// pio_tx_reg9
+	
+	input	[31:0]			itxVarAttenOutputDuration,		// pio_tx_reg10
+	input	[31:0]			itxVarAttenOutputDelay,			// pio_tx_reg11
+	
+	input	[4:0][31:0]		itxIOLineOutputDuration,		// pio_tx_reg12-16
+	input	[4:0][31:0]		itxIOLineOutputDelay,			// pio_tx_reg17-21
+	
 	
 	input	[1:0][31:0]		itxTimeUntilNextInterrupt,		// pio_tx_reg25-26
 	
@@ -57,31 +60,23 @@ module Output_Control_Module_PIO (
 wire [1:0] control_state;
 assign control_state = itxControlComms[1:0];
 
+
+wire [7:0]			itxBoardIdentifiers;			// pio_tx_reg1
+wire [7:0]			itxTransducerOutputIsActive;	// pio_tx_reg1
+wire [4:0]			itxIOLineOutputRestLevels;		// pio_tx_reg1
+wire				itxVarAttenRestLevel;			// pio_tx_reg1
+assign itxBoardIdentifiers			= itxStaticSettings[7:0];	// tx_pio_reg1
+assign itxTransducerOutputIsActive	= itxStaticSettings[15:8];	// tx_pio_reg1
+assign itxIOLineOutputRestLevels	= itxStaticSettings[20:16];
+assign itxVarAttenRestLevel			= itxStaticSettings[21];
+
+
 wire [15:0]	pio_output_commands;
 assign pio_output_commands 				= itxPioCommands[15:0];
 
 /**********************************************************************/
 /*** PIO REGISTER ASSIGNMENTS *****************************************/
 /**********************************************************************/
-
-wire [4:0][10:0] itxIOLineOutputDuration;
-wire [4:0][20:0] itxIOLineOutputDelay;
-assign itxIOLineOutputDuration[0] 	= itxIOLineOutputDurationAndDelay[0][10:0];
-assign itxIOLineOutputDelay[0] 		= itxIOLineOutputDurationAndDelay[0][31:11];
-assign itxIOLineOutputDuration[1] 	= itxIOLineOutputDurationAndDelay[1][10:0];
-assign itxIOLineOutputDelay[1] 		= itxIOLineOutputDurationAndDelay[1][31:11];
-assign itxIOLineOutputDuration[2] 	= itxIOLineOutputDurationAndDelay[2][10:0];
-assign itxIOLineOutputDelay[2] 		= itxIOLineOutputDurationAndDelay[2][31:11];
-assign itxIOLineOutputDuration[3] 	= itxIOLineOutputDurationAndDelay[3][10:0];
-assign itxIOLineOutputDelay[3] 		= itxIOLineOutputDurationAndDelay[3][31:11];
-assign itxIOLineOutputDuration[4] 	= itxIOLineOutputDurationAndDelay[4][10:0];
-assign itxIOLineOutputDelay[4] 		= itxIOLineOutputDurationAndDelay[4][31:11];
-
-wire [15:0] varAttenDuration;
-wire [15:0] varAttenDelay;
-assign varAttenDuration = itxVarAttenOutputDurationAndDelay[15:0];
-assign varAttenDelay = itxVarAttenOutputDurationAndDelay[31:16];
-
 
 // needs to know if its master so it doesn't issue 'otxWaitForMe'
 reg isSolo;
@@ -101,12 +96,13 @@ assign triggerSignal = ( internalTrigger & !isExternallyTriggered );
 reg [15:0]			pio_cmd_previous;
 
 reg [63:0]			time_until_next_interrupt;
-reg	[22:0]			fire_delay_timer;
+reg	[31:0]			fire_delay_timer;
 reg	[31:0]			recv_trig_delay_timer;
 
 reg [8:0]			transducer_chargetime;
 reg [7:0][15:0]		transducer_phasedelay;
 reg [7:0]			transducer_is_active;
+reg [7:0]			transducer_tmp_mask;
 reg [1:0]			adcTrigFlag;
 reg					fireFlag;
 reg					fireReset;
@@ -151,6 +147,7 @@ initial
 begin
 	transducer_is_active = 8'b0;
 	transducer_chargetime = 9'b0;
+	transducer_tmp_mask = 8'b11111111;
 	transducer_phasedelay[0] = 16'b0;
 	transducer_phasedelay[1] = 16'b0;
 	transducer_phasedelay[2] = 16'b0;
@@ -169,7 +166,7 @@ begin
 	interruptRequestTimerFlag = 1'b0;
 	adcTrigFlag = 2'b0;
 	
-	fire_delay_timer = 23'b0;
+	fire_delay_timer = 32'b0;
 	recv_trig_delay_timer = 32'b0;
 	time_until_next_interrupt = 64'b0;
 	
@@ -211,8 +208,9 @@ begin
 				txResetFlag <= 1'b0;
 				interruptRequestTimerFlag <= 1'b0;
 				adcTrigFlag <= 2'b0;
+				transducer_tmp_mask <= 8'b11111111;
 				
-				fire_delay_timer <= 23'b0;
+				fire_delay_timer <= 32'b0;
 				recv_trig_delay_timer <= 32'b0;
 				time_until_next_interrupt <= 64'b0;
 				
@@ -277,6 +275,7 @@ begin
 							begin
 								fireDelayTimerFlag <= 1'b1;
 								fire_delay_timer <= itxFireDelay;
+								
 								fireReset <= 1'b0;
 								otxInterrupt[4] <= 1'b1;
 							end
@@ -287,6 +286,7 @@ begin
 							if ( pio_output_commands & PIO_CMD_SET_AMP )
 							begin	
 								transducer_chargetime <= itxPioChargetime_reg;
+								transducer_tmp_mask <= ~itxPioTmpFireMask;
 								otxInterrupt[5] <= 1'b1;
 							end
 							
@@ -415,6 +415,8 @@ begin
 							fireFlag <= 1'b0;
 							fireReset <= 1'b1;
 							otxInterrupt[10] <= 1'b1;
+							transducer_tmp_mask <= 8'b11111111;
+							
 						end
 						else
 						begin
@@ -490,6 +492,7 @@ begin
 
 					transducer_is_active <= 8'b0;
 					transducer_chargetime <= 9'b0;
+					transducer_tmp_mask <= 8'b0;
 					transducer_phasedelay[0] <= 16'b0;
 					transducer_phasedelay[1] <= 16'b0;
 					transducer_phasedelay[2] <= 16'b0;
@@ -508,7 +511,7 @@ begin
 					interruptRequestTimerFlag <= 1'b0;
 					adcTrigFlag <= 2'b0;
 					
-					fire_delay_timer <= 23'b0;
+					fire_delay_timer <= 32'b0;
 					recv_trig_delay_timer <= 32'b0;
 					time_until_next_interrupt <= 64'b0;
 					
@@ -533,6 +536,7 @@ begin
 			begin
 				transducer_is_active <= 8'b0;
 				transducer_chargetime <= 9'b0;
+				transducer_tmp_mask <= 8'b11111111;
 				transducer_phasedelay[0] <= 16'b0;
 				transducer_phasedelay[1] <= 16'b0;
 				transducer_phasedelay[2] <= 16'b0;
@@ -551,7 +555,7 @@ begin
 				interruptRequestTimerFlag <= 1'b0;
 				adcTrigFlag <= 2'b0;
 				
-				fire_delay_timer <= 23'b0;
+				fire_delay_timer <= 32'b0;
 				recv_trig_delay_timer <= 32'b0;
 				time_until_next_interrupt <= 64'b0;
 				
@@ -575,7 +579,7 @@ end
 transducerOutput_Module c0(
 	.clk(txCLK),
 	.rst(fireReset),
-	.isActive(transducer_is_active[0]),
+	.isActive( ( transducer_is_active[0] & transducer_tmp_mask[0] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
@@ -588,7 +592,7 @@ transducerOutput_Module c0(
 transducerOutput_Module c1(
 	.clk(txCLK),
 	.rst(fireReset),
-	.isActive(transducer_is_active[1]),
+	.isActive( ( transducer_is_active[1] & transducer_tmp_mask[1] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
@@ -601,7 +605,7 @@ transducerOutput_Module c1(
 transducerOutput_Module c2(
 	.clk(txCLK),
 	.rst(fireReset),
-	.isActive(transducer_is_active[2]),
+	.isActive( ( transducer_is_active[2] & transducer_tmp_mask[2] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
@@ -614,7 +618,7 @@ transducerOutput_Module c2(
 transducerOutput_Module c3(
 	.clk(txCLK),
 	.rst(fireReset),
-	.isActive(transducer_is_active[3]),
+	.isActive( ( transducer_is_active[3] & transducer_tmp_mask[3] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
@@ -627,7 +631,7 @@ transducerOutput_Module c3(
 transducerOutput_Module c4(
 	.clk(txCLK),
 	.rst(fireReset),
-	.isActive(transducer_is_active[4]),
+	.isActive( ( transducer_is_active[4] & transducer_tmp_mask[4] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
@@ -640,7 +644,7 @@ transducerOutput_Module c4(
 transducerOutput_Module c5(
 	.clk(txCLK),
 	.rst(fireReset),
-	.isActive(transducer_is_active[5]),
+	.isActive( ( transducer_is_active[5] & transducer_tmp_mask[5] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
@@ -653,7 +657,7 @@ transducerOutput_Module c5(
 transducerOutput_Module c6(
 	.clk(txCLK),
 	.rst(fireReset),
-	.isActive(transducer_is_active[6]),
+	.isActive( ( transducer_is_active[6] & transducer_tmp_mask[6] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
@@ -666,7 +670,7 @@ transducerOutput_Module c6(
 transducerOutput_Module c7(
 	.clk(txCLK),
 	.rst(fireReset),
-	.isActive(transducer_is_active[7]),
+	.isActive( ( transducer_is_active[7] & transducer_tmp_mask[7] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
 	.chargeTime(transducer_chargetime),
@@ -776,8 +780,8 @@ ioVarAtten_ControlModule va0(
 	.onYourMark(varAttenOutputFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
 	
-	.duration(varAttenDuration),
-	.delay(varAttenDelay),
+	.duration(itxVarAttenOutputDuration),
+	.delay(itxVarAttenOutputDelay),
 	
 	.outputState(oVAR_ATTEN),
 	.outputComplete(varAttenOutputComplete),

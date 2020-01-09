@@ -18,14 +18,6 @@ void rcvSysMsgHandler(RCVsys_t *RCV, FMSG_t *msg, int *runner){
             break;
         }
         
-        case(CASE_RCV_SET_PIO_VAR_GAIN):{
-            RCV->setPioVarGain(RCV,msg->u[1]);
-            if ( send(RCV->comm_sock->fd,&(RCV->npulses),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
-                printf("pio gain set successfully\n");
-            }
-            break;
-        }
-        
         case(CASE_SET_LEDS):{
             RCV->setLEDs(RCV,msg->u[1]);
             if ( send(RCV->comm_sock->fd,&(RCV->npulses),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
@@ -156,9 +148,9 @@ void rcvSysMsgHandler(RCVsys_t *RCV, FMSG_t *msg, int *runner){
                 RCV->npulses = 1;
             }
             if( msg->u[2] ){
-                printf("hello from there\n");
+                //printf("hello from there\n");
 				setupInternalStorage(RCV);
-                printf("hello from there\n");
+                //printf("hello from there\n");
 			}
             if ( send(RCV->comm_sock->fd,&(RCV->npulses),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("rcv npulses set successfully\n");
@@ -168,9 +160,9 @@ void rcvSysMsgHandler(RCVsys_t *RCV, FMSG_t *msg, int *runner){
         
         case(CASE_RCV_SETUP_LOCAL_STORAGE):{
             
-            printf("hello from where\n");
+            //printf("hello from where\n");
             setupInternalStorage(RCV);
-            printf("hello from where\n");
+            //printf("hello from where\n");
             if ( send(RCV->comm_sock->fd,&(RCV->npulses),sizeof(uint32_t),MSG_CONFIRM) && printMsgs ){
                 printf("rcv internal storage set successfully\n");
             }

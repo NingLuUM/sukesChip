@@ -131,16 +131,9 @@ wire [7:0] led_pins;
 assign LED = led_pins;
 
 wire CLK2, CLK50, CLK100, CLK300;
-wire adc_reset, adc_sen, adc_sdata, adc_sync, adc_pdn;
 
 assign ADC_SCLK 	= CLK2;
 assign ADC_CLKIN 	= CLK50;
-assign ADC_RESET	= adc_reset; 
-assign ADC_SEN		= adc_sen;
-assign ADC_SDATA	= adc_sdata; 
-assign ADC_SYNC		= adc_sync;
-assign ADC_PDN		= adc_pdn;
-
 
 //=======================================================
 //  Structural coding
@@ -151,7 +144,7 @@ wire [31:0] 		adc_pio_settings;
 
 wire [23:0]			adc_serial_command;
 
-wire [14:0]			adc_write_addr;
+wire [15:0]			adc_write_addr;
 wire				adc_state_reset;
 
 wire [15:0]			adc_record_length;
@@ -190,11 +183,11 @@ ADC_Control_Module u2(
 	.adc_pio_settings			(adc_pio_settings),
 	.adc_serial_cmd				(adc_serial_command),
 	
-	.oADC_RESET					(adc_reset),
-	.oADC_SDATA					(adc_sdata),
-	.oADC_SEN					(adc_sen),
-	.oADC_PDN					(adc_pdn),
-	.oADC_SYNC					(adc_sync),
+	.oADC_RESET					(ADC_RESET),
+	.oADC_SDATA					(ADC_SDATA),
+	.oADC_SEN					(ADC_SEN),
+	.oADC_PDN					(ADC_PDN),
+	.oADC_SYNC					(ADC_SYNC),
 
 	.iADC_INPUT_DATA_LINES		(ADC_DATA_LINES),
 	
@@ -221,13 +214,7 @@ Output_Control_Module_PIO u3(
 	.txCLK								(CLK100),
 	
 	.itxControlComms					(tx_pio_reg[0]), // tx_pio_reg0
-	
-	// static settings
-	.itxBoardIdentifiers				(tx_pio_reg[1][7:0]),	// tx_pio_reg1
-	.itxTransducerOutputIsActive		(tx_pio_reg[1][15:8]),	// tx_pio_reg1
-	.itxIOLineOutputRestLevels			(tx_pio_reg[1][20:16]),
-	.itxVarAttenRestLevel				(tx_pio_reg[1][21]),
-	
+	.itxStaticSettings					(tx_pio_reg[1]),
 	.itxPioCommands						(tx_pio_reg[2]), // tx_pio_reg2
 	
 	.itxPioPhaseDelay_ch0_ch1			(tx_pio_reg[3]), 	// tx_pio_reg3
@@ -235,14 +222,18 @@ Output_Control_Module_PIO u3(
 	.itxPioPhaseDelay_ch4_ch5			(tx_pio_reg[5]), 	// tx_pio_reg5
 	.itxPioPhaseDelay_ch6_ch7			(tx_pio_reg[6]), 	// tx_pio_reg6
 	
-	.itxPioChargetime_reg				(tx_pio_reg[7][8:0]),// tx_pio_reg7
-	.itxFireDelay						(tx_pio_reg[7][31:9]),
+	.itxPioChargetime_reg				(tx_pio_reg[7][8:0]), // tx_pio_reg7
+	.itxPioTmpFireMask					(tx_pio_reg[7][16:9]), // tx_pio_reg7
 	
-	.itxRecvTrigDelay					(tx_pio_reg[8]),
+	.itxFireDelay						(tx_pio_reg[8]),
 	
-	.itxVarAttenOutputDurationAndDelay	(tx_pio_reg[9]),
+	.itxRecvTrigDelay					(tx_pio_reg[9]),
 	
-	.itxIOLineOutputDurationAndDelay	(tx_pio_reg[14:10]),	// tx_pio_reg9-24
+	.itxVarAttenOutputDuration			(tx_pio_reg[10]),
+	.itxVarAttenOutputDelay				(tx_pio_reg[11]),
+	
+	.itxIOLineOutputDuration			(tx_pio_reg[16:12]),	// tx_pio_reg9-24
+	.itxIOLineOutputDelay				(tx_pio_reg[21:17]),	// tx_pio_reg9-24
 	.itxTimeUntilNextInterrupt			(tx_pio_reg[26:25]),
 	
 	.itxExternalTrigger					(EXTERNAL_TRIGGER_INPUT),

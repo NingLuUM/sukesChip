@@ -22,12 +22,6 @@ void rcvSetRecLen(RCVsys_t *RCV, uint32_t recLen){
 	usleep(5);
 }
 
-void rcvSetPioVarGain(RCVsys_t *RCV, uint32_t val){
-	RCV->refVals.pioSettings.varGain = val;
-	DREF32(RCV->pioSettings) = RCV->refVals.pioSettings.all;//0x03
-    usleep(5);
-}
-
 void rcvSetClkDivisor(RCVsys_t *RCV, uint32_t val){
 	RCV->refVals.pioSettings.clkDiv = val;
 	DREF32(RCV->pioSettings) = RCV->refVals.pioSettings.all;//0x03
@@ -228,27 +222,27 @@ void rcvQueryData(RCVsys_t *RCV){
 
 
 int setupInternalStorage(RCVsys_t *RCV){  
-	printf("internal storage1\n");
+	//printf("internal storage1\n");
 	//char *tmp;    
     unsigned long dsize;
     dsize = RCV->refVals.recLen*RCV->npulses*8;
 	//tmp = (char *)malloc(RCV->refVals.recLen*RCV->npulses*8*sizeof(uint16_t));
 	//printf("internal storage2\n");
-    printf("RCV->data[0,1] = %p,%p\n", RCV->data[0],RCV->data[1]);
+    //printf("RCV->data[0,1] = %p,%p\n", RCV->data[0],RCV->data[1]);
 	if( RCV->data[1] != NULL ){
 		free( RCV->data[1] );
         usleep(1000);
         RCV->data[1] = NULL;
         usleep(1000);
-	    printf("internal storage3\n");
+	    //printf("internal storage3\n");
 	} 
 	
-	printf("internal storage4, sizeof(refVals) %d\n", sizeof(RCV->refVals)); 
+	//printf("internal storage4, sizeof(refVals) %d\n", sizeof(RCV->refVals)); 
 	//RCV->data[1] = tmp;
 	RCV->data[1] = (char *)malloc((dsize+1)*sizeof(uint16_t));
-    printf("RCV->data[0,1] = %p,%p\n", RCV->data[0],RCV->data[1]);
-	printf("ramBank-data[1] = %u\n",(uint32_t *)RCV->ramBank-(uint32_t *)RCV->data[1]);
-    printf("internal storage5\n"); 
+    //printf("RCV->data[0,1] = %p,%p\n", RCV->data[0],RCV->data[1]);
+	//printf("ramBank-data[1] = %u\n",(uint32_t *)RCV->ramBank-(uint32_t *)RCV->data[1]);
+    //printf("internal storage5\n"); 
     return(1);
 }
 

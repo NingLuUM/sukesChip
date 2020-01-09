@@ -89,14 +89,15 @@ void txSetTrigs(TXsys_t *TX){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
-    TX->reg10_14[0].all = ( cmd->flags.setTrig0 ) ? cmd->reg10_14[0].all : 0;
-    TX->reg10_14[1].all = ( cmd->flags.setTrig1 ) ? cmd->reg10_14[1].all : 0;
-    TX->reg10_14[2].all = ( cmd->flags.setTrig2 ) ? cmd->reg10_14[2].all : 0;
-    TX->reg10_14[3].all = ( cmd->flags.setTrig3 ) ? cmd->reg10_14[3].all : 0;
-    TX->reg10_14[4].all = ( cmd->flags.setTrig4 ) ? cmd->reg10_14[4].all : 0;
+    TX->reg12_16[0].all = ( cmd->flags.setTrig0 ) ? cmd->reg12_16[0].all : 0;
+    TX->reg12_16[1].all = ( cmd->flags.setTrig1 ) ? cmd->reg12_16[1].all : 0;
+    TX->reg12_16[2].all = ( cmd->flags.setTrig2 ) ? cmd->reg12_16[2].all : 0;
+    TX->reg12_16[3].all = ( cmd->flags.setTrig3 ) ? cmd->reg12_16[3].all : 0;
+    TX->reg12_16[4].all = ( cmd->flags.setTrig4 ) ? cmd->reg12_16[4].all : 0;
 
     for(int i=0;i<5;i++){
-        DREF32(TX->pio_reg[i+10]) = TX->reg10_14[i].all;
+        DREF32(TX->pio_reg[i+12]) = TX->reg12_16[i].all;
+        DREF32(TX->pio_reg[i+17]) = TX->reg17_21[i].all;
     }
 }
 
@@ -104,8 +105,10 @@ void txSetVarAtten(TXsys_t *TX){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
-    TX->reg9.all = cmd->reg9.all;
-    DREF32(TX->pio_reg[9]) = TX->reg9.all;
+    TX->reg10.all = cmd->reg10.all;
+    TX->reg11.all = cmd->reg11.all;
+    DREF32(TX->pio_reg[10]) = TX->reg10.all;
+    DREF32(TX->pio_reg[11]) = TX->reg11.all;
 }
 
 void txSetChargeTime(TXsys_t *TX){
@@ -116,12 +119,20 @@ void txSetChargeTime(TXsys_t *TX){
     DREF32(TX->pio_reg[7]) = TX->reg7.all;
 }
 
+void txSetTmpMask(TXsys_t *TX){
+    TXpiocmd_t *cmd;
+    cmd = *(TX->pio_cmd_list);
+
+    TX->reg7.tmpMask = cmd->reg7.tmpMask;
+    DREF32(TX->pio_reg[7]) = TX->reg7.all;
+}
+
 void txSetFireCmdDelay(TXsys_t *TX){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
-    TX->reg7.fireDelay = cmd->reg7.fireDelay;
-    DREF32(TX->pio_reg[7]) = TX->reg7.all;
+    TX->reg8.fireDelay = cmd->reg8.fireDelay;
+    DREF32(TX->pio_reg[8]) = TX->reg8.all;
 }
 
 void txSetPhaseDelay(TXsys_t *TX){
@@ -142,8 +153,8 @@ void txSetRecvTrigDelay(TXsys_t *TX){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
 
-    TX->reg8.recvTrigDelay = cmd->reg8.recvTrigDelay;
-    DREF32(TX->pio_reg[8]) = TX->reg8.all;
+    TX->reg9.recvTrigDelay = cmd->reg9.recvTrigDelay;
+    DREF32(TX->pio_reg[9]) = TX->reg9.all;
 }
 
 void txSetAsyncWait(TXsys_t *TX){
@@ -184,10 +195,13 @@ void txAddPioCmd_f(TXsys_t *TX){
     tmp->reg7.all = 0;
     tmp->reg8.all = 0;
     tmp->reg9.all = 0;
+    tmp->reg10.all = 0;
+    tmp->reg11.all = 0;
     tmp->flags.all = 0;
     tmp->reg25_26.all = 0;
     
-    tmp->reg10_14 = NULL;
+    tmp->reg12_16 = NULL;
+    tmp->reg17_21 = NULL;
 
     *(TX->pio_cmd_list) = tmp;
 }
@@ -227,7 +241,8 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
                 next->prev = prev;
                 prev->flags.nextFlags = next->flags.isFlags;
             }
-            if(tmp->reg10_14 != NULL) free(tmp->reg10_14);
+            if(tmp->reg12_16 != NULL) free(tmp->reg12_16);
+            if(tmp->reg17_21 != NULL) free(tmp->reg17_21);
             free(tmp);
 
             if(loopCmdNum){
@@ -239,7 +254,8 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
                     next->prev = prev;
                     prev->flags.nextFlags = next->flags.isFlags;
                 }
-                if( loopCmd->reg10_14 != NULL ) free(loopCmd->reg10_14);
+                if( loopCmd->reg12_16 != NULL ) free(loopCmd->reg12_16);
+                if( loopCmd->reg17_21 != NULL ) free(loopCmd->reg17_21);
                 free(loopCmd);
             }
 
@@ -258,7 +274,8 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
         if(next != NULL){
             cmd_list->next = next->next;
             if(next->next != NULL)  next->next->prev = cmd_list;
-            if(next->reg10_14 != NULL) free(next->reg10_14);
+            if(next->reg12_16 != NULL) free(next->reg12_16);
+            if(next->reg17_21 != NULL) free(next->reg17_21);
             free(next); 
         }
     }
@@ -405,26 +422,30 @@ void txMakePioCmd(TXsys_t *TX){
 
 }
 
-void txBufferTrigTimingCmd(TXsys_t *TX, uint32_t *trigs){
+void txBufferTrigTimingCmd(TXsys_t *TX, uint32_t *duration, uint32_t *delay){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
 
-    if(cmd->reg10_14 == NULL){
-        cmd->reg10_14 = (TXtrigtimings_t *)calloc(16,sizeof(TXtrigtimings_t));
+    if(cmd->reg12_16 == NULL){
+        cmd->reg12_16 = (TXtrigduration_t *)calloc(16,sizeof(TXtrigduration_t));
+    }
+    if(cmd->reg17_21 == NULL){
+        cmd->reg17_21 = (TXtrigdelay_t *)calloc(16,sizeof(TXtrigduration_t));
     }
 
     for(int i=0;i<5;i++){
-        cmd->reg10_14[i].all = trigs[i];
+        cmd->reg12_16[i].all = duration[i];
+        cmd->reg17_21[i].all = delay[i];
     }
 
-    cmd->flags.setTrig0 = ( cmd->reg10_14[0].duration ) ? 1 : 0;
-    cmd->flags.setTrig1 = ( cmd->reg10_14[1].duration ) ? 1 : 0;
-    cmd->flags.setTrig2 = ( cmd->reg10_14[2].duration ) ? 1 : 0;
-    cmd->flags.setTrig3 = ( cmd->reg10_14[3].duration ) ? 1 : 0;
-    cmd->flags.setTrig4 = ( cmd->reg10_14[4].duration ) ? 1 : 0;
+    cmd->flags.setTrig0 = ( cmd->reg12_16[0].duration ) ? 1 : 0;
+    cmd->flags.setTrig1 = ( cmd->reg12_16[1].duration ) ? 1 : 0;
+    cmd->flags.setTrig2 = ( cmd->reg12_16[2].duration ) ? 1 : 0;
+    cmd->flags.setTrig3 = ( cmd->reg12_16[3].duration ) ? 1 : 0;
+    cmd->flags.setTrig4 = ( cmd->reg12_16[4].duration ) ? 1 : 0;
     
     cmd->reg2.set_trig_leds = 1;
 }
@@ -436,8 +457,8 @@ void txBufferVarAttenTimingCmd(TXsys_t *TX, uint32_t duration, uint32_t delay){
         cmd = cmd->next;
     }
     if(duration){
-        cmd->reg9.duration = duration;
-        cmd->reg9.delay = delay;
+        cmd->reg10.duration = duration;
+        cmd->reg11.delay = delay;
         cmd->reg2.set_var_atten = 1;
     }
 }
@@ -452,13 +473,23 @@ void txBufferChargeTimeCmd(TXsys_t *TX, uint32_t chargeTime){
     cmd->reg2.set_amp = 1;
 }
 
+void txBufferTmpMaskCmd(TXsys_t *TX, uint32_t tmpMask){
+    TXpiocmd_t *cmd;
+    cmd = *(TX->pio_cmd_list);
+    while(cmd->next != NULL){
+        cmd = cmd->next;
+    }
+    cmd->reg7.tmpMask = tmpMask;
+    cmd->reg2.set_amp = 1;
+}
+
 void txBufferFireDelayCmd(TXsys_t *TX, uint32_t fireDelay){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
-    cmd->reg7.fireDelay = fireDelay;
+    cmd->reg8.fireDelay = fireDelay;
     cmd->reg2.fire = 1;
 }
 
@@ -485,7 +516,7 @@ void txBufferRecvTrigDelayCmd(TXsys_t *TX, uint32_t recvTrigDelay){
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
-    cmd->reg8.recvTrigDelay = recvTrigDelay;
+    cmd->reg9.recvTrigDelay = recvTrigDelay;
     cmd->reg2.issue_rcv_trig = 1;
 }
 
@@ -522,38 +553,26 @@ void txResetRcvTrig(TXsys_t *TX){
 }
 
 void txSetNumSteeringLocs(TXsys_t *TX, uint32_t nSteeringLocs){
-    
     TX->nSteeringLocs = ( nSteeringLocs ) ? nSteeringLocs : 1;
-
-    printf("hello from numlocks\n");
     if( TX->phaseDelays[0] ) free( TX->phaseDelays[0] );
-    
-    printf("hello from numlocks2\n");
     TX->phaseDelays[0] = (uint16_t *)calloc(8*(TX->nSteeringLocs+2),sizeof(uint16_t));
-    printf("hello from numlocks3\n");
     TX->nPhaseDelaysWritten = 0;
 }
 
 void txStorePhaseDelays(TXsys_t *TX, int nrecv, FMSG_t *msg){
-    char *pdin;
-    char *pdtx;
     int i;
-
-    pdin = (char *)msg;
-    pdtx = (char *)TX->phaseDelays[0];
     i=0;
-    while(i<nrecv){
-        pdtx[TX->nPhaseDelaysWritten+i] = pdin[i];
+    while( ( TX->nPhaseDelaysWritten < (TX->nSteeringLocs*8) ) ){
+        TX->phaseDelays[0][TX->nPhaseDelaysWritten] = msg->u16[i];
         TX->nPhaseDelaysWritten++;
         i++;
     }
-    printf("pdwritten %d/%d\n",TX->nPhaseDelaysWritten,TX->nSteeringLocs*8*sizeof(uint16_t));
-    if ( TX->nPhaseDelaysWritten == TX->nSteeringLocs*8*sizeof(uint16_t) ){
+    //printf("pdwritten %d/%d\n",TX->nPhaseDelaysWritten/8,TX->nSteeringLocs);
+    if ( TX->nPhaseDelaysWritten*sizeof(uint16_t) == TX->nSteeringLocs*8*sizeof(uint16_t) ){
         if ( send(TX->pd_data_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
             //printf("phase delays stored successfully\n");
             i = 0;
         }
-        TX->nPhaseDelaysWritten = 0;
     }
 }
 
