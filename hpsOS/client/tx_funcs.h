@@ -199,6 +199,16 @@ void txAddPioCmd_f(TXsys_t *TX){
     tmp->reg11.all = 0;
     tmp->flags.all = 0;
     tmp->reg25_26.all = 0;
+
+    tmp->loopNum = 0;
+    tmp->startIdx = 0;
+    tmp->endIdx = 0;
+    tmp->currentIdx = 0;
+    tmp->stepSize = 0;
+
+    tmp->cur_xloc = NULL;
+    tmp->cur_yloc = NULL;
+    tmp->cur_zloc = NULL;
     
     tmp->reg12_16 = NULL;
     tmp->reg17_21 = NULL;
@@ -283,7 +293,7 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
     *(TX->pio_cmd_list) = cmd_list->top;
 }
 
-void txMakeLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, uint32_t stepSize){
+void txMakeLoopStart(TXsys_t *TX, uint32_t loopNum, uint32_t startIdx, uint32_t endIdx, uint32_t stepSize){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
     
@@ -302,7 +312,8 @@ void txMakeLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, uint32_t s
     if( !(cmd->flags.isAsyncWait) ){
         TX->bufferAsyncWait(TX,0);
     }
-
+    
+    cmd->loopNum = loopNum;
     cmd->startIdx = startIdx;
     cmd->endIdx = endIdx;
     cmd->stepSize = stepSize;
@@ -347,7 +358,7 @@ void txMakeLoopEnd(TXsys_t *TX){
     }
 }
 
-void txMakeSteeringLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, uint32_t stepSize){
+void txMakeSteeringLoopStart(TXsys_t *TX, uint32_t loopNum, float startVal, float endVal, float stepVal){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
     if( cmd->flags.all ){ 
@@ -360,14 +371,15 @@ void txMakeSteeringLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, ui
     
     cmd->flags.isSteeringStartCmd = 1;
     cmd->prev->flags.nextFlags = cmd->flags.isFlags;
-    cmd->reg2.set_phase = 1;
+    //cmd->reg2.set_phase = 1;
 
     TX->bufferAsyncWait(TX,0);
-    
-    cmd->startIdx = startIdx;
-    cmd->endIdx = endIdx;
-    cmd->stepSize = stepSize;
-    cmd->currentIdx = startIdx;
+
+    cmd->loopNum = loopNum;
+    cmd->startVal = startVal;
+    cmd->endVal = endVal;
+    cmd->stepVal = stepVal;
+    cmd->currentVal = startVal;
 }
 
 void txMakeSteeringLoopEnd(TXsys_t *TX){
@@ -493,6 +505,155 @@ void txBufferFireDelayCmd(TXsys_t *TX, uint32_t fireDelay){
     cmd->reg2.fire = 1;
 }
 
+void txCalcPhaseDelaySingle(TXsys_t *TX, uint16_t *phaseDelays, float xloc, float yloc, float zloc){
+    float maxtof = 0;
+    float dx,dy,dz,r,c;
+    XYZCoord_t *XYZ;
+    float *tof;
+    uint32_t nElsLocal, nElsGlobal;
+    uint32_t *localIdxs;
+    int j;
+
+    nElsLocal = TX->bc->boardData.nElementsLocal;
+    nElsGlobal = TX->bc->boardData.nElementsGlobal;
+    localIdxs = TX->bc->localElementIdxs;
+    XYZ = TX->bc->arrayCoords;
+    c = TX->bc->soundSpeed;
+
+    tof = TX->tof;
+
+    for(j=0;j<nElsGlobal;j++){
+        dx = XYZ[j].x-xloc;
+        dy = XYZ[j].y-yloc;
+        dz = XYZ[j].z-zloc;
+        r = sqrtf( dx*dx + dy*dy + dz*dz );
+
+        tof[j] = r/c;
+        maxtof = ( tof[j]>maxtof ) ? tof[j] : maxtof;
+    }
+    
+    for(j=0;j<nElsGlobal;j++){
+        tof[j] = (maxtof-tof[j])*1e8;
+    }
+
+    for(j=0;j<nElsLocal;j++){
+        phaseDelays[j] = (uint16_t )( tof[ localIdxs[j] ] );
+    }
+}
+
+void txBufferFireAtLocCmd(TXsys_t *TX, uint32_t fireDelay, float xloc, float yloc, float zloc){
+    uint16_t phaseDelays[8];
+    TXpiocmd_t *cmd;
+    cmd = *(TX->pio_cmd_list);
+    while(cmd->next != NULL){
+        cmd = cmd->next;
+    }
+    cmd->reg8.fireDelay = fireDelay;
+    cmd->reg2.fire = 1;
+    cmd->flags.isFireAt = 1;
+    cmd->prev->flags.nextFlags = cmd->flags.isFlags;
+
+    TX->calcPhaseDelaysSingle(TX,phaseDelays,xloc,yloc,zloc);
+
+    cmd->reg3.ch0 = phaseDelays[0];
+    cmd->reg3.ch1 = phaseDelays[1];
+    cmd->reg4.ch2 = phaseDelays[2];
+    cmd->reg4.ch3 = phaseDelays[3];
+    cmd->reg5.ch4 = phaseDelays[4];
+    cmd->reg5.ch5 = phaseDelays[5];
+    cmd->reg6.ch6 = phaseDelays[6];
+    cmd->reg6.ch7 = phaseDelays[7];
+    cmd->reg2.set_phase = 1;
+}
+
+void txBufferFireFromMemIdxCmd(TXsys_t *TX, uint32_t fireDelay, uint32_t loopNum){
+    TXpiocmd_t *cmd;
+    TXpiocmd_t *tmp;
+    cmd = *(TX->pio_cmd_list);
+    while(cmd->next != NULL){
+        cmd = cmd->next;
+    }
+    cmd->reg8.fireDelay = fireDelay;
+    cmd->reg2.fire = 1;
+
+    tmp = *(TX->pio_cmd_list);
+    tmp = tmp->top;
+    while( ( tmp->next != NULL ) && ( tmp->loopNum != loopNum ) ){
+        tmp = tmp->next;
+    }
+    
+    if( tmp->loopNum == loopNum ){
+        cmd->cur_mem_idx = &(tmp->currentIdx);
+        cmd->flags.isLoadPhaseFromMemIdx = 1;
+        cmd->prev->flags.nextFlags = cmd->flags.isFlags;
+        cmd->reg2.set_phase = 1;
+    } else {
+        cmd->cur_mem_idx = NULL;
+        TX->bufferFireAtLocCmd(TX,fireDelay,0.0,0.0,0.0);
+    }
+}
+
+void txBufferFireFromIdxAsLocCmd(TXsys_t *TX, uint32_t fireDelay, uint32_t xLoopNum, uint32_t yLoopNum, uint32_t zLoopNum){
+    TXpiocmd_t *cmd;
+    TXpiocmd_t *tmp;
+    int failFlag = 0;
+    cmd = *(TX->pio_cmd_list);
+    while(cmd->next != NULL){
+        cmd = cmd->next;
+    }
+    cmd->reg8.fireDelay = fireDelay;
+    cmd->reg2.fire = 1;
+
+    tmp = *(TX->pio_cmd_list);
+    tmp = tmp->top;
+    while( ( tmp->next != NULL ) && ( tmp->loopNum != xLoopNum ) ){
+        tmp = tmp->next;
+    }
+    
+    if( tmp->loopNum == xLoopNum ){
+        cmd->cur_xloc = &(tmp->currentVal);
+    } else {
+        failFlag = 1;
+    }
+
+    tmp = tmp->top;
+    while( ( tmp->next != NULL ) && ( tmp->loopNum != yLoopNum ) ){
+        tmp = tmp->next;
+    }
+    
+    if( tmp->loopNum == yLoopNum ){
+        cmd->cur_yloc = &(tmp->currentVal);
+    } else {
+        failFlag = 1;
+    }
+
+    tmp = tmp->top;
+    while( ( tmp->next != NULL ) && ( tmp->loopNum != zLoopNum ) ){
+        tmp = tmp->next;
+    }
+    
+    if( tmp->loopNum == zLoopNum ){
+        cmd->cur_zloc = &(tmp->currentVal);
+    } else {
+        failFlag = 1;
+    }
+
+    if( !failFlag ){
+
+        cmd->flags.isCalcPhaseFromLoopIdxs = 1;
+        cmd->prev->flags.nextFlags = cmd->flags.isFlags;
+        cmd->reg2.set_phase = 1;
+
+    } else {
+
+        cmd->cur_xloc = NULL;
+        cmd->cur_yloc = NULL;
+        cmd->cur_zloc = NULL;
+        TX->bufferFireAtLocCmd(TX,fireDelay,0.0,0.0,0.0);
+    
+    }
+}
+
 void txBufferPhaseDelayCmd(TXsys_t *TX, uint16_t *phaseDelays){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
@@ -559,20 +720,124 @@ void txSetNumSteeringLocs(TXsys_t *TX, uint32_t nSteeringLocs){
     TX->nPhaseDelaysWritten = 0;
 }
 
-void txStorePhaseDelays(TXsys_t *TX, int nrecv, FMSG_t *msg){
-    int i;
-    i=0;
-    while( ( TX->nPhaseDelaysWritten < (TX->nSteeringLocs*8) ) ){
-        TX->phaseDelays[0][TX->nPhaseDelaysWritten] = msg->u16[i];
-        TX->nPhaseDelaysWritten++;
-        i++;
+void txSetSoundSpeed(TXsys_t *TX, float soundSpeed){
+    TX->bc->soundSpeed = soundSpeed;
+}
+
+void txCalcStorePhaseDelays(TXsys_t *TX, int nrecv, PDMSG_t *msg){
+    static int nrecvd, nrecvdAll;
+
+    uint32_t nElsLocal, nElsGlobal, ncoords;
+    uint32_t *localIdxs;
+
+    float dx, dy, dz, r, c, maxtof;
+    float *tof, *coord;
+
+    XYZCoord_t *XYZ;
+
+    int i,j;
+    
+    if( TX->nPhaseDelaysWritten == 0 ){
+        nrecvd = nrecv;
+        nrecvdAll = nrecv;
+    } else {
+        nrecvd += nrecv;
+        nrecvdAll += nrecv;
     }
-    //printf("pdwritten %d/%d\n",TX->nPhaseDelaysWritten/8,TX->nSteeringLocs);
-    if ( TX->nPhaseDelaysWritten*sizeof(uint16_t) == TX->nSteeringLocs*8*sizeof(uint16_t) ){
-        if ( send(TX->pd_data_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
-            //printf("phase delays stored successfully\n");
-            i = 0;
+    
+
+    if( nrecvd == PDMSG_SIZE ){
+
+        nElsLocal = TX->bc->boardData.nElementsLocal;
+        nElsGlobal = TX->bc->boardData.nElementsGlobal;
+        localIdxs = TX->bc->localElementIdxs;
+        XYZ = TX->bc->arrayCoords;
+        c = TX->bc->soundSpeed;
+
+        tof = TX->tof;
+
+        ncoords = msg->u32[1];
+        coord = &(msg->f[2]);
+
+        for(i=0;i<ncoords;i++){
+            maxtof = 0;
+            for(j=0;j<nElsGlobal;j++){
+                dx = XYZ[j].x-coord[i*3];
+                dy = XYZ[j].y-coord[i*3+1];
+                dz = XYZ[j].z-coord[i*3+2];
+                r = sqrtf(dx*dx+dy*dy+dz*dz);
+
+                tof[j] = r/c;
+                maxtof = ( tof[j]>maxtof ) ? tof[j] : maxtof;
+            }
+            
+            for(j=0;j<nElsGlobal;j++){
+                tof[j] = (maxtof-tof[j])*1e8;
+            }
+
+            for(j=0;j<nElsLocal;j++){
+                TX->phaseDelays[0][TX->nPhaseDelaysWritten] = (uint16_t )( tof[ localIdxs[j] ] );
+                TX->nPhaseDelaysWritten++;
+            }
         }
+
+        if ( TX->nPhaseDelaysWritten == ( TX->nSteeringLocs*nElsLocal ) ){
+            if ( send(TX->pd_data_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+                i = 0;
+            }
+        }
+
+        nrecvd = 0;
+
+    } else if ( nrecvd > PDMSG_SIZE ){
+
+        printf("damnit. packets can overlap\n");
+        nrecvd = (nrecvd % PDMSG_SIZE);
+    
+    }
+}
+
+
+void txStorePhaseDelays(TXsys_t *TX, int nrecv, PDMSG_t *msg){
+    static int nrecvd, nrecvdAll;
+    uint32_t nphases_in, nElsLocal;
+    uint16_t *phases;
+
+    int i;
+    
+    if( TX->nPhaseDelaysWritten == 0 ){
+        nrecvd = nrecv;
+        nrecvdAll = nrecv;
+    } else {
+        nrecvd += nrecv;
+        nrecvdAll += nrecv;
+    }
+
+    if( nrecvd == PDMSG_SIZE ){
+
+        i = 0;
+        nphases_in = msg->u32[1];
+        phases = &(msg->u16[4]);
+        nElsLocal = TX->bc->boardData.nElementsLocal;
+        while( i<nphases_in ){
+            TX->phaseDelays[0][TX->nPhaseDelaysWritten] = phases[i];
+            TX->nPhaseDelaysWritten++;
+            i++;
+        }
+
+        if ( TX->nPhaseDelaysWritten == ( TX->nSteeringLocs*nElsLocal ) ){
+            if ( send(TX->pd_data_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) ){
+                i = 0;
+            }
+        }
+
+        nrecvd = 0;
+    
+    } else if ( nrecvd > PDMSG_SIZE ){
+    
+        printf("damnit. packets can overlap\n");
+        nrecvd = (nrecvd % PDMSG_SIZE);
+    
     }
 }
 

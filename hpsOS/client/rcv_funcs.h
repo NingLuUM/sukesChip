@@ -163,7 +163,7 @@ void rcvQueryData(RCVsys_t *RCV){
     enet = RCV->data_sock;
     static int pulse_counter = 0;
     
-    int dataStatus=0;
+    int dataStatus = 0;
     uint32_t recLen = RCV->refVals.recLen;
     uint32_t npulses = RCV->npulses;
     
@@ -217,6 +217,10 @@ void rcvQueryData(RCVsys_t *RCV){
     }
     DREF32(RCV->stateReset)=0;
     usleep(1);
+
+    if ( RCV->printMsgs ){
+        printf("dataStatus: %d\n",dataStatus);
+    }
 }
 
 

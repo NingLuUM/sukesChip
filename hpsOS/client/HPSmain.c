@@ -91,7 +91,8 @@
 #define MAX_POLL_EVENTS     ( 8 )
 #define MAX_SERVER_PORTS    ( 6 )
 #define MAX_SERVER_QUEUE    ( 8 )
-#define FMSG_SIZE           ( 1024 )
+#define FMSG_SIZE           ( 40 )
+#define PDMSG_SIZE          ( 2048 )
 
 // UNUSED, but potentially useful (see 'cServer' for use examp) 
 #define ADC_CLK             ( 25 )	// MHz
@@ -163,8 +164,17 @@
 #define CASE_TX_BUFFER_VAR_ATTEN_TIMINGS    ( 21 )
 #define CASE_TX_SET_VAR_ATTEN_REST_LVL      ( 22 )
 #define CASE_TX_BUFFER_TMP_MASK_CMD         ( 23 )
+#define CASE_TX_SET_SOUND_SPEED             ( 24 )
+#define CASE_TX_BUFFER_FIRE_AT_LOC_CMD      ( 25 )
+#define CASE_TX_BUFFER_FIRE_FROM_MEM_IDX_CMD ( 26 )
+#define CASE_TX_BUFFER_FIRE_FROM_IDX_AS_LOC_CMD ( 27 )
+
 #define CASE_TX_PRINT_FEEDBACK_MSGS         ( 50 )
-#define CASE_EXIT_PROGRAM 100
+
+#define CASE_TX_UPLOAD_PHASE_DELAYS         ( 0 )
+#define CASE_TX_UPLOAD_STEERING_LOCS        ( 1 )
+
+#define CASE_EXIT_PROGRAM                   ( 100 )
 
 const int ONE = 1;
 const int ZERO = 0;
@@ -190,7 +200,8 @@ struct timespec gstart, gend, gdifftime;
 
 
 int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
-	
+    
+    BOARDconfig_t *BC = (BOARDconfig_t *)calloc(1,sizeof(BOARDconfig_t));
     POLLserver_t *PS = (POLLserver_t *)calloc(1,sizeof(POLLserver_t));
     FPGAvars_t *FPGA = (FPGAvars_t *)calloc(1,sizeof(FPGAvars_t));
     ADCvars_t *ADC = (ADCvars_t *)calloc(1,sizeof(ADCvars_t));
@@ -202,9 +213,10 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     PS->epfd = epoll_create(MAX_POLL_EVENTS);
 	
     FPGA_init(FPGA);	
+    BOARDConfig_init(BC);
 	ADC_init(FPGA,ADC);
-    RCV_init(FPGA,ADC,RCV,PS);
-    TX_init(FPGA,TX,PS);
+    RCV_init(FPGA,ADC,RCV,BC,PS);
+    TX_init(FPGA,TX,BC,PS);
 
     connectPollInterrupter(PS,RCV->interrupt,"gpio@0x100000000",RCV_INTERRUPT_ID);
     connectPollInterrupter(PS,TX->interrupt,"gpio@0x100000010",TX_INTERRUPT_ID);
@@ -221,18 +233,22 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     
     int n;
     SOCK_t *sock;
-    FMSG_t msg;
+    FMSG_t txmsg,rcvmsg,adcmsg;
+    PDMSG_t pdmsg;
+    TXpiocmd_t *pio_cmd;
+
     int timeout_ms = 1000;
-    int nfds;
-    int nrecv;//,pd_size;
+    int nfds = 0;
+    int nrecv = 0;
     int runner = 1;
     int activeSocks = 0;
-    TXpiocmd_t *pio_cmd;
+    float dt = 0.0;
+
+    uint32_t interrupt_readout;
+
     struct timespec st0,st1,et1,dt1;
-    float dt;
     clock_gettime(CLOCK_MONOTONIC,&st0);
     clock_gettime(CLOCK_MONOTONIC,&st1);
-    //uint32_t interrupt_readout;
 
     while(runner==1){
         
@@ -258,17 +274,25 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
 
                         TX->comm_sock = sock->partner;
                         if( *(TX->phaseDelays) == NULL){
-                            //printf("allocating from tx_control\n");
-                            *(TX->phaseDelays) = (uint16_t *)calloc(8,sizeof(uint16_t));
+                            
+                            if( TX->printMsgs ){
+                                printf("allocating from tx_control\n");
+                            }
+                            
+                            *(TX->phaseDelays) = (uint16_t *)calloc(BC->boardData.nElementsLocal,sizeof(uint16_t));
                         }
 
                     } else if ( sock->partner->is.tx_incoming_data ){
 
                         TX->pd_data_sock = sock->partner;
 
-                        if( *(TX->phaseDelays) == NULL){
-                            //printf("allocating from tx_incoming\n");
-                            *(TX->phaseDelays) = (uint16_t *)calloc(8,sizeof(uint16_t));
+                        if( *(TX->phaseDelays) == NULL ){
+                            
+                            if( TX->printMsgs ){ 
+                                printf("allocating from tx_incoming\n");
+                            }
+
+                            *(TX->phaseDelays) = (uint16_t *)calloc(BC->boardData.nElementsLocal,sizeof(uint16_t));
                         }
                     } else if ( sock->partner->is.commsock ){
 
@@ -282,50 +306,60 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                     }
                 
                 } else if ( sock->is.rcv_interrupt ) {
-
-                    //printf("rcv program execution interrupt\n");
-                    //interrupt_readout = DREF32(RCV->interrupt_reg);
-                    //printf("rcv interrupt reg:\n");
-                    //printBinaryInterrupt(interrupt_readout);
+                    if ( RCV->printMsgs ){ 
+                        printf("rcv program execution interrupt\n");
+                        interrupt_readout = DREF32(RCV->interrupt_reg);
+                        printf("rcv interrupt reg:\n");
+                        printBinaryInterrupt(interrupt_readout);
+                    }
+                    
                     RCV->queryData(RCV); 
-                    //printf("HERERE\n");
+                    
+                    if ( RCV->printMsgs ){ 
+                        printf("HERERE\n");
+                    }
+                    
                     TX->resetRcvTrig(TX);
                
                 } else if ( sock->is.tx_interrupt ){
-
-                    //interrupt_readout = DREF32(TX->interrupt_reg);
-                    //printf("tx interrupt reg:\n");
-                    //printBinaryInterrupt(interrupt_readout);
+                    if ( TX->printMsgs ){
+                        interrupt_readout = DREF32(TX->interrupt_reg);
+                        printf("tx interrupt reg:\n");
+                        printBinaryInterrupt(interrupt_readout);
+                    }
                     TX->programExecutionHandler(TX);
 
                 } else if ( PS->events[n].events & EPOLLIN ){
 
-                    if ( !(sock->is.tx_incoming_data) ){
+                    if ( sock->is.tx_incoming_data ){
 
-                        nrecv = recv(sock->fd,&msg,10*sizeof(uint32_t),0);
+                        nrecv = recv(sock->fd,&pdmsg,PDMSG_SIZE*sizeof(uint8_t),0);
+                    
+                    } else if ( sock->is.tx_control ){
+                   
+                        nrecv = recv(sock->fd,&txmsg,FMSG_SIZE*sizeof(uint8_t),0);
+                    
+                    } else if ( sock->is.commsock ){
                         
-                    } else {
-
-                        nrecv = recv(sock->fd,&msg,FMSG_SIZE*sizeof(uint8_t),0);
-                        /*
-                        for(int tmpi=0;tmpi<64;tmpi++){
-                            printf("nrecv %d, HPSmain, phasedelay[%d] = %d\n",nrecv,tmpi,msg.u16[tmpi*8]);
-                        }
-                        */
-
-                    }
+                        nrecv = recv(sock->fd,&rcvmsg,FMSG_SIZE*sizeof(uint8_t),0);
+                    
+                    } else if ( sock->is.adc_control ){
+                        
+                        nrecv = recv(sock->fd,&adcmsg,FMSG_SIZE*sizeof(uint8_t),0);
+                    
+                    } 
 
                     if( nrecv < 0 ){
-                        if ( sock->is.tx_incoming_data){
+                        if ( sock->is.tx_incoming_data ){
                             printf("tx incoming data sock error\n");
                         } 
-                        if ( sock->is.tx_control){
+                        if ( sock->is.tx_control ){
                             printf("tx sys control sock error\n");
                         } 
-                        if ( sock->is.commsock){
+                        if ( sock->is.commsock ){
                             printf("rcv sys commsock error\n");
                         } 
-                        if ( sock->is.tx_incoming_data){
+                        if ( sock->is.tx_incoming_data ){
                             printf("adc control sock error\n");
                         } 
 
@@ -369,26 +403,67 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                         }
                         disconnectPollSock(sock);
                         sock->is.alive=0;
-                    
-                    } else if ( sock->is.commsock ){
 
-                        //printf("rcv sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",msg.u[0],msg.u[1],msg.u[2],msg.u[3],msg.u[4],msg.u[5],msg.u[6],msg.u[7],msg.u[8],msg.u[9]);
-                        RCV->enetMsgHandler(RCV, &msg, &runner);
-                    
-                    } else if ( sock->is.tx_control ){
+                    } else {
+                        if ( sock->is.commsock ){
+                            
+                            if ( RCV->printMsgs ){
+                                printf("rcv sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",rcvmsg.u32[0],rcvmsg.u32[1],rcvmsg.u32[2],rcvmsg.u32[3],rcvmsg.u32[4],rcvmsg.u32[5],rcvmsg.u32[6],rcvmsg.u32[7],rcvmsg.u32[8],rcvmsg.u32[9]);
+                            }
+                            
+                            RCV->enetMsgHandler(RCV, &rcvmsg, &runner);
+                        
+                        } else if ( sock->is.tx_control ){
+                            
+                            if ( TX->printMsgs ){
+                                printf("tx sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",txmsg.u32[0],txmsg.u32[1],txmsg.u32[2],txmsg.u32[3],txmsg.u32[4],txmsg.u32[5],txmsg.u32[6],txmsg.u32[7],txmsg.u32[8],txmsg.u32[9]);
+                            }
+                            
+                            TX->enetMsgHandler(TX, &txmsg, nrecv, &runner);
+                        
+                        } else if ( sock->is.tx_incoming_data ){
 
-                        //printf("tx sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",msg.u[0],msg.u[1],msg.u[2],msg.u[3],msg.u[4],msg.u[5],msg.u[6],msg.u[7],msg.u[8],msg.u[9]);
-                        TX->enetMsgHandler(TX, &msg, nrecv, &runner);
-                    
-                    } else if ( sock->is.tx_incoming_data ){
-                        //printf("birds\n");
-                        TX->storePhaseDelays(TX,nrecv,&msg);
-                        if( (TX->nPhaseDelaysWritten/8) == (TX->nSteeringLocs)){
-                            printf("closing tx_incoming_data sock\n");
-                            disconnectPollSock(sock);
-                            TX->nPhaseDelaysWritten = 0;
+                            switch( pdmsg.u32[0] ){
+                                case( CASE_TX_UPLOAD_PHASE_DELAYS ):{
+
+                                    if ( TX->printMsgs ){
+                                        printf("tx sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",pdmsg.u32[0],pdmsg.u32[1],pdmsg.u32[2],pdmsg.u32[3],pdmsg.u32[4],pdmsg.u32[5],pdmsg.u32[6],pdmsg.u32[7],pdmsg.u32[8],pdmsg.u32[9]);
+                                    }
+                                    
+                                    TX->storePhaseDelays(TX,nrecv,&pdmsg);
+                                    
+                                    break;
+                                }
+                                case( CASE_TX_UPLOAD_STEERING_LOCS ):{
+                                    
+                                    if ( TX->printMsgs ){
+                                        printf("tx sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",pdmsg.u32[0],pdmsg.u32[1],pdmsg.u32[2],pdmsg.u32[3],pdmsg.u32[4],pdmsg.u32[5],pdmsg.u32[6],pdmsg.u32[7],pdmsg.u32[8],pdmsg.u32[9]);
+                                    }
+                                    
+                                    TX->calcStorePhaseDelays(TX,nrecv,&pdmsg);
+                                    
+                                    break;
+                                }
+                                default:{
+                                    
+                                    if ( TX->printMsgs ){
+                                        printf("tx sock_msg: %d, %d, %d, %d, %d, %d, %d, %d, %d, %d\n",pdmsg.u32[0],pdmsg.u32[1],pdmsg.u32[2],pdmsg.u32[3],pdmsg.u32[4],pdmsg.u32[5],pdmsg.u32[6],pdmsg.u32[7],pdmsg.u32[8],pdmsg.u32[9]);
+                                    }
+                                    
+                                    printf("undefined case on tx phase delay socket. no phases written.\n");
+                                    
+                                    TX->nPhaseDelaysWritten = (TX->nSteeringLocs)*(TX->bc->boardData.nElementsLocal);
+                                    
+                                    break;
+                                }
+                            }
+                            if( (TX->nPhaseDelaysWritten/(TX->bc->boardData.nElementsLocal)) == (TX->nSteeringLocs)){
+                                printf("closing tx_incoming_data sock\n");
+                                disconnectPollSock(sock);
+                                TX->nPhaseDelaysWritten = 0;
+                            }
+                        
                         }
-                    
                     }
                 }
             }
@@ -421,6 +496,9 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     }
 
     TX->setControlState(TX,0);
+
+    free(BC->arrayCoords);
+    free(BC->localElementIdxs);
     
     for(n=0;n<MAX_SERVER_PORTS;n++){
         if(ENETserver[n].ps!=NULL){
@@ -453,6 +531,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     free(RCV->data); printf("free(RCV->data)\n");
     free(TX->phaseDelays[0]); printf("free(TX->phaseDelays[0])\n");
     free(TX->phaseDelays); printf("free(TX->phaseDelays)\n");
+    free(TX->tof);
     
     pio_cmd = *(TX->pio_cmd_list);
     if( pio_cmd != NULL ){
@@ -477,6 +556,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
     free(TX);
     free(ADC);
     free(RCV);
+    free(BC);
 	return(0);
 }
 

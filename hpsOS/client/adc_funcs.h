@@ -201,20 +201,20 @@ void adcSetInternalAcCoupling(ADCvars_t *ADC, uint32_t accoupling){
 
 void adcIssueDirectCmd(ADCvars_t *ADC, FMSG_t *msg){
     uint32_t regaddr;
-    if( msg->u[1] ){
+    if( msg->u32[1] ){
         ADC->gpreg0.TGC_REGISTER_WREN = 1;
         ADC->issueSerialCommand(ADC,ADC->gpreg0.adccmd);
 
-        regaddr = ADC->reg_dict[1][msg->u[2]];
+        regaddr = ADC->reg_dict[1][msg->u32[2]];
         //printf("regaddr = %u\n",regaddr);
-        ADC->reg[regaddr]->cmd = msg->u[3];
+        ADC->reg[regaddr]->cmd = msg->u32[3];
         ADC->issueSerialCommand(ADC,ADC->reg[regaddr]->adccmd);
     } else {
         ADC->gpreg0.TGC_REGISTER_WREN = 0;
         ADC->issueSerialCommand(ADC,ADC->gpreg0.adccmd);
     
-        regaddr = ADC->reg_dict[0][msg->u[2]];
-        ADC->reg[regaddr]->cmd = msg->u[3];
+        regaddr = ADC->reg_dict[0][msg->u32[2]];
+        ADC->reg[regaddr]->cmd = msg->u32[3];
         ADC->issueSerialCommand(ADC,ADC->reg[regaddr]->adccmd);
     }
 }

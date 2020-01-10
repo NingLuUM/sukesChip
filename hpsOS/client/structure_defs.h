@@ -1,5 +1,6 @@
 
 // structure defs and typedefs
+struct BOARDconfig_;
 struct FPGAvars_;
 struct SOCK_;
 struct POLLserver_;
@@ -7,6 +8,7 @@ struct RCVsys_;
 struct ADCvars_;
 struct TXsys_;
 union FMSG_;
+union PDMSG_;
 union TXpioreg0_;
 union TXpioreg1_;
 union TXpioreg2_;
@@ -20,7 +22,9 @@ union TXpioreg9_;
 union TXtrigtimings_;
 union TXpioreg2526_;
 struct TXpiocmd_;
+struct XYZCoord_;
 
+typedef struct BOARDconfig_ BOARDconfig_t;
 typedef struct FPGAvars_ FPGAvars_t;
 typedef struct SOCK_ SOCK_t;
 typedef struct POLLserver_ POLLserver_t;
@@ -28,6 +32,7 @@ typedef struct RCVsys_ RCVsys_t;
 typedef struct ADCvars_ ADCvars_t;
 typedef struct TXsys_ TXsys_t;
 typedef union FMSG_ FMSG_t;
+typedef union PDMSG_ PDMSG_t;
 typedef union TXpioreg0_ TXpioreg0_t;
 typedef union TXpioreg1_ TXpioreg1_t;
 typedef union TXpioreg2_ TXpioreg2_t;
@@ -44,6 +49,7 @@ typedef union TXtrigduration_ TXtrigduration_t;
 typedef union TXtrigdelay_ TXtrigdelay_t;
 typedef union TXpioreg2526_ TXpioreg2526_t;
 typedef struct TXpiocmd_ TXpiocmd_t;
+typedef struct XYZCoord_ XYZCoord_t;
 
 // rcv system functions
 void rcvSysMsgHandler(RCVsys_t *RCV, FMSG_t *msg, int *runner);
@@ -91,9 +97,9 @@ void txIssuePioCommand(TXsys_t *TX);
 void txAddCmd_f(TXsys_t *TX);
 void txDelCmd_f(TXsys_t *TX, uint32_t cmdNum);
 
-void txMakeLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, uint32_t stepSize);
+void txMakeLoopStart(TXsys_t *TX, uint32_t loopNum, uint32_t startIdx, uint32_t endIdx, uint32_t stepSize);
 void txMakeLoopEnd(TXsys_t *TX);
-void txMakeSteeringLoopStart(TXsys_t *TX, uint32_t startIdx, uint32_t endIdx, uint32_t stepSize);
+void txMakeSteeringLoopStart(TXsys_t *TX, uint32_t loopNum, float startVal, float endVal, float stepVal);
 void txMakeSteeringLoopEnd(TXsys_t *TX);
 void txMakePioCmd(TXsys_t *TX);
 void txBufferTrigTimingCmd(TXsys_t *TX, uint32_t *duration, uint32_t *delay);
@@ -109,7 +115,43 @@ void txResetTxInterrupt(TXsys_t *TX);
 void txResetRcvTrig(TXsys_t *TX);
 
 void txSetNumSteeringLocs(TXsys_t *TX, uint32_t nSteeringLocs);
-void txStorePhaseDelays(TXsys_t *TX, int nrecv, FMSG_t *msg);
+void txStorePhaseDelays(TXsys_t *TX, int nrecv, PDMSG_t *msg);
+void txCalcStorePhaseDelays(TXsys_t *TX, int nrecv, PDMSG_t *msg);
+
+void txSetSoundSpeed(TXsys_t *TX, float soundSpeed);
+void txBufferFireAtLocCmd(TXsys_t *TX, uint32_t fireDelay, float xloc, float yloc, float zloc);
+void txCalcPhaseDelaySingle(TXsys_t *TX, uint16_t *phaseDelays, float xloc, float yloc, float zloc);
+
+void txBufferFireFromMemIdxCmd(TXsys_t *TX, uint32_t fireDelay, uint32_t loopNum);
+void txBufferFireFromIdxAsLocCmd(TXsys_t *TX, uint32_t fireDelay, uint32_t xLoopNum, uint32_t yLoopNum, uint32_t zLoopNum);
+
+
+typedef struct XYZCoord_{
+    float x;
+    float y;
+    float z;
+} XYZCoord_t;
+
+
+typedef struct BOARDconfig_{
+    
+    struct{
+        uint32_t boardNum;
+        uint32_t isMaster;
+        uint32_t isSolo;
+        uint32_t isExternallyTriggered;
+        uint32_t nElementsGlobal;
+        uint32_t nElementsLocal;
+    } boardData;
+
+    float soundSpeed;
+    
+    XYZCoord_t *arrayCoords;
+
+    uint32_t *localElementIdxs;
+
+} BOARDconfig_t;
+
 
 typedef struct POLLserver_{
 	int epfd;
@@ -234,6 +276,7 @@ typedef struct RCVsys_{
     // reference values for setting up data storage
     // uint32_t recLen_ref;
     uint32_t npulses;
+    uint32_t printMsgs;
 
     struct{
         union{
@@ -251,6 +294,7 @@ typedef struct RCVsys_{
         uint32_t recLen;
     } refVals;
 
+    BOARDconfig_t *bc;
 
     POLLserver_t *ps;
     SOCK_t *comm_sock;
@@ -271,6 +315,7 @@ typedef struct RCVsys_{
 
 typedef struct TXpiocmd_{
     int cmdNumber;
+    uint32_t loopNum;
 
     TXpioreg2_t reg2;
     TXpioreg3_t reg3;
@@ -282,11 +327,30 @@ typedef struct TXpiocmd_{
     TXpioreg9_t reg9;
     TXpioreg10_t reg10;
     TXpioreg11_t reg11;
-    
-    uint32_t startIdx;
-    uint32_t endIdx;
-    uint32_t currentIdx;
-    uint32_t stepSize;
+
+    union{
+        struct{
+            uint32_t startIdx;
+            uint32_t endIdx;
+            uint32_t currentIdx;
+            uint32_t stepSize;
+        };
+        struct{
+            float startVal;
+            float endVal;
+            float currentVal;
+            float stepVal;
+        };
+    };
+
+    union{
+        uint32_t *cur_mem_idx;
+        struct{
+            float *cur_xloc;
+            float *cur_yloc;
+            float *cur_zloc;
+        };
+    };
     
     union{
         struct{
@@ -296,6 +360,7 @@ typedef struct TXpiocmd_{
             uint32_t isLoopEndCmd : 1;
             uint32_t isSteeringStartCmd : 1;
             uint32_t isSteeringEndCmd : 1;
+            uint32_t isFireAt : 1;
             uint32_t isAsyncWait : 1;
 
             uint32_t nextCmdIsCmd0 : 1;
@@ -304,28 +369,29 @@ typedef struct TXpiocmd_{
             uint32_t nextCmdIsLoopEnd : 1;
             uint32_t nextCmdIsSteeringStart : 1;
             uint32_t nextCmdIsSteeringEnd : 1;
+            uint32_t nextCmdIsFireAt : 1;
             uint32_t nextCmdIsAsyncWait : 1;
-
+            
             uint32_t setTrig0 : 1;
             uint32_t setTrig1 : 1;
             uint32_t setTrig2 : 1;
             uint32_t setTrig3 : 1;
             uint32_t setTrig4 : 1;
             
-            //uint32_t setVarAtten : 1;
+            uint32_t isLoadPhaseFromMemIdx : 1;
+            uint32_t isCalcPhaseFromLoopIdxs : 1;
 
-            uint32_t blnkFlags : 13;
+            uint32_t blnkFlags : 9;
         };
         struct{
-            uint32_t isFlags : 7;
-            uint32_t nextFlags : 7;
+            uint32_t isFlags : 8;
+            uint32_t nextFlags : 8;
             uint32_t trigFlags : 5;
-            uint32_t varAttenFlag : 1;
-            uint32_t blnkFlags2 : 12;
+            uint32_t blnkFlags2 : 11;
         };
         struct{
-            uint32_t hasNonWaitCmds : 6;
-            uint32_t blnk24 : 24;
+            uint32_t hasNonWaitCmds : 7;
+            uint32_t blnk24 : 23;
         };
         uint32_t all;
     } flags;
@@ -333,6 +399,8 @@ typedef struct TXpiocmd_{
     TXpioreg2526_t reg25_26;
     TXtrigduration_t *reg12_16;
     TXtrigdelay_t *reg17_21;
+
+    BOARDconfig_t *bc;
     
     TXpiocmd_t *top;
     TXpiocmd_t *prev;
@@ -369,7 +437,11 @@ typedef struct TXsys_{
 
     uint32_t nSteeringLocs;
     uint32_t nPhaseDelaysWritten;
+    uint32_t printMsgs;
     uint16_t **phaseDelays;
+
+    BOARDconfig_t *bc;
+    float *tof;
 
     POLLserver_t *ps;
     SOCK_t *comm_sock;
@@ -396,9 +468,9 @@ typedef struct TXsys_{
     void (*addCmd)(TXsys_t *);
     void (*delCmd)(TXsys_t *, uint32_t);
 
-    void (*makeLoopStart)(TXsys_t *, uint32_t, uint32_t, uint32_t);
+    void (*makeLoopStart)(TXsys_t *, uint32_t, uint32_t, uint32_t, uint32_t);
     void (*makeLoopEnd)(TXsys_t *);
-    void (*makeSteeringLoopStart)(TXsys_t *, uint32_t, uint32_t, uint32_t);
+    void (*makeSteeringLoopStart)(TXsys_t *, uint32_t, float, float, float);
     void (*makeSteeringLoopEnd)(TXsys_t *);
     void (*makePioCmd)(TXsys_t *);
 
@@ -415,7 +487,14 @@ typedef struct TXsys_{
     void (*resetRcvTrig)(TXsys_t *);
 
     void (*setNumSteeringLocs)(TXsys_t *, uint32_t);
-    void (*storePhaseDelays)(TXsys_t *, int, FMSG_t *);
+    void (*storePhaseDelays)(TXsys_t *, int, PDMSG_t *);
+    void (*calcStorePhaseDelays)(TXsys_t *, int, PDMSG_t *);
+    void (*calcPhaseDelaysSingle)(TXsys_t *, uint16_t *, float, float, float);
+
+    void (*setSoundSpeed)(TXsys_t *, float);
+    void (*bufferFireAtLocCmd)(TXsys_t *, uint32_t, float, float, float);
+    void (*bufferFireFromMemIdxCmd)(TXsys_t *, uint32_t, uint32_t);
+    void (*bufferFireFromIdxAsLocCmd)(TXsys_t *, uint32_t, uint32_t, uint32_t, uint32_t);
 
 } TXsys_t;
 
@@ -473,13 +552,21 @@ typedef struct RAMBANK12_{
 typedef union FMSG_{
     uint8_t u8[FMSG_SIZE];
     uint16_t u16[FMSG_SIZE/2];
-    uint32_t u[FMSG_SIZE/4];
+    uint32_t u32[FMSG_SIZE/4];
     uint64_t u64[FMSG_SIZE/8];
     float f[FMSG_SIZE/4];
     double d[FMSG_SIZE/8];
 } FMSG_t;
 
 
+typedef union PDMSG_{
+    uint8_t u8[PDMSG_SIZE];
+    uint16_t u16[PDMSG_SIZE/2];
+    uint32_t u32[PDMSG_SIZE/4];
+    uint64_t u64[PDMSG_SIZE/8];
+    float f[PDMSG_SIZE/4];
+    double d[PDMSG_SIZE/8];
+} PDMSG_t;
 
 
 

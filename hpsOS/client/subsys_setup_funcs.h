@@ -182,7 +182,54 @@ int ADC_init(FPGAvars_t *FPGA, ADCvars_t *ADC){
     return(1);
 }
 
-int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV, POLLserver_t *PS){
+int BOARDConfig_init(BOARDconfig_t *BC){
+    #define NCONFIGVARS (6)
+    BC->soundSpeed = 1482.0;
+
+    FILE* file = fopen("./config_files/boardData", "rb");
+    if ( fread(&(BC->boardData),sizeof(uint32_t),NCONFIGVARS,file) ) {
+        printf("board info loaded\n");
+    } else {
+        printf("board info load failed\n");
+    }
+
+    fclose(file);
+
+    FILE* file2 = fopen("./config_files/localElementIndices", "rb");
+    BC->localElementIdxs = (uint32_t *)calloc(BC->boardData.nElementsLocal,sizeof(uint32_t));
+    if ( fread(BC->localElementIdxs,sizeof(uint32_t),BC->boardData.nElementsLocal,file2) ){
+        printf("element indices loaded\n");
+    } else {
+        printf("element indices load failed\n");
+    }
+
+    fclose(file2);
+    
+    FILE* file3 = fopen("./config_files/arrayCoords", "rb");
+    float *arrayCoords;
+    uint32_t nEls = BC->boardData.nElementsGlobal;
+    arrayCoords = (float *)malloc(3*nEls*sizeof(float));
+    if ( fread(arrayCoords,sizeof(float),3*nEls,file3) ){
+        printf("array coords loaded (units of current file = mm)\n");
+    } else {
+        printf("array coords load failed\n");
+    }
+    fclose(file3);
+
+    BC->arrayCoords = (XYZCoord_t *)calloc(nEls,sizeof(XYZCoord_t));
+    for(int i=0;i<nEls;i++){
+        BC->arrayCoords[i].x = arrayCoords[i]*1e-3;
+        BC->arrayCoords[i].y = arrayCoords[i+nEls]*1e-3;
+        BC->arrayCoords[i].z = arrayCoords[i+2*nEls]*1e-3;
+        //printf("el[%d]: %0.2f, %0.2f, %0.2f\n", i, BC->arrayCoords[i].x, BC->arrayCoords[i].y, BC->arrayCoords[i].z);
+    }
+
+    free(arrayCoords);
+    #undef NCONFIGVARS
+    return(1);
+}
+
+int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV, BOARDconfig_t *BC, POLLserver_t *PS){
 	RCV->interrupt_reg = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + RCV_INTERRUPT_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 
 	RCV->stateReset = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_ADC_FPGA_STATE_RESET_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
@@ -194,16 +241,6 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV, POLLserver_t *PS){
 	RCV->leds = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + PIO_LED_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 	RCV->ramBank = FPGA->axi_virtual_base + ( ( uint32_t  )( ADC_RAMBANK_BASE ) & ( uint32_t)( HW_FPGA_AXI_MASK ) );
    
-    //printf("&interrupt_reg %p\n", (uint32_t *)RCV->interrupt_reg);
-    //printf("&stateRest %p\n", (uint32_t *)RCV->stateReset);
-    //printf("&controlComms %p\n", (uint32_t *)RCV->controlComms);
-    //printf("&pioSettings %p\n", (uint32_t *)RCV->recLen);
-    //printf("&serialCommand %p\n", (uint32_t *)RCV->serialCommand);
-    //printf("&dataReadyFlag %p\n", (uint32_t *)RCV->dataReadyFlag);
-    //printf("&leds %p\n", (uint32_t *)RCV->leds);
-    //printf("&ramBank %p\n", (uint32_t *)RCV->ramBank);
-
-    //mlock((uint32_t*)RCV->ramBank,MAX_RECLEN*8*sizeof(uint16_t));
     // setup function pointers
     RCV->enetMsgHandler = &rcvSysMsgHandler;
     RCV->queryData = &rcvQueryData;
@@ -225,6 +262,7 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV, POLLserver_t *PS){
     
     RCV->ADC = ADC;
     RCV->ps = PS;
+    RCV->bc = BC;
 
     RCV->comm_sock = NULL;
     RCV->data_sock = NULL;
@@ -232,6 +270,7 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV, POLLserver_t *PS){
     RCV->interrupt->ps = NULL;
     
     RCV->npulses = 1;
+    RCV->printMsgs = 0;
     RCV->queryMode.all = 0;
     RCV->queryMode.realTime = 1;
     RCV->data = (char **)calloc(2,sizeof(char *));
@@ -243,7 +282,7 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV, POLLserver_t *PS){
     return(1);
 }
 
-int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
+int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, BOARDconfig_t *BC, POLLserver_t *PS){
     TX->interrupt_reg = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_INTERRUPT_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
     TX->pio_reg = (uint32_t **)malloc(27*sizeof(uint32_t *));
     TX->pio_reg[0] = FPGA->virtual_base + ( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG0_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
@@ -274,8 +313,6 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     TX->pio_reg[25] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG25_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
     TX->pio_reg[26] = FPGA->virtual_base+( ( uint32_t )( ALT_LWFPGASLVS_OFST + TX_PIO_REG26_BASE ) & ( uint32_t )( HW_REGS_MASK ) );
 
-    //for(int n=0;n<27;n++)
-    //printf("TX->pio_reg[%d] = %p\n",n,(uint32_t *)TX->pio_reg[n]);
 	
     TX->reg12_16 = (TXtrigduration_t *)malloc(5*sizeof(TXtrigduration_t));
     TX->reg17_21 = (TXtrigdelay_t *)malloc(5*sizeof(TXtrigdelay_t));
@@ -287,6 +324,7 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     pio_cmd = *(TX->pio_cmd_list);
 
     pio_cmd->cmdNumber = 0;
+    pio_cmd->loopNum = 0;
     pio_cmd->reg2.all = 0;
     pio_cmd->reg2.set_async_wait = 1;
     pio_cmd->reg3.all = 0;
@@ -308,11 +346,24 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
     pio_cmd->top = *(TX->pio_cmd_list);
     pio_cmd->prev = NULL;
     pio_cmd->next = NULL;
+    
+    pio_cmd->startIdx = 0;
+    pio_cmd->endIdx = 0;
+    pio_cmd->currentIdx = 0;
+    pio_cmd->stepSize = 0;
 
+    pio_cmd->cur_xloc = NULL;
+    pio_cmd->cur_yloc = NULL;
+    pio_cmd->cur_zloc = NULL;
+
+    TX->printMsgs = 0;
     TX->nSteeringLocs = 1;
     TX->nPhaseDelaysWritten = 0;
     TX->phaseDelays = (uint16_t **)malloc(sizeof(uint16_t *));
     *(TX->phaseDelays) = NULL;//(uint16_t *)calloc(8,sizeof(uint16_t));
+
+    TX->bc = BC;
+    TX->tof = (float *)malloc(BC->boardData.nElementsGlobal*sizeof(float));
 
     TX->ps = PS;
     TX->comm_sock = NULL;
@@ -428,6 +479,13 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, POLLserver_t *PS){
 
     TX->setNumSteeringLocs = &txSetNumSteeringLocs;
     TX->storePhaseDelays = &txStorePhaseDelays;
+    TX->calcStorePhaseDelays = &txCalcStorePhaseDelays;
+
+    TX->setSoundSpeed = &txSetSoundSpeed;
+    TX->bufferFireAtLocCmd = &txBufferFireAtLocCmd;
+    TX->bufferFireFromMemIdxCmd = &txBufferFireFromMemIdxCmd;
+    TX->bufferFireFromIdxAsLocCmd = &txBufferFireFromIdxAsLocCmd;
+    TX->calcPhaseDelaysSingle = &txCalcPhaseDelaySingle;
 
     TX->setControlState(TX,0);
     TX->resetTxInterrupt(TX);

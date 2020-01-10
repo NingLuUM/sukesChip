@@ -18,7 +18,7 @@ class transmitter():
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
-		#~ self.pd_sock.close()
+		self.pd_sock.close()
 		
 	def terminateProgram(self):
 		msg = struct.pack(self.cmsg,self.CASE_TX_SET_CONTROL_STATE,0,0,0,0,0,0,0,0,0)
@@ -50,22 +50,22 @@ class transmitter():
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
-	def startLoop(self,loopNum=0,startIdx=0,endIdx=1,stepSize=1):
-		msg = struct.pack(self.cmsg,self.CASE_TX_MAKE_LOOP_START,startIdx,endIdx,stepSize,0,0,0,0,0,0)
+	def startCounter(self,loopNum=0,startIdx=0,endIdx=1,stepSize=1):
+		msg = struct.pack(self.cmsg,self.CASE_TX_MAKE_LOOP_START,loopNum,startIdx,endIdx,stepSize,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
-	def endLoop(self,loopNum=0):
+	def endCounter(self,loopNum=0):
 		msg = struct.pack(self.cmsg,self.CASE_TX_MAKE_LOOP_END,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
-	def startSteeringLoop(self,loopNum=0,startIdx=0,endIdx=1,stepSize=1):
-		msg = struct.pack(self.cmsg,self.CASE_TX_MAKE_STEERING_LOOP_START,startIdx,endIdx,stepSize,0,0,0,0,0,0)
+	def startNamedLoop(self,loopId=0,startVal=0,endVal=1,stepVal=1):
+		msg = struct.pack(self.cmsg_steering_loop,self.CASE_TX_MAKE_STEERING_LOOP_START,loopId,startVal,endVal,stepVal,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
-	def endSteeringLoop(self,loopNum=0):
+	def endNamedLoop(self,loopNum=0):
 		msg = struct.pack(self.cmsg,self.CASE_TX_MAKE_STEERING_LOOP_END,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
@@ -103,7 +103,22 @@ class transmitter():
 		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_FIRE_CMD,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
+	
+	def fireAtLoc(self,xloc=0,yloc=0,zloc=0):		
+		msg = struct.pack(self.cmsg_fire_at_loc,self.CASE_TX_BUFFER_FIRE_AT_LOC_CMD,xloc*1e-3,yloc*1e-3,zloc*1e-3,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+	
+	def fireFromMemIdx(self,mem_idx=0):		
+		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_FIRE_FROM_MEM_IDX_CMD,mem_idx,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		
+	def fireFromNamedIdxs(self,xID=0,yID=0,zID=0):		
+		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_FIRE_FROM_IDX_AS_LOC_CMD,xID,yID,zID,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+			
 	def rcvData(self):		
 		msg = struct.pack(self.cmsg,self.CASE_TX_BUFFER_RECV_TRIG,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
@@ -139,24 +154,61 @@ class transmitter():
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
 		print 'numlocs len(bb)',len(bb)
-		
-	def uploadPhaseDelays(self,pd=np.zeros((1,8))):
+	
+	def setSoundSpeed(self,soundSpeed=1482.0):
+		self.SOUND_SPEED = 1.0*soundSpeed
+		print 'soundSpeed:', self.SOUND_SPEED, 'm/s'
+		msg = struct.pack(self.cmsg2,self.CASE_TX_SET_SOUND_SPEED,self.SOUND_SPEED,0,0,0,0,0,0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+			
+	def uploadPhaseDelays_usec(self,pd=np.zeros((1,8))):
 		self.pd_sock.connect(('192.168.1.101',3700))
+		maxItems = self.MAX_PHASE_DELAYS_PER_PACKET
 		
 		a = np.shape(pd)
 		nlocs = a[0]
+		nphases = a[0]*a[1]
 		self.setNumSteeringLocs(nlocs)
-		nloops = a[0]/64+1
-			
-		pd_array = np.zeros((1,nloops*64*8)).astype(np.uint16)
+		
+		nloops = (nphases)/maxItems + 1	
+		pd_array = np.zeros((1,maxItems*nloops)).astype(np.uint16)
 		
 		for nl in range(0,nlocs):
 			pd_array[0,8*nl:(8*(nl+1))] = pd[nl,:]*100
 		
+		for nl in range(0,nloops):
+			if ((nl+1)<nloops):
+				msg = struct.pack(self.pd_msg, self.CASE_TX_UPLOAD_PHASE_DELAYS, maxItems, *pd_array[0,maxItems*nl:(maxItems*(nl+1))])
+			else:
+				msg = struct.pack(self.pd_msg, self.CASE_TX_UPLOAD_PHASE_DELAYS, ( nphases % maxItems ), *pd_array[0,maxItems*nl:(maxItems*(nl+1))])
+			
+			self.pd_sock.send(msg)	
+			
+		bb = self.pd_sock.recv(4,socket.MSG_WAITALL)
+		
+	def uploadSteeringLocs_mm(self,sl=np.zeros((1,3))):
+		self.pd_sock.connect(('192.168.1.101',3700))
+		maxItems = self.MAX_STEERING_COORD_VALS_PER_PACKET
+		maxLocs = self.MAX_STEERING_LOCS_PER_PACKET
+		
+		a = np.shape(sl)
+		nlocs = a[0]
+		ncoord_vals = a[0]*a[1]
+		self.setNumSteeringLocs(nlocs)
+		
+		nloops = (ncoord_vals)/maxItems + 1	
+		sl_array = np.zeros((1,maxItems*nloops)).astype(np.float32)
+		
+		for nl in range(0,nlocs):
+			sl_array[0,3*nl:(3*(nl+1))] = sl[nl,:]*1e-3
 		
 		for nl in range(0,nloops):
-			print nl
-			msg = struct.pack(self.pd_msg,*pd_array[0,512*nl:(512*(nl+1))])
+			if ((nl+1)<nloops):
+				msg = struct.pack(self.sl_msg, self.CASE_TX_UPLOAD_STEERING_LOCS, maxLocs, *sl_array[0,maxItems*nl:(maxItems*(nl+1))])
+			else:
+				msg = struct.pack(self.sl_msg, self.CASE_TX_UPLOAD_STEERING_LOCS, ( nlocs % maxLocs ), *sl_array[0,maxItems*nl:(maxItems*(nl+1))])
+			
 			self.pd_sock.send(msg)	
 			
 		bb = self.pd_sock.recv(4,socket.MSG_WAITALL)
@@ -164,7 +216,6 @@ class transmitter():
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3600))
 		
-	
 	def __init__(self):
 		# defined variables in the C code running on arm
 		self.CASE_TX_SET_CONTROL_STATE = 0
@@ -190,7 +241,25 @@ class transmitter():
 		self.CASE_TX_BUFFER_VAR_ATTEN_TIMINGS = 21
 		self.CASE_TX_SET_VAR_ATTEN_REST_LVL = 22
 		self.CASE_TX_BUFFER_TMP_MASK_CMD = 23
+		self.CASE_TX_SET_SOUND_SPEED = 24
+		self.CASE_TX_BUFFER_FIRE_AT_LOC_CMD = 25
+		self.CASE_TX_BUFFER_FIRE_FROM_MEM_IDX_CMD = 26
+		self.CASE_TX_BUFFER_FIRE_FROM_IDX_AS_LOC_CMD = 27
+		
+		self.CASE_TX_UPLOAD_PHASE_DELAYS = 0
+		self.CASE_TX_UPLOAD_STEERING_LOCS = 1
+
 		self.CASE_EXIT_PROGRAM = 100
+		
+		self.PDMSG_SIZE = 2048
+		self.FLOAT_SIZE = 4
+		self.U32_SIZE = 4
+		self.U16_SIZE = 2
+		self.MAX_PHASE_DELAYS_PER_PACKET = (self.PDMSG_SIZE-2*self.U32_SIZE)/(self.U16_SIZE)
+		self.MAX_STEERING_COORD_VALS_PER_PACKET = (self.PDMSG_SIZE-2*self.U32_SIZE)/(self.FLOAT_SIZE)
+		self.MAX_STEERING_LOCS_PER_PACKET = self.MAX_STEERING_COORD_VALS_PER_PACKET/3
+		
+		self.SOUND_SPEED = 1482.0
 		
 		# ethernet sockets for transferring data to/from arm
 		# 'sock' is used to send commands to arm
@@ -203,11 +272,15 @@ class transmitter():
 		self.cmsg = '10I'
 		self.pd_msg1 = '1I8H1I2Q'
 		self.cmsg2 = '1I1f8I'
+		self.cmsg_fire_at_loc = '1I3f6I'
 		self.cmsg3 = '2I1d6I'
-		self.pd_msg = '512H'
+		self.cmsg_steering_loop = '2I3f5I'
+		self.pd_msg = '{}{}{}'.format('2I',self.MAX_PHASE_DELAYS_PER_PACKET ,'H')
+		self.sl_msg = '{}{}{}'.format('2I',self.MAX_STEERING_COORD_VALS_PER_PACKET ,'f')
 		self.async_msg = '2I1Q6I'
 		''' character meanings in cmsg: 
 		#	(https://docs.python.org/2/library/struct.html)
+		#	'h','H' = signed,unsigned short (2 bytes)
 		#	'i','I' = signed,unsigned int (4 bytes)
 		#	'q','Q' = signed,unsigned long long (8bytes)
 		#	'f' = float (4bytes)
@@ -216,21 +289,24 @@ class transmitter():
 
 class receiver():
 	
-	def activateRecvr(self):
+	def activateRecvr(self,plotLater=0):
 		self.pid = os.fork()
 		if (self.pid == 0):
 			#~ self.pt = subprocess.Popen(['gnuplot','-e','-p'],shell=True,stdin=subprocess.PIPE,)
 			#~ self.pt.stdin.write("set term x11 size 650,650 font 'Helvetica,16'\n")
 			self.connectRcvDataSock()
+			if plotLater:
+				self.allData = np.zeros((self.nplotpulses,self.recLen,8))
 			n=0
 			while n<self.nplotpulses:
-				self.queryData()
+				if plotLater:
+					self.queryData(nthpls=(n+1))
+				else:
+					self.queryData()
 				n+=1
 				
 			self.disconnectDataSock()
 			os._exit(0)
-			
-
 			
 		else:
 			self.stateReset(0)
@@ -357,14 +433,30 @@ class receiver():
 		else:
 			n = 0
 			
+			datas2 = np.zeros((datas.shape[1]*datas.shape[0],datas.shape[2]))
+			datas3 = np.mean(datas,axis=0)
+			print 'data3.shape:', datas3.shape
+			for m in range(0,self.nplotpulses):
+				datas2[self.recLen*m:self.recLen*(m+1),:] = datas[m,:,:]
+				
+			rmsvals = np.zeros(8)
+			pk2pks = np.zeros(8)
+			for m in range(0,8):
+				rmsvals[m] = (np.sqrt(np.mean((datas2[:,m]-np.mean(datas2[:,m]))**2)))/clockDiv
+				pk2pks[m] = (np.max(datas2[:,m])-np.min(datas2[:,m]))/clockDiv
+
+			
+			
+			
 			for nc in range(0,self.ncols):
 				for nr in range(0,self.nrows):	
 					for npls in range(0,self.npulses):
-						ax[nr,nc].plot(t+npls*t[-1],datas[npls*self.recLen:(npls+1)*self.recLen,n]/clockDiv,'-')
-						pk2pk = (np.max(datas[npls*self.recLen:(npls+1)*self.recLen,n])-np.min(datas[npls*self.recLen:(npls+1)*self.recLen,n]))/clockDiv
-						rmsval = (np.sqrt(np.mean((datas[npls*self.recLen:(npls+1)*self.recLen,n]-np.mean(datas[npls*self.recLen:(npls+1)*self.recLen,n]))**2)))/clockDiv
+						#~ ax[nr,nc].plot(t+npls*t[-1],datas[npls*self.recLen:(npls+1)*self.recLen,n]/clockDiv,'-')
+						ax[nr,nc].plot(t+npls*t[-1],datas3[:,n]/clockDiv,'-')
+						#~ pk2pk = (np.max(datas[npls*self.recLen:(npls+1)*self.recLen,n])-np.min(datas[npls*self.recLen:(npls+1)*self.recLen,n]))/clockDiv
+						#~ rmsval = (np.sqrt(np.mean((datas[npls*self.recLen:(npls+1)*self.recLen,n]-np.mean(datas[npls*self.recLen:(npls+1)*self.recLen,n]))**2)))/clockDiv
 
-					ax[nr,nc].set_title('{}{}{}{}{}{}'.format('Ch[',n,'], pk-pk ',pk2pk,', RMS: ',np.round(rmsval,2) ))
+					ax[nr,nc].set_title('{}{}{}{}{}{}'.format('Ch[',n,'], pk-pk ',pk2pks[n],', RMS: ',np.round(rmsvals[n],2) ))
 					ax[nr,nc].set_ylim((self.ylims[0],self.ylims[1]))
 					if self.xlims[2] > 0:
 						ax[nr,nc].set_xlim((self.xlims[0],self.xlims[1]))
@@ -384,7 +476,7 @@ class receiver():
 		plt.tight_layout()
 		plt.show()
 		
-	def queryDataLocal16(self,pltr):
+	def queryDataLocal16(self,pltr=1,nthpls=0):
 		#~ msg = struct.pack(self.cmsg,self.CASE_QUERY_DATA,0,0,0,0,0,0,0,0,0)
 		#~ self.sock.send(msg)
 		#~ bb = self.sock.recv(4,socket.MSG_WAITALL)
@@ -414,17 +506,25 @@ class receiver():
 		else:
 			cc0 = np.array(struct.unpack(self.cmsg5,bb)).astype(np.int16)
 			cc = -(cc0 & mask) + (cc0 & ~mask)
-			
-		dd = np.zeros((self.npulses*self.recLen,8))
-		print 'dd:',dd.shape,'cc:',cc.shape
 		
-			
-		for n in range(0,8):
-			dd[:,n] = cc[n::8]
+		if nthpls == 0:	
+			dd = np.zeros((self.npulses*self.recLen,8))
+			print 'dd:',dd.shape,'cc:',cc.shape
+				
+			for n in range(0,8):
+				dd[:,n] = cc[n::8]
 
-		if pltr:
-			print "pltr", pltr	
-			self.plotDatas(dd)
+			if pltr:
+				print "pltr", pltr	
+				self.plotDatas(dd)
+		else:
+			for n in range(0,8):
+				self.allData[nthpls-1,:,n] = cc[n::8]
+			
+			if pltr and (nthpls == self.nplotpulses):
+				print "pltr", pltr
+				
+				self.plotDatas(self.allData)
 		
 	def queryDataLocal(self):
 		msg = struct.pack(self.cmsg,self.CASE_QUERY_DATA,0,0,0,0,0,0,0,0,0)
@@ -467,7 +567,7 @@ class receiver():
 		
 		self.plotDatas(dd)
 			
-	def queryData(self,pltr=1):
+	def queryData(self,pltr=1,nthpls=0):
 		if self.allocated == 0:
 			self.setupLocalStorage()
 			
@@ -475,7 +575,7 @@ class receiver():
 			
 			if(self.is16bit):
 				print 'helper is 16bit'
-				self.queryDataLocal16(pltr)
+				self.queryDataLocal16(pltr,nthpls)
 			else:
 				#~ print 'helper'
 				self.queryDataLocal()
@@ -568,7 +668,8 @@ class receiver():
 	
 	def plotNPulses(self,npulses):
 		self.nplotpulses = npulses
-					
+		
+
 	def setQueryMode(self,realTime=1, transferData=1, saveData=0, is16bit=1, sendOnRequest=0):
 		
 		self.realTime = realTime
@@ -756,7 +857,7 @@ class receiver():
 		
 		
 
-npulses = 1
+npulses = 10
 
 r = receiver()
 r.connectToFpga()
@@ -783,10 +884,10 @@ r.setQueryMode(realTime=1,transferData=0,saveData=0)
 #~ r.plotterSetup(figheight = 15, figwidth = 10, nrows = 4, ncols = 2)
 #~ r.plotterSetup(ylims = [-200,4300], xlims = [-100,2600], figheight = 10, figwidth = 30, nrows = 4, ncols = 2)
 
-r.plotNPulses(npulses)
+r.plotNPulses(3*npulses)
 #~ r.powerDownAdc()
 
-r.activateRecvr()
+r.activateRecvr(plotLater=1)
 
 #~ r.interruptSelf(1)
 #~ time.sleep(0.1)
@@ -798,9 +899,11 @@ if (r.pid):
 	
 	t.setTrigRestLvls(0x1f)
 	t.setVarAttenRestLvl(0x0)
-	t.setActiveTransducers(0b00100000)
+	t.setActiveTransducers(0b00000000)
 	
 	phaseDelays = np.zeros((100,8)).astype(np.uint16)
+	steerLocs = np.zeros((100,3)).astype(np.float32)
+	
 	for mm in range(0,100):
 		phaseDelays[mm,0] = 12
 		phaseDelays[mm,1] = 14
@@ -810,14 +913,78 @@ if (r.pid):
 		phaseDelays[mm,5] = 0
 		phaseDelays[mm,6] = 5
 		phaseDelays[mm,7] = 10
+		steerLocs[mm,0] = (mm-50)/10.0
+		steerLocs[mm,1] = (mm-50)/10.0
+		steerLocs[mm,2] = (mm-50)/10.0
 		
-	t.uploadPhaseDelays(phaseDelays)
+		
+	#~ t.uploadPhaseDelays_usec(phaseDelays)
+	t.uploadSteeringLocs_mm(steerLocs)
 	
-	t.startLoop(0,0,npulses)
+	cntrID = 1
+	xID,yID,zID = 100,101,102
+	
+	t.startCounter(loopNum=cntrID,startIdx=0,endIdx=npulses,stepSize=1)
 	if 1:
 		
-		t.startSteeringLoop(0,0,1)
-		if 1:
+		#~ t.startNamedLoop(loopId=xID,startVal=-1.0,endVal=1.0,stepVal=1.0)
+		#~ t.startNamedLoop(loopId=yID,startVal=-1.0,endVal=1.0,stepVal=1.0)
+		#~ t.startNamedLoop(loopId=zID,startVal=-1.0,endVal=1.0,stepVal=1.0)
+		#~ if 1:
+			
+			#~ t.beginSyncCmd()
+			#~ if 1:
+				#~ t.setMask(0b00001100)
+				#~ t.setChargeTime(5)
+				
+				#~ t.at_usec(100)
+				#~ t.toggleVarAtten(50)
+				
+				#~ t.at_usec(10)
+				#~ t.fireFromNamedIdxs(xID,yID,zID)
+				#~ t.setTrig(1,10)
+				#~ t.setTrig(2,5)
+				#~ t.rcvData()
+				
+			#~ t.endSyncCmd()
+			
+			#~ t.async_wait_sec(0.1)
+			
+			t.beginSyncCmd()
+			if 1:
+				#~ t.setMask(0b00001100)
+				t.setChargeTime(5)
+				
+				#~ t.at_usec(100)
+				#~ t.toggleVarAtten(50)
+				
+				t.at_usec(10)
+				t.fireFromMemIdx(cntrID)
+				t.setTrig(1,10)
+				t.setTrig(2,5)
+				t.rcvData()
+				
+			t.endSyncCmd()
+			
+			t.async_wait_sec(0.01)
+			
+			t.beginSyncCmd()
+			if 1:
+				#~ t.setMask(0b00001100)
+				t.setChargeTime(5)
+				
+				#~ t.at_usec(100)
+				#~ t.toggleVarAtten(50)
+				
+				t.at_usec(10)
+				t.fireAtLoc(-10,10,0)
+				t.setTrig(1,10)
+				t.setTrig(2,5)
+				t.rcvData()
+				
+			t.endSyncCmd()
+			
+			t.async_wait_sec(0.01)
 			
 			t.beginSyncCmd()
 			if 1:
@@ -835,11 +1002,13 @@ if (r.pid):
 				
 			t.endSyncCmd()
 			
-			t.async_wait_sec(0.1)
+			t.async_wait_sec(0.01)
 	
-		t.endSteeringLoop(0)	
+		#~ t.endNamedLoop(xID)
+		#~ t.endNamedLoop(yID)	
+		#~ t.endNamedLoop(zID)	
 	
-	t.endLoop(0)
+	t.endCounter(cntrID)
 	
 	
 	
