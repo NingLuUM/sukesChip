@@ -7,7 +7,9 @@ int txProgramExecutionHandler(TXsys_t *TX){
     uint16_t pd_tmp[8];
     uint32_t prog_complete = 1;
     uint32_t tmp_idx = 0;
-    float xloc,yloc,zloc;
+    double tmp_idx_double = 0;
+    double xloc,yloc,zloc;
+    double xunit,yunit,zunit;
     phaseDelays = *(TX->phaseDelays);
     cmd = *(TX->pio_cmd_list);
 
@@ -17,23 +19,41 @@ int txProgramExecutionHandler(TXsys_t *TX){
     TX->resetTxInterrupt(TX);
     
     // actions to take if cmd was loop end cmd
-    if ( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ) {
+    if ( cmd->flags.isCounterEndCmd | cmd->flags.isLoopEndCmd ) {
 
         loopHead = cmd->loopHead;
-        loopHead->currentIdx += loopHead->stepSize;
         
-        if ( cmd->flags.isLoopEndCmd && ( ( loopHead->currentIdx ) < ( loopHead->endIdx ) ) ) {
-            // if loop not finished, set cmd pointer to loopHead->prev    
-            // next step sets cmd to cmd->next, ie loopHead 
-            cmd = loopHead->prev; 
+        if ( cmd->flags.isCounterEndCmd ){
+            
+            loopHead->currentIdx += loopHead->stepSize;
 
-        } else if ( cmd->flags.isSteeringEndCmd && ( ( loopHead->currentIdx ) <= ( loopHead->endIdx ) ) ) {
+            if ( ( loopHead->currentIdx ) < ( loopHead->endIdx ) )  {
+                
+                // if loop not finished, set cmd pointer to loopHead->prev    
+                // next step sets cmd to cmd->next, ie loopHead 
+                cmd = loopHead->prev; 
+            
+            } else {
+                
+                // if loop finished, reset its counter to the start index
+                loopHead->currentIdx = loopHead->startIdx;
 
-            cmd = loopHead->prev; 
-        
-        } else {
-            // if loop finished, reset its counter to the start index
-            loopHead->currentIdx = loopHead->startIdx;
+            }
+
+        } else if ( cmd->flags.isLoopEndCmd ){
+            
+            loopHead->currentVal += loopHead->stepVal;
+            
+            if ( ( loopHead->currentVal ) <= ( loopHead->endVal ) )  {
+
+                cmd = loopHead->prev; 
+            
+            } else {
+
+                // if loop finished, reset its counter to the start index
+                loopHead->currentVal = loopHead->startVal;
+            
+            }
 
         }
 
@@ -72,25 +92,14 @@ int txProgramExecutionHandler(TXsys_t *TX){
         }
 
         if ( cmd->reg2.set_phase ) {
-            /*
-            if ( cmd->flags.isSteeringStartCmd ) {
-                
-    printf("tx next2:\n");
-                cmd->reg3.ch0 = phaseDelays[cmd->currentIdx*8];
-                cmd->reg3.ch1 = phaseDelays[cmd->currentIdx*8+1];
-                cmd->reg4.ch2 = phaseDelays[cmd->currentIdx*8+2];
-                cmd->reg4.ch3 = phaseDelays[cmd->currentIdx*8+3];
-                cmd->reg5.ch4 = phaseDelays[cmd->currentIdx*8+4];
-                cmd->reg5.ch5 = phaseDelays[cmd->currentIdx*8+5];
-                cmd->reg6.ch6 = phaseDelays[cmd->currentIdx*8+6];
-                cmd->reg6.ch7 = phaseDelays[cmd->currentIdx*8+7];
-            
-            }
-            */
+
             if ( cmd->flags.isLoadPhaseFromMemIdx ){
-                
-    printf("tx next2:\n");
-                tmp_idx = *(cmd->cur_mem_idx);
+                if( cmd->flags.castLoopIdx ){
+                    tmp_idx_double = ( *(cmd->loopCurrentVal) - *(cmd->loopStartVal) ) / ( *(cmd->loopStepVal) );
+                    tmp_idx = (uint32_t )fabs(tmp_idx_double);
+                } else {
+                    tmp_idx = *(cmd->cur_idx);
+                }
                 cmd->reg3.ch0 = phaseDelays[tmp_idx*8];
                 cmd->reg3.ch1 = phaseDelays[tmp_idx*8+1];
                 cmd->reg4.ch2 = phaseDelays[tmp_idx*8+2];
@@ -102,11 +111,12 @@ int txProgramExecutionHandler(TXsys_t *TX){
 
             } else if ( cmd->flags.isCalcPhaseFromLoopIdxs ){
                 
-    printf("tx next3: %p, %p, %p\n", cmd->cur_xloc, cmd->cur_yloc, cmd->cur_zloc);
-                xloc = *(cmd->cur_xloc);
-                yloc = *(cmd->cur_yloc);
-                zloc = *(cmd->cur_zloc);
-    printf("tx next3 %f,%f,%f:\n",xloc,yloc,zloc);
+                xunit = *(cmd->cur_xunit);
+                yunit = *(cmd->cur_yunit);
+                zunit = *(cmd->cur_zunit);
+                xloc = ( *(cmd->cur_xloc) )*xunit;
+                yloc = ( *(cmd->cur_yloc) )*yunit;
+                zloc = ( *(cmd->cur_zloc) )*zunit;
                 TX->calcPhaseDelaysSingle(TX,pd_tmp,xloc,yloc,zloc);
 
                 cmd->reg3.ch0 = pd_tmp[0];

@@ -146,10 +146,10 @@
 #define CASE_TX_SET_ACTIVE_TRANSDUCERS      ( 2 ) 
 #define CASE_TX_MAKE_PIO_CMD                ( 3 )
 #define CASE_TX_END_PIO_CMD                 ( 4 )
-#define CASE_TX_MAKE_LOOP_START             ( 5 )
-#define CASE_TX_MAKE_LOOP_END               ( 6 )
-#define CASE_TX_MAKE_STEERING_LOOP_START    ( 7 )
-#define CASE_TX_MAKE_STEERING_LOOP_END      ( 8 )
+#define CASE_TX_MAKE_COUNTER_START          ( 5 )
+#define CASE_TX_MAKE_COUNTER_END            ( 6 )
+#define CASE_TX_MAKE_LOOP_START             ( 7 )
+#define CASE_TX_MAKE_LOOP_END               ( 8 )
 #define CASE_TX_BUFFER_TRIG_TIMINGS         ( 10 )
 #define CASE_TX_BUFFER_CHARGE_TIME          ( 11 ) 
 #define CASE_TX_BUFFER_PHASE_DELAYS         ( 12 )
@@ -165,9 +165,10 @@
 #define CASE_TX_SET_VAR_ATTEN_REST_LVL      ( 22 )
 #define CASE_TX_BUFFER_TMP_MASK_CMD         ( 23 )
 #define CASE_TX_SET_SOUND_SPEED             ( 24 )
-#define CASE_TX_BUFFER_FIRE_AT_LOC_CMD      ( 25 )
-#define CASE_TX_BUFFER_FIRE_FROM_MEM_IDX_CMD ( 26 )
-#define CASE_TX_BUFFER_FIRE_FROM_IDX_AS_LOC_CMD ( 27 )
+
+#define CASE_TX_SET_PHASE_FROM_LOOP_IDX_AS_MEM_IDX              ( 25 )
+#define CASE_TX_CALC_AND_SET_PHASE_AT_SPECIFIED_COORD_VALS      ( 26 )
+#define CASE_TX_CALC_AND_SET_PHASE_FROM_LOOP_IDXS_AS_COORD_VALS ( 27 )
 
 #define CASE_TX_PRINT_FEEDBACK_MSGS         ( 50 )
 

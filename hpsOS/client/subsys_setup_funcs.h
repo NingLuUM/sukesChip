@@ -218,9 +218,9 @@ int BOARDConfig_init(BOARDconfig_t *BC){
 
     BC->arrayCoords = (XYZCoord_t *)calloc(nEls,sizeof(XYZCoord_t));
     for(int i=0;i<nEls;i++){
-        BC->arrayCoords[i].x = arrayCoords[i]*1e-3;
-        BC->arrayCoords[i].y = arrayCoords[i+nEls]*1e-3;
-        BC->arrayCoords[i].z = arrayCoords[i+2*nEls]*1e-3;
+        BC->arrayCoords[i].x = ((double )arrayCoords[i])*1e-3;
+        BC->arrayCoords[i].y = ((double )arrayCoords[i+nEls])*1e-3;
+        BC->arrayCoords[i].z = ((double )arrayCoords[i+2*nEls])*1e-3;
         //printf("el[%d]: %0.2f, %0.2f, %0.2f\n", i, BC->arrayCoords[i].x, BC->arrayCoords[i].y, BC->arrayCoords[i].z);
     }
 
@@ -351,10 +351,14 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, BOARDconfig_t *BC, POLLserver_t *PS){
     pio_cmd->endIdx = 0;
     pio_cmd->currentIdx = 0;
     pio_cmd->stepSize = 0;
+    pio_cmd->unitVal = 0.001;
 
     pio_cmd->cur_xloc = NULL;
     pio_cmd->cur_yloc = NULL;
     pio_cmd->cur_zloc = NULL;
+    pio_cmd->cur_xunit = NULL;
+    pio_cmd->cur_yunit = NULL;
+    pio_cmd->cur_zunit = NULL;
 
     TX->printMsgs = 0;
     TX->nSteeringLocs = 1;
@@ -363,7 +367,7 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, BOARDconfig_t *BC, POLLserver_t *PS){
     *(TX->phaseDelays) = NULL;//(uint16_t *)calloc(8,sizeof(uint16_t));
 
     TX->bc = BC;
-    TX->tof = (float *)malloc(BC->boardData.nElementsGlobal*sizeof(float));
+    TX->tof = (double *)malloc(BC->boardData.nElementsGlobal*sizeof(double));
 
     TX->ps = PS;
     TX->comm_sock = NULL;
@@ -460,10 +464,10 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, BOARDconfig_t *BC, POLLserver_t *PS){
     TX->addCmd = &txAddPioCmd_f;
     TX->delCmd = &txDelPioCmd_f;
 
+    TX->makeCounterStart = &txMakeCounterStart;
+    TX->makeCounterEnd = &txMakeCounterEnd;
     TX->makeLoopStart = &txMakeLoopStart;
     TX->makeLoopEnd = &txMakeLoopEnd;
-    TX->makeSteeringLoopStart = &txMakeSteeringLoopStart;
-    TX->makeSteeringLoopEnd = &txMakeSteeringLoopEnd;
     TX->makePioCmd = &txMakePioCmd;
 
     TX->bufferTrigTimings = &txBufferTrigTimingCmd;
@@ -482,10 +486,11 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, BOARDconfig_t *BC, POLLserver_t *PS){
     TX->calcStorePhaseDelays = &txCalcStorePhaseDelays;
 
     TX->setSoundSpeed = &txSetSoundSpeed;
-    TX->bufferFireAtLocCmd = &txBufferFireAtLocCmd;
-    TX->bufferFireFromMemIdxCmd = &txBufferFireFromMemIdxCmd;
-    TX->bufferFireFromIdxAsLocCmd = &txBufferFireFromIdxAsLocCmd;
     TX->calcPhaseDelaysSingle = &txCalcPhaseDelaySingle;
+
+    TX->calcAndSetPhaseAtSpecifiedCoordVals = &txCalcAndSetPhaseAtSpecifiedCoordVals;
+    TX->setPhaseFromLoopIdxAsMemIdx = &txSetPhaseFromLoopIdxAsMemIdx;
+    TX->calcAndSetPhaseFromLoopIdxsAsCoordVals = &txCalcAndSetPhaseFromLoopIdxsAsCoordVals;
 
     TX->setControlState(TX,0);
     TX->resetTxInterrupt(TX);

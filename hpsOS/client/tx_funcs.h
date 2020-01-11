@@ -205,10 +205,14 @@ void txAddPioCmd_f(TXsys_t *TX){
     tmp->endIdx = 0;
     tmp->currentIdx = 0;
     tmp->stepSize = 0;
+    tmp->unitVal = 0.001;
 
     tmp->cur_xloc = NULL;
     tmp->cur_yloc = NULL;
     tmp->cur_zloc = NULL;
+    tmp->cur_xunit = NULL;
+    tmp->cur_yunit = NULL;
+    tmp->cur_zunit = NULL;
     
     tmp->reg12_16 = NULL;
     tmp->reg17_21 = NULL;
@@ -233,9 +237,9 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
         if( ( cmd_list->cmdNumber == cmdNum ) ){
             tmp = cmd_list;
             
-            if(tmp->flags.isLoopStartCmd | tmp->flags.isSteeringStartCmd ){
+            if(tmp->flags.isCounterStartCmd | tmp->flags.isLoopStartCmd ){
                 loopCmd = tmp->loopTail;
-            } else if ( tmp->flags.isLoopEndCmd | tmp->flags.isSteeringEndCmd ){
+            } else if ( tmp->flags.isCounterEndCmd | tmp->flags.isLoopEndCmd ){
                 loopCmd = tmp->loopHead;
             }
             if(loopCmd != NULL){
@@ -293,7 +297,7 @@ void txDelPioCmd_f(TXsys_t *TX, uint32_t cmdNum){
     *(TX->pio_cmd_list) = cmd_list->top;
 }
 
-void txMakeLoopStart(TXsys_t *TX, uint32_t loopNum, uint32_t startIdx, uint32_t endIdx, uint32_t stepSize){
+void txMakeCounterStart(TXsys_t *TX, uint32_t loopNum, uint64_t startIdx, uint64_t endIdx, uint64_t stepSize){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
     
@@ -306,7 +310,7 @@ void txMakeLoopStart(TXsys_t *TX, uint32_t loopNum, uint32_t startIdx, uint32_t 
         cmd = cmd->next;
     }
     
-    cmd->flags.isLoopStartCmd = 1;
+    cmd->flags.isCounterStartCmd = 1;
     cmd->prev->flags.nextFlags = cmd->flags.isFlags;
 
     if( !(cmd->flags.isAsyncWait) ){
@@ -318,17 +322,79 @@ void txMakeLoopStart(TXsys_t *TX, uint32_t loopNum, uint32_t startIdx, uint32_t 
     cmd->endIdx = endIdx;
     cmd->stepSize = stepSize;
     cmd->currentIdx = startIdx;
+    cmd->counterVal = 0;
+}
+
+void txMakeCounterEnd(TXsys_t *TX){
+    TXpiocmd_t *cmd,*tmp;
+    cmd = *(TX->pio_cmd_list);
+    
+    if( ( cmd->flags.all && cmd->flags.hasNonWaitCmds ) || ( cmd->flags.isCounterEndCmd | cmd->flags.isLoopEndCmd ) ){ 
+        TX->addCmd(TX);
+        cmd = *(TX->pio_cmd_list);
+    }
+    
+    while(cmd->next != NULL){
+        cmd = cmd->next;
+    }
+    tmp = cmd;
+
+    cmd->flags.isCounterEndCmd = 1;
+    cmd->prev->flags.nextFlags = cmd->flags.isFlags;
+    
+    if( !(cmd->flags.isAsyncWait) ){
+        TX->bufferAsyncWait(TX,0);
+    }
+    
+    int loopTracker = 0;
+    while(tmp->prev != NULL){
+        tmp = tmp->prev;
+        if( tmp->flags.isCounterEndCmd && ( tmp->loopHead != NULL ) ){
+            loopTracker++;
+        } else if ( tmp->flags.isCounterStartCmd ){
+            if( loopTracker ){
+                loopTracker--;
+            } else {
+                cmd->loopHead = tmp;
+                tmp->loopTail = cmd;
+                break;
+            }
+        }
+    }
+}
+
+void txMakeLoopStart(TXsys_t *TX, uint32_t loopNum, double startVal, double endVal, double stepVal, double unitVal){
+    TXpiocmd_t *cmd;
+    cmd = *(TX->pio_cmd_list);
+    if( cmd->flags.all ){ 
+        TX->addCmd(TX);
+        cmd = *(TX->pio_cmd_list);
+    }
+    while(cmd->next != NULL){
+        cmd = cmd->next;
+    }
+    
+    cmd->flags.isLoopStartCmd = 1;
+    cmd->prev->flags.nextFlags = cmd->flags.isFlags;
+    //cmd->reg2.set_phase = 1;
+
+    TX->bufferAsyncWait(TX,0);
+
+    cmd->loopNum = loopNum;
+    cmd->startVal = startVal;
+    cmd->endVal = endVal;
+    cmd->stepVal = stepVal;
+    cmd->currentVal = startVal;
+    cmd->unitVal = unitVal;
 }
 
 void txMakeLoopEnd(TXsys_t *TX){
     TXpiocmd_t *cmd,*tmp;
     cmd = *(TX->pio_cmd_list);
-    
-    if( ( cmd->flags.all && cmd->flags.hasNonWaitCmds ) || ( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ) ){ 
+    if( ( cmd->flags.all && cmd->flags.hasNonWaitCmds ) || ( cmd->flags.isCounterEndCmd | cmd->flags.isLoopEndCmd ) ){ 
         TX->addCmd(TX);
         cmd = *(TX->pio_cmd_list);
     }
-    
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
@@ -347,66 +413,6 @@ void txMakeLoopEnd(TXsys_t *TX){
         if( tmp->flags.isLoopEndCmd && ( tmp->loopHead != NULL ) ){
             loopTracker++;
         } else if ( tmp->flags.isLoopStartCmd ){
-            if( loopTracker ){
-                loopTracker--;
-            } else {
-                cmd->loopHead = tmp;
-                tmp->loopTail = cmd;
-                break;
-            }
-        }
-    }
-}
-
-void txMakeSteeringLoopStart(TXsys_t *TX, uint32_t loopNum, float startVal, float endVal, float stepVal){
-    TXpiocmd_t *cmd;
-    cmd = *(TX->pio_cmd_list);
-    if( cmd->flags.all ){ 
-        TX->addCmd(TX);
-        cmd = *(TX->pio_cmd_list);
-    }
-    while(cmd->next != NULL){
-        cmd = cmd->next;
-    }
-    
-    cmd->flags.isSteeringStartCmd = 1;
-    cmd->prev->flags.nextFlags = cmd->flags.isFlags;
-    //cmd->reg2.set_phase = 1;
-
-    TX->bufferAsyncWait(TX,0);
-
-    cmd->loopNum = loopNum;
-    cmd->startVal = startVal;
-    cmd->endVal = endVal;
-    cmd->stepVal = stepVal;
-    cmd->currentVal = startVal;
-}
-
-void txMakeSteeringLoopEnd(TXsys_t *TX){
-    TXpiocmd_t *cmd,*tmp;
-    cmd = *(TX->pio_cmd_list);
-    if( ( cmd->flags.all && cmd->flags.hasNonWaitCmds ) || ( cmd->flags.isLoopEndCmd | cmd->flags.isSteeringEndCmd ) ){ 
-        TX->addCmd(TX);
-        cmd = *(TX->pio_cmd_list);
-    }
-    while(cmd->next != NULL){
-        cmd = cmd->next;
-    }
-    tmp = cmd;
-
-    cmd->flags.isSteeringEndCmd = 1;
-    cmd->prev->flags.nextFlags = cmd->flags.isFlags;
-    
-    if( !(cmd->flags.isAsyncWait) ){
-        TX->bufferAsyncWait(TX,0);
-    }
-    
-    int loopTracker = 0;
-    while(tmp->prev != NULL){
-        tmp = tmp->prev;
-        if( tmp->flags.isSteeringEndCmd && ( tmp->loopHead != NULL ) ){
-            loopTracker++;
-        } else if ( tmp->flags.isSteeringStartCmd ){
             if( loopTracker ){
                 loopTracker--;
             } else {
@@ -505,11 +511,11 @@ void txBufferFireDelayCmd(TXsys_t *TX, uint32_t fireDelay){
     cmd->reg2.fire = 1;
 }
 
-void txCalcPhaseDelaySingle(TXsys_t *TX, uint16_t *phaseDelays, float xloc, float yloc, float zloc){
-    float maxtof = 0;
-    float dx,dy,dz,r,c;
+void txCalcPhaseDelaySingle(TXsys_t *TX, uint16_t *phaseDelays, double xloc, double yloc, double zloc){
+    double maxtof = 0;
+    double dx,dy,dz,r,c;
     XYZCoord_t *XYZ;
-    float *tof;
+    double *tof;
     uint32_t nElsLocal, nElsGlobal;
     uint32_t *localIdxs;
     int j;
@@ -541,17 +547,14 @@ void txCalcPhaseDelaySingle(TXsys_t *TX, uint16_t *phaseDelays, float xloc, floa
     }
 }
 
-void txBufferFireAtLocCmd(TXsys_t *TX, uint32_t fireDelay, float xloc, float yloc, float zloc){
+void txCalcAndSetPhaseAtSpecifiedCoordVals(TXsys_t *TX, double xloc, double yloc, double zloc){
     uint16_t phaseDelays[8];
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
-    cmd->reg8.fireDelay = fireDelay;
-    cmd->reg2.fire = 1;
     cmd->flags.isFireAt = 1;
-    cmd->prev->flags.nextFlags = cmd->flags.isFlags;
 
     TX->calcPhaseDelaysSingle(TX,phaseDelays,xloc,yloc,zloc);
 
@@ -566,15 +569,13 @@ void txBufferFireAtLocCmd(TXsys_t *TX, uint32_t fireDelay, float xloc, float ylo
     cmd->reg2.set_phase = 1;
 }
 
-void txBufferFireFromMemIdxCmd(TXsys_t *TX, uint32_t fireDelay, uint32_t loopNum){
+void txSetPhaseFromLoopIdxAsMemIdx(TXsys_t *TX, uint32_t loopNum){
     TXpiocmd_t *cmd;
     TXpiocmd_t *tmp;
     cmd = *(TX->pio_cmd_list);
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
-    cmd->reg8.fireDelay = fireDelay;
-    cmd->reg2.fire = 1;
 
     tmp = *(TX->pio_cmd_list);
     tmp = tmp->top;
@@ -583,17 +584,23 @@ void txBufferFireFromMemIdxCmd(TXsys_t *TX, uint32_t fireDelay, uint32_t loopNum
     }
     
     if( tmp->loopNum == loopNum ){
-        cmd->cur_mem_idx = &(tmp->currentIdx);
+        cmd->cur_idx = &(tmp->currentIdx);
+        if( tmp->flags.isLoopStartCmd ){
+            cmd->flags.castLoopIdx = 1;
+            cmd->loopStartVal = &(tmp->startVal);
+            cmd->loopEndVal = &(tmp->endVal);
+            cmd->loopStepVal = &(tmp->stepVal);
+            cmd->loopUnitVal = &(tmp->unitVal);
+        }
         cmd->flags.isLoadPhaseFromMemIdx = 1;
-        cmd->prev->flags.nextFlags = cmd->flags.isFlags;
         cmd->reg2.set_phase = 1;
     } else {
-        cmd->cur_mem_idx = NULL;
-        TX->bufferFireAtLocCmd(TX,fireDelay,0.0,0.0,0.0);
+        cmd->cur_idx = NULL;
+        TX->calcAndSetPhaseAtSpecifiedCoordVals(TX,0.0,0.0,0.0);
     }
 }
 
-void txBufferFireFromIdxAsLocCmd(TXsys_t *TX, uint32_t fireDelay, uint32_t xLoopNum, uint32_t yLoopNum, uint32_t zLoopNum){
+void txCalcAndSetPhaseFromLoopIdxsAsCoordVals(TXsys_t *TX, uint32_t xLoopNum, uint32_t yLoopNum, uint32_t zLoopNum){
     TXpiocmd_t *cmd;
     TXpiocmd_t *tmp;
     int failFlag = 0;
@@ -601,8 +608,6 @@ void txBufferFireFromIdxAsLocCmd(TXsys_t *TX, uint32_t fireDelay, uint32_t xLoop
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
-    cmd->reg8.fireDelay = fireDelay;
-    cmd->reg2.fire = 1;
 
     tmp = *(TX->pio_cmd_list);
     tmp = tmp->top;
@@ -612,6 +617,7 @@ void txBufferFireFromIdxAsLocCmd(TXsys_t *TX, uint32_t fireDelay, uint32_t xLoop
     
     if( tmp->loopNum == xLoopNum ){
         cmd->cur_xloc = &(tmp->currentVal);
+        cmd->cur_xunit = &(tmp->unitVal);
     } else {
         failFlag = 1;
     }
@@ -623,6 +629,7 @@ void txBufferFireFromIdxAsLocCmd(TXsys_t *TX, uint32_t fireDelay, uint32_t xLoop
     
     if( tmp->loopNum == yLoopNum ){
         cmd->cur_yloc = &(tmp->currentVal);
+        cmd->cur_yunit = &(tmp->unitVal);
     } else {
         failFlag = 1;
     }
@@ -634,6 +641,7 @@ void txBufferFireFromIdxAsLocCmd(TXsys_t *TX, uint32_t fireDelay, uint32_t xLoop
     
     if( tmp->loopNum == zLoopNum ){
         cmd->cur_zloc = &(tmp->currentVal);
+        cmd->cur_zunit = &(tmp->unitVal);
     } else {
         failFlag = 1;
     }
@@ -641,7 +649,6 @@ void txBufferFireFromIdxAsLocCmd(TXsys_t *TX, uint32_t fireDelay, uint32_t xLoop
     if( !failFlag ){
 
         cmd->flags.isCalcPhaseFromLoopIdxs = 1;
-        cmd->prev->flags.nextFlags = cmd->flags.isFlags;
         cmd->reg2.set_phase = 1;
 
     } else {
@@ -649,7 +656,10 @@ void txBufferFireFromIdxAsLocCmd(TXsys_t *TX, uint32_t fireDelay, uint32_t xLoop
         cmd->cur_xloc = NULL;
         cmd->cur_yloc = NULL;
         cmd->cur_zloc = NULL;
-        TX->bufferFireAtLocCmd(TX,fireDelay,0.0,0.0,0.0);
+        cmd->cur_xunit = NULL;
+        cmd->cur_yunit = NULL;
+        cmd->cur_zunit = NULL;
+        TX->calcAndSetPhaseAtSpecifiedCoordVals(TX,0.0,0.0,0.0);
     
     }
 }
@@ -720,7 +730,7 @@ void txSetNumSteeringLocs(TXsys_t *TX, uint32_t nSteeringLocs){
     TX->nPhaseDelaysWritten = 0;
 }
 
-void txSetSoundSpeed(TXsys_t *TX, float soundSpeed){
+void txSetSoundSpeed(TXsys_t *TX, double soundSpeed){
     TX->bc->soundSpeed = soundSpeed;
 }
 
@@ -730,8 +740,8 @@ void txCalcStorePhaseDelays(TXsys_t *TX, int nrecv, PDMSG_t *msg){
     uint32_t nElsLocal, nElsGlobal, ncoords;
     uint32_t *localIdxs;
 
-    float dx, dy, dz, r, c, maxtof;
-    float *tof, *coord;
+    double dx, dy, dz, r, c, maxtof;
+    double *tof, *coord;
 
     XYZCoord_t *XYZ;
 
@@ -757,7 +767,7 @@ void txCalcStorePhaseDelays(TXsys_t *TX, int nrecv, PDMSG_t *msg){
         tof = TX->tof;
 
         ncoords = msg->u32[1];
-        coord = &(msg->f[2]);
+        coord = &(msg->d[1]);
 
         for(i=0;i<ncoords;i++){
             maxtof = 0;
