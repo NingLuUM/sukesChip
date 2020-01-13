@@ -81,7 +81,7 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             if( cmd->flags.all ){ 
                 cmdCntr++;
             }
-            TX->makeCounterStart(TX,msg->u32[1],msg->u32[2],msg->u32[3],msg->u32[4]);
+            TX->makeCounterStart(TX,msg->u32[1],msg->u64[1],msg->u64[2],msg->u64[3]);
             if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && TX->printMsgs ){
                 printf("loop started successfully\n");
             }

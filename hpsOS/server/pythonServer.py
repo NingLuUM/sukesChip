@@ -397,8 +397,10 @@ class receiver():
 			n=0
 			while n<self.nplotpulses:
 				if plotLater:
+					print 'plot later = 1', self.nplotpulses
 					self.queryData(nthpls=(n+1))
 				else:
+					print 'plot later = 0'
 					self.queryData()
 				n+=1
 				
@@ -665,7 +667,7 @@ class receiver():
 				self.allData[nthpls-1,:,n] = cc[n::8]
 			
 			if pltr and (nthpls == self.nplotpulses):
-				print "pltr", pltr
+				print "pltr later", pltr
 				
 				self.plotDatasLater(self.allData)
 		
@@ -1027,10 +1029,10 @@ r.setQueryMode(realTime=1,transferData=0,saveData=0)
 #~ r.plotterSetup(figheight = 15, figwidth = 10, nrows = 4, ncols = 2)
 #~ r.plotterSetup(ylims = [-200,4300], xlims = [-100,2600], figheight = 10, figwidth = 30, nrows = 4, ncols = 2)
 
-r.plotNPulses(4*npulses)
+r.plotNPulses(npulses)
 #~ r.powerDownAdc()
 
-r.activateRecvr(plotLater=0)
+r.activateRecvr(plotLater=1)
 
 #~ r.interruptSelf(1)
 #~ time.sleep(0.1)
@@ -1040,9 +1042,10 @@ if (r.pid):
 	t = transmitter()
 	t.connectToFpga()
 	
+	
 	t.setTrigRestLvls(0x1f)
-	t.setVarAttenRestLvl(0x0)
-	t.setActiveTransducers(0b00110000)
+	t.setVarAttenRestLvl(0x1)
+	t.setActiveTransducers(0x00)
 	
 	phaseDelays = np.zeros((100,8)).astype(np.uint16)
 	steerLocs = np.zeros((100,3)).astype(np.float64)
@@ -1070,64 +1073,73 @@ if (r.pid):
 	t.startCounter( cntrId=memLocCntrID , startIdx=0 , endIdx=npulses , stepSize=1 )
 	if 1:
 		
-		t.startNamedLoop( loopId=xID , startVal=-10.0 , endVal=1.0 , stepSize=20.0 , units='mm')
-		t.startNamedLoop( loopId=yID , startVal=-10.0 , endVal=1.0 , stepSize=20.0 , units='mm')
-		t.startNamedLoop( loopId=zID , startVal=-10.0 , endVal=1.0 , stepSize=20.0 , units='mm')
-		if 1:
+		#~ t.startNamedLoop( loopId=xID , startVal=0.0 , endVal=1.0 , stepSize=20.0 , units='mm')
+		#~ t.startNamedLoop( loopId=yID , startVal=0.0 , endVal=1.0 , stepSize=20.0 , units='mm')
+		#~ t.startNamedLoop( loopId=zID , startVal=0.0 , endVal=1.0 , stepSize=20.0 , units='mm')
+		#~ if 1:
+			
+			#~ t.beginSyncCmd()
+			#~ if 1:
+				#~ t.setChargeTime(5)
+				#~ t.at_usec(10)
+				#~ t.fireAtNamedLoopCoords(xID,yID,zID)
+				#~ t.setTrig(1,10)
+				#~ t.setTrig(2,5)
+				#~ t.rcvData()
+			#~ t.endSyncCmd()
+			
+			#~ t.wait_sec(0.1)
+			
+			#~ t.beginSyncCmd()
+			#~ if 1:
+				#~ t.setChargeTime(5)
+				#~ t.at_usec(0)
+				#~ t.fireAtCounterIdx(memLocCntrID)
+				#~ t.setTrig(1,10)
+				#~ t.setTrig(2,5)
+				
+				#~ t.at_usec(40)
+				#~ t.rcvData()
+			#~ t.endSyncCmd()
+			
+			#~ t.wait_sec(0.01)
 			
 			t.beginSyncCmd()
 			if 1:
-				t.setChargeTime(5)
-				t.at_usec(10)
-				t.fireAtNamedLoopCoords(xID,yID,zID)
+				t.setChargeTime(0)
+				
+				t.at_usec(0)
+				#~ t.fireAtLoc(0,0,0)
 				t.setTrig(1,10)
 				t.setTrig(2,5)
+				
+				t.at_usec(0)
 				t.rcvData()
-			t.endSyncCmd()
-			
-			t.wait_sec(0.1)
-			
-			t.beginSyncCmd()
-			if 1:
-				t.at_usec(10)
-				t.fireAtCounterIdx(memLocCntrID)
-				t.setTrig(1,10)
-				t.setTrig(2,5)
-				t.rcvData()
-			t.endSyncCmd()
-			t.async_wait_sec(0.1)
-			
-			t.beginSyncCmd()
-			if 1:
-				t.at_usec(10)
-				t.fireAtLoc(-10,10,0)
-				t.setTrig(1,10)
-				t.setTrig(2,5)
-				t.rcvData()
+				
 			t.endSyncCmd()
 			t.wait_sec(0.01)
 			
-			t.beginSyncCmd()
-			if 1:
-				t.setChargeTime(5)
-				t.at_usec(10)
-				t.fire()
-				t.setTrig(1,10)
-				t.setTrig(2,5)
-				t.rcvData()
-			t.endSyncCmd()
-			t.wait_sec(0.1)
+			#~ t.beginSyncCmd()
+			#~ if 1:
+				#~ t.setChargeTime(5)
+				#~ t.at_usec(10)
+				#~ t.fire()
+				#~ t.setTrig(1,10)
+				#~ t.setTrig(2,5)
+				#~ t.rcvData()
+			#~ t.endSyncCmd()
+			#~ t.wait_sec(0.1)
 	
-		t.endNamedLoop(xID)
-		t.endNamedLoop(yID)
-		t.endNamedLoop(zID)	
+		#~ t.endNamedLoop(xID)
+		#~ t.endNamedLoop(yID)
+		#~ t.endNamedLoop(zID)	
 	
 	t.endCounter(memLocCntrID )
 	
 	
 	
 	t.executeProgram()
-	print 'hello'
+	print 'hello end prog'
 
 
 	os.waitpid(r.pid,0)

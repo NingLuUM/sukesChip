@@ -239,7 +239,7 @@ begin
 					if ( pio_output_commands ^ pio_cmd_previous ) 
 					begin
 						pio_cmd_previous <= pio_output_commands;
-						//otxInterrupt[31:16] <= pio_output_commands;
+						
 						otxInterrupt[1] <= 1'b1;
 						/******************************************************/
 						/*** GENERATE INTERRUPT *******************************/
@@ -770,6 +770,7 @@ ioOutputLine_ControlModule tl4(
 	
 	.hardStop(ioLineOutputStop)
 );
+
 
 ioVarAtten_ControlModule va0(
 	.clk(txCLK),

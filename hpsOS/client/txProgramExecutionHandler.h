@@ -24,7 +24,7 @@ int txProgramExecutionHandler(TXsys_t *TX){
         loopHead = cmd->loopHead;
         
         if ( cmd->flags.isCounterEndCmd ){
-            
+
             loopHead->currentIdx += loopHead->stepSize;
 
             if ( ( loopHead->currentIdx ) < ( loopHead->endIdx ) )  {
@@ -98,6 +98,7 @@ int txProgramExecutionHandler(TXsys_t *TX){
                     tmp_idx_double = ( *(cmd->loopCurrentVal) - *(cmd->loopStartVal) ) / ( *(cmd->loopStepVal) );
                     tmp_idx = (uint32_t )fabs(tmp_idx_double);
                 } else {
+                    //printf("regular loop\n");
                     tmp_idx = *(cmd->cur_idx);
                 }
                 cmd->reg3.ch0 = phaseDelays[tmp_idx*8];
