@@ -474,7 +474,7 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, BOARDconfig_t *BC, POLLserver_t *PS){
     TX->bufferVarAttenTiming = &txBufferVarAttenTimingCmd;
     TX->bufferChargeTime = &txBufferChargeTimeCmd;
     TX->bufferTmpMask = &txBufferTmpMaskCmd;
-    TX->bufferFireCmd = &txBufferFireDelayCmd;
+    TX->bufferFireCmd = &txBufferFireCmd;
     TX->bufferPhaseDelays = &txBufferPhaseDelayCmd;
     TX->bufferRecvTrig = &txBufferRecvTrigDelayCmd;
     TX->bufferAsyncWait = &txBufferAsyncWaitCmd;

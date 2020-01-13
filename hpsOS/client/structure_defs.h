@@ -106,7 +106,7 @@ void txBufferTrigTimingCmd(TXsys_t *TX, uint32_t *duration, uint32_t *delay);
 void txBufferVarAttenTimingCmd(TXsys_t *TX, uint32_t duration, uint32_t delay);
 void txBufferChargeTimeCmd(TXsys_t *TX, uint32_t chargeTime);
 void txBufferTmpMaskCmd(TXsys_t *TX, uint32_t tmpMask);
-void txBufferFireDelayCmd(TXsys_t *TX, uint32_t fireDelay);
+void txBufferFireCmd(TXsys_t *TX, uint32_t fireDelay);
 void txBufferPhaseDelayCmd(TXsys_t *TX, uint16_t *phaseDelays);
 void txBufferRecvTrigDelayCmd(TXsys_t *TX, uint32_t recvTrigDelay);
 void txBufferAsyncWaitCmd(TXsys_t *TX, uint64_t timerVal);

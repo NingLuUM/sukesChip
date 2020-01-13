@@ -501,7 +501,7 @@ void txBufferTmpMaskCmd(TXsys_t *TX, uint32_t tmpMask){
     cmd->reg2.set_amp = 1;
 }
 
-void txBufferFireDelayCmd(TXsys_t *TX, uint32_t fireDelay){
+void txBufferFireCmd(TXsys_t *TX, uint32_t fireDelay){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
     while(cmd->next != NULL){
