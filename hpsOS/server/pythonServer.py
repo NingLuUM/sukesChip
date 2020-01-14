@@ -384,6 +384,8 @@ class transmitter():
 		#	'd' = double (8bytes)
 		'''
 
+
+
 class receiver():
 	
 	def activateRecvr(self,plotLater=0):
@@ -866,16 +868,11 @@ class receiver():
 		msg = struct.pack(self.u32cmsg,self.CASE_ADC_DISABLE_CLAMP,self.clampVal,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
-	
 						
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3400))
 		self.resetToDefaultAdcSettings()
 		self.setAutoShutdown(0)
-
-		# can't do 'moving sum' with compression. will corrupt data
-		#~ self.setClockDivisor(1)
-		#~ self.setFclkDelay(2) # accepts values 0-5
 		
 	def connectRcvDataSock(self):
 		self.dsock.connect(('192.168.1.101',3500))

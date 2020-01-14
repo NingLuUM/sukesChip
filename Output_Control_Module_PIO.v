@@ -220,7 +220,6 @@ begin
 				if( isSolo ^ itxBoardIdentifiers[0] ) isSolo <= itxBoardIdentifiers[0];
 				if( isMaster ^ itxBoardIdentifiers[1] ) isMaster <= itxBoardIdentifiers[1];
 				
-				
 				if ( isSolo | isMaster )
 				begin
 					if( isChild ) isChild <= 1'b0;
