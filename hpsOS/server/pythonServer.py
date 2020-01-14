@@ -1002,7 +1002,7 @@ class receiver():
 		
 		
 
-npulses = 1
+npulses = 250
 
 r = receiver()
 r.connectToFpga()
@@ -1013,19 +1013,19 @@ r.setClockDivisor(1)
 #~ r.setFclkDelay(2) # accepts values 0-5
 #~ r.setSamplingMode(r.EVERY_NTH)
 #~ r.setCompressorMode(r.RAW16)
-#~ r.setRecLen(32768/2)
-r.setRecDuration(250.0)
+r.setRecLen(12500)
+#~ r.setRecDuration(250.0)
 
 r.setAdcGain(31.875)
 
-#~ r.setNPulses(1)
+r.setNPulses(npulses)
 #~ r.setAdcInternalAcCoupling(0)
 #~ r.setAdcLowNoiseMode(0)
 #~ r.setAdcFilterBw(0)
 #~ r.setAdcUnsigned(0)
 #~ r.setRamp()
 
-r.setQueryMode(realTime=1,transferData=0,saveData=0)
+r.setQueryMode(realTime=0,transferData=0,saveData=1)
 #~ r.plotterSetup(figheight = 15, figwidth = 10, nrows = 4, ncols = 2)
 #~ r.plotterSetup(ylims = [-200,4300], xlims = [-100,2600], figheight = 10, figwidth = 30, nrows = 4, ncols = 2)
 
@@ -1115,7 +1115,7 @@ if (r.pid):
 				
 			t.endSyncCmd()
 			
-			#~ t.wait_usec(10)
+			#~ t.wait_sec(0.01)
 			
 			t.beginSyncCmd()
 			if 1:
@@ -1127,7 +1127,7 @@ if (r.pid):
 				#~ t.toggleVarAtten(10)
 				
 			t.endSyncCmd()
-			t.wait_sec(0.1)
+			t.wait_sec(0.01)
 	
 		#~ t.endNamedLoop(xID)
 		#~ t.endNamedLoop(yID)

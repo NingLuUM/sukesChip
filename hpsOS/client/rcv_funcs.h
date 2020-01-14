@@ -156,6 +156,27 @@ int saveData(SOCK_t *enet, char *data, size_t dsize){
     }
 }
 
+int saveDataFile(RCVsys_t *RCV, char *data, size_t dsize){
+    uint32_t dsz = dsize;
+    static int pulse_counter = 0;
+    if( !RCV->datafile && pulse_counter == 0 ){
+        pulse_counter = 0;
+        remove("big_datafile");
+        //RCV->datafile = fopen("big_datafile","ab+");
+    }
+    RCV->datafile = fopen("big_datafile","ab+");
+    fwrite(data,sizeof(char),dsize,RCV->datafile);
+    fclose(RCV->datafile);
+    pulse_counter++;
+    printf("save data pulse counter:%d \n",pulse_counter);
+    if( pulse_counter == RCV->npulses ){
+        //fclose(RCV->datafile);
+        RCV->datafile = NULL;
+        pulse_counter = 0;
+        return(2);
+    }
+    return(1);
+}
 
 
 void rcvQueryData(RCVsys_t *RCV){
@@ -174,7 +195,7 @@ void rcvQueryData(RCVsys_t *RCV){
 
         dataStatus = sendData(RCV,DREFPCHAR(RCV->ramBank),8*recLen*sizeof(uint16_t));
     
-    } else {
+    /* } else {
         
         rcvmemcpy( &(RCV->data[1][pulse_counter*8*recLen*sizeof(uint16_t)]), DREFPCHAR(RCV->ramBank), 8*recLen*sizeof(uint16_t));
         pulse_counter++;
@@ -213,7 +234,12 @@ void rcvQueryData(RCVsys_t *RCV){
         } else {
             DREF32(RCV->stateReset)=0;
             usleep(1);
-        }
+        } */
+    }
+
+    if( RCV->queryMode.saveDataFile ){
+        dataStatus = saveDataFile(RCV,DREFPCHAR(RCV->ramBank),8*recLen*sizeof(uint16_t));
+
     }
     DREF32(RCV->stateReset)=0;
     usleep(1);

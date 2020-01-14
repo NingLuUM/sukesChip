@@ -264,6 +264,7 @@ int RCV_init(FPGAvars_t *FPGA, ADCvars_t *ADC, RCVsys_t *RCV, BOARDconfig_t *BC,
     RCV->ps = PS;
     RCV->bc = BC;
 
+    RCV->datafile = NULL;
     RCV->comm_sock = NULL;
     RCV->data_sock = NULL;
     RCV->interrupt = (SOCK_t *)malloc(sizeof(SOCK_t));

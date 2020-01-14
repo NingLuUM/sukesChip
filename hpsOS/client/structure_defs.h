@@ -295,6 +295,8 @@ typedef struct RCVsys_{
 
     BOARDconfig_t *bc;
 
+    FILE *datafile;
+
     POLLserver_t *ps;
     SOCK_t *comm_sock;
     SOCK_t *data_sock;
