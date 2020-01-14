@@ -61,7 +61,7 @@ begin
 			IDLE:
 				begin
 					rcv_delay <= 32'b0;
-					if( outputComplete_reg ) <= 1'b0;
+					if( outputComplete_reg ) outputComplete_reg <= 1'b0;
 					if( outputTrig_reg ) outputTrig_reg <= 1'b0;
 				end
 				

@@ -1032,7 +1032,7 @@ r.setQueryMode(realTime=1,transferData=0,saveData=0)
 r.plotNPulses(npulses)
 #~ r.powerDownAdc()
 
-r.activateRecvr(plotLater=1)
+r.activateRecvr(plotLater=0)
 
 #~ r.interruptSelf(1)
 #~ time.sleep(0.1)
@@ -1045,7 +1045,7 @@ if (r.pid):
 	
 	t.setTrigRestLvls(0x1f)
 	t.setVarAttenRestLvl(0x1)
-	t.setActiveTransducers(0x00)
+	t.setActiveTransducers(0xff)
 	
 	phaseDelays = np.zeros((100,8)).astype(np.uint16)
 	steerLocs = np.zeros((100,3)).astype(np.float64)
@@ -1106,29 +1106,28 @@ if (r.pid):
 			
 			t.beginSyncCmd()
 			if 1:
-				t.setChargeTime(0)
+				t.setChargeTime(1)
 				
 				t.at_usec(0)
-				#~ t.fireAtLoc(0,0,0)
-				t.setTrig(1,10)
-				t.setTrig(2,5)
+				t.fireAtLoc(0,0,0)
 				
-				t.at_usec(0)
 				t.rcvData()
 				
 			t.endSyncCmd()
-			t.wait_sec(0.01)
 			
-			#~ t.beginSyncCmd()
-			#~ if 1:
-				#~ t.setChargeTime(5)
-				#~ t.at_usec(10)
-				#~ t.fire()
-				#~ t.setTrig(1,10)
-				#~ t.setTrig(2,5)
-				#~ t.rcvData()
-			#~ t.endSyncCmd()
-			#~ t.wait_sec(0.1)
+			#~ t.wait_usec(10)
+			
+			t.beginSyncCmd()
+			if 1:
+				t.setChargeTime(5)
+				
+				
+				t.fire()
+				t.at_usec(20)
+				#~ t.toggleVarAtten(10)
+				
+			t.endSyncCmd()
+			t.wait_sec(0.1)
 	
 		#~ t.endNamedLoop(xID)
 		#~ t.endNamedLoop(yID)

@@ -106,19 +106,19 @@ reg [7:0]			transducer_is_active;
 reg [7:0]			transducer_tmp_mask;
 
 reg					fireFlag;
-reg					fireReset;
+reg	[1:0]			fireReset;
 wire [7:0]			fireComplete;
 
 reg					ioLineOutputFlag;
-reg					ioLineOutputReset;
+reg	[1:0]			ioLineOutputReset;
 wire [3:0]			ioLineOutputComplete;
 
 reg					varAttenOutputFlag;
-reg					varAttenOutputReset;
+reg	[1:0]			varAttenOutputReset;
 wire				varAttenOutputComplete;
 
 reg					recvTrigFlag;
-reg					recvTrigReset;
+reg	[1:0]			recvTrigReset;
 wire				recvTrigComplete;
 
 reg 				startInstructionTimerFlag;
@@ -133,7 +133,7 @@ wire THEYRE_READY;
 assign THEYRE_READY = itxIOLineInput[4];
 
 reg IM_READY;
-assign IM_READY = otxIOLineOutput[4];
+assign otxIOLineOutput[4] = IM_READY;
 
 /**********************************************************************/
 /*** CASE VARIABLE DEFINITIONS ****************************************/
@@ -151,6 +151,8 @@ parameter	[15:0]	PIO_CMD_SET_VAR_ATTEN			= 16'b0000000000001000;
 parameter	[15:0]	PIO_CMD_TIME_UNTIL_INTERRUPT	= 16'b0000000000010000;
 parameter	[15:0]	PIO_CMD_SET_AMP		 			= 16'b0000000000100000;
 parameter	[15:0]	PIO_CMD_SET_PHASE	 			= 16'b0000000001000000;
+
+parameter	[15:0]	PIO_CMD_ALLOW_OPEN_ENDED_RECV	= 16'b0001000000000000;
 parameter	[15:0]	PIO_CMD_RESET_RCV_TRIG			= 16'b0010000000000000;
 parameter	[15:0]	PIO_CMD_RESET_INTERRUPT			= 16'b0100000000000000;
 parameter	[15:0]	PIO_CMD_NEW_COMMAND_FLAG		= 16'b1000000000000000;
@@ -181,10 +183,10 @@ begin
 	recv_trig_delay_timer = 32'b0;
 	time_until_next_interrupt = 64'b0;
 	
-	fireReset = 1'b1;
-	ioLineOutputReset = 1'b1;
-	varAttenOutputReset = 1'b1;
-	recvTrigReset = 1'b1;
+	fireReset = 2'b11;
+	ioLineOutputReset = 2'b11;
+	varAttenOutputReset = 2'b11;
+	recvTrigReset = 2'b11;
 	
 	ioLineOutputStop = 1'b0;
 	
@@ -244,10 +246,10 @@ begin
 				recv_trig_delay_timer <= 32'b0;
 				time_until_next_interrupt <= 64'b0;
 				
-				fireReset <= 1'b1;
-				ioLineOutputReset <= 1'b1;
-				varAttenOutputReset <= 1'b1;
-				recvTrigReset <= 1'b1;
+				fireReset <= 2'b11;
+				ioLineOutputReset <= 2'b11;
+				varAttenOutputReset <= 2'b11;
+				recvTrigReset <= 2'b11;
 				
 				startInstructionTimerFlag <= 1'b0;
 				
@@ -316,7 +318,7 @@ begin
 						begin
 							fire_delay_timer <= itxFireDelay;
 							fireFlag <= 1'b1;
-							fireReset <= 1'b0;
+							fireReset <= 2'b10;
 							otxInterrupt[4] <= 1'b1;
 						end
 						
@@ -327,7 +329,7 @@ begin
 						begin	
 							transducer_chargetime <= itxPioChargetime_reg;
 							transducer_tmp_mask <= ~itxPioTmpFireMask;
-							otxInterrupt[5] <= 1'b1;
+							//otxInterrupt[5] <= 1'b1;
 						end
 						
 						/**************************************************/
@@ -343,7 +345,7 @@ begin
 							transducer_phasedelay[5] <= itxPioPhaseDelay_ch4_ch5[31:16];
 							transducer_phasedelay[6] <= itxPioPhaseDelay_ch6_ch7[15:0];
 							transducer_phasedelay[7] <= itxPioPhaseDelay_ch6_ch7[31:16];
-							otxInterrupt[6] <= 1'b1;
+							//otxInterrupt[6] <= 1'b1;
 						end
 					
 					end
@@ -354,8 +356,8 @@ begin
 					if( ( pio_output_commands & PIO_CMD_SET_TRIG_LEDS ) && !ioLineOutputFlag )
 					begin
 						ioLineOutputFlag <= 1'b1;
-						ioLineOutputReset <= 1'b0;
-						otxInterrupt[7] <= 1'b1;
+						ioLineOutputReset <= 2'b10;
+						otxInterrupt[5] <= 1'b1;
 					end
 					
 					
@@ -365,7 +367,8 @@ begin
 					if( ( pio_output_commands & PIO_CMD_SET_VAR_ATTEN ) && !varAttenOutputFlag )
 					begin
 						varAttenOutputFlag <= 1'b1;
-						varAttenOutputReset <= 1'b0;
+						varAttenOutputReset <= 2'b10;
+						otxInterrupt[6] <= 1'b1;
 					end
 					
 					
@@ -375,8 +378,9 @@ begin
 					if( ( pio_output_commands & PIO_CMD_ISSUE_RCV_TRIG ) && !recvTrigFlag )
 					begin
 						recvTrigFlag <= 1'b1;
-						recvTrigReset <= 1'b0;
+						recvTrigReset <= 2'b10;
 						recv_trig_delay_timer <= itxRecvTrigDelay;
+						otxInterrupt[7] <= 1'b1;
 					end
 					
 					
@@ -395,7 +399,7 @@ begin
 					if( pio_output_commands & PIO_CMD_RESET_RCV_TRIG )
 					begin
 						recvTrigFlag <= 1'b0;
-						recvTrigReset <= 1'b1;
+						recvTrigReset <= 2'b11;
 						recv_trig_delay_timer <= 32'b0;
 					end
 					
@@ -462,16 +466,20 @@ begin
 					if ( ( fireComplete == 8'b11111111 ) && !fireReset )
 					begin
 						fireFlag <= 1'b0;
-						fireReset <= 1'b1;
+						fireReset <= 2'b11;
 						otxInterrupt[10] <= 1'b1;
 						transducer_tmp_mask <= 8'b11111111;
 						fire_delay_timer <= 32'b0;
 						
 					end
+					else if ( fireReset == 2'b10 )
+					begin
+						fireReset <= 2'b00;
+					end
 					else
 					begin
 						if( otxInterrupt[23:16] ^ fireComplete ) otxInterrupt[23:16] <= fireComplete;
-						if( otxInterrupt[24]^fireReset) otxInterrupt[24] <= fireReset;
+						if( otxInterrupt[24]^fireReset[0]) otxInterrupt[24] <= fireReset[0];
 					end
 					
 					/******************************************************/
@@ -480,33 +488,50 @@ begin
 					if ( ( ioLineOutputComplete == 4'b1111 ) && !ioLineOutputReset )
 					begin
 						ioLineOutputFlag <= 1'b0;
-						ioLineOutputReset <= 1'b1;
+						ioLineOutputReset <= 2'b11;
 						otxInterrupt[11] <= 1'b1;
+					end
+					else if ( ioLineOutputReset <= 2'b10 )
+					begin
+						ioLineOutputReset <= 2'b0;
 					end
 					else
 					begin
 						if (otxInterrupt[28:25]^ioLineOutputComplete) otxInterrupt[28:25] <= ioLineOutputComplete;
-						if( otxInterrupt[30]^ioLineOutputReset) otxInterrupt[30] <= ioLineOutputReset;
+						if( otxInterrupt[30]^ioLineOutputReset[0]) otxInterrupt[30] <= ioLineOutputReset[0];
 					end
 					
 					/******************************************************/
 					/*** NO NEW FIRE CMDS UNTIL PREVIOUS FIRE COMPLETE ****/
 					/******************************************************/
-					if ( varAttenOutputComplete & !varAttenOutputReset )
+					if ( varAttenOutputComplete && !varAttenOutputReset )
 					begin
 						varAttenOutputFlag <= 1'b0;
-						varAttenOutputReset <= 1'b1;
+						varAttenOutputReset <= 2'b11;
+					end
+					else if ( varAttenOutputReset == 2'b10 ) 
+					begin
+						varAttenOutputReset <= 2'b0;
 					end
 					else
 					begin
-						if( otxInterrupt[31] ^ varAttenOutputReset ) otxInterrupt[31] <= varAttenOutputReset;
+						if( otxInterrupt[31] ^ varAttenOutputReset[0] ) otxInterrupt[31] <= varAttenOutputReset[0];
 					end
 					
 					
-					if ( recvTrigComplete & !recvTrigReset )
+					if ( recvTrigComplete && !recvTrigReset )
 					begin
 						recvTrigFlag <= 1'b0;
-						recvTrigReset <= 1'b1;
+						recvTrigReset <= 2'b11;
+						otxInterrupt[8] <= 1'b1;
+					end
+					else if ( recvTrigReset == 2'b10 )
+					begin
+						recvTrigReset <= 2'b0;
+					end
+					else
+					begin
+						otxInterrupt[9] <= 1'b1;
 					end
 					
 					
@@ -514,7 +539,7 @@ begin
 					/******************************************************/
 					/*** SIGNAL ARM THAT SYNCHRONOUS COMMANDS FINISHED ****/
 					/******************************************************/
-					if ( ( ioLineOutputReset & varAttenOutputReset & fireReset & txResetFlag & recvTrigReset ) && !time_until_next_interrupt )
+					if ( ( ( ioLineOutputReset == 2'b11 ) && ( varAttenOutputReset == 2'b11 ) && ( fireReset == 2'b11 ) && txResetFlag && ( recvTrigReset == 2'b11 ) ) && !time_until_next_interrupt )
 					begin
 						if( !otxInterrupt[0] ) otxInterrupt[0] <= 1'b1;
 					end
@@ -546,7 +571,7 @@ begin
 				fireDelayTimerFlag <= 1'b0;
 				ioLineOutputFlag <= 1'b0;
 				varAttenOutputFlag <= 1'b0;
-				recvTrigTimerFlag <= 1'b0;
+				recvTrigFlag <= 1'b0;
 				txResetFlag <= 1'b0;
 				interruptRequestTimerFlag <= 1'b0;
 				recvTrigFlag <= 1'b0;
@@ -555,10 +580,10 @@ begin
 				recv_trig_delay_timer <= 32'b0;
 				time_until_next_interrupt <= 64'b0;
 				
-				fireReset <= 1'b1;
-				ioLineOutputReset <= 1'b1;
-				varAttenOutputReset <= 1'b1;
-				recvTrigReset <= 1'b1;
+				fireReset <= 2'b11;
+				ioLineOutputReset <= 2'b11;
+				varAttenOutputReset <= 2'b11;
+				recvTrigReset <= 2'b11;
 				
 				startInstructionTimerFlag <= 1'b0;
 				
@@ -576,7 +601,7 @@ end
 
 transducerOutput_Module c0(
 	.clk(txCLK),
-	.rst(fireReset),
+	.rst(fireReset[0]),
 	.isActive( ( transducer_is_active[0] & transducer_tmp_mask[0] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -589,7 +614,7 @@ transducerOutput_Module c0(
 
 transducerOutput_Module c1(
 	.clk(txCLK),
-	.rst(fireReset),
+	.rst(fireReset[0]),
 	.isActive( ( transducer_is_active[1] & transducer_tmp_mask[1] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -602,7 +627,7 @@ transducerOutput_Module c1(
 
 transducerOutput_Module c2(
 	.clk(txCLK),
-	.rst(fireReset),
+	.rst(fireReset[0]),
 	.isActive( ( transducer_is_active[2] & transducer_tmp_mask[2] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -615,7 +640,7 @@ transducerOutput_Module c2(
 
 transducerOutput_Module c3(
 	.clk(txCLK),
-	.rst(fireReset),
+	.rst(fireReset[0]),
 	.isActive( ( transducer_is_active[3] & transducer_tmp_mask[3] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -628,7 +653,7 @@ transducerOutput_Module c3(
 
 transducerOutput_Module c4(
 	.clk(txCLK),
-	.rst(fireReset),
+	.rst(fireReset[0]),
 	.isActive( ( transducer_is_active[4] & transducer_tmp_mask[4] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -641,7 +666,7 @@ transducerOutput_Module c4(
 
 transducerOutput_Module c5(
 	.clk(txCLK),
-	.rst(fireReset),
+	.rst(fireReset[0]),
 	.isActive( ( transducer_is_active[5] & transducer_tmp_mask[5] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -654,7 +679,7 @@ transducerOutput_Module c5(
 
 transducerOutput_Module c6(
 	.clk(txCLK),
-	.rst(fireReset),
+	.rst(fireReset[0]),
 	.isActive( ( transducer_is_active[6] & transducer_tmp_mask[6] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -667,7 +692,7 @@ transducerOutput_Module c6(
 
 transducerOutput_Module c7(
 	.clk(txCLK),
-	.rst(fireReset),
+	.rst(fireReset[0]),
 	.isActive( ( transducer_is_active[7] & transducer_tmp_mask[7] ) ),
 	.onYourMark(fireFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),
@@ -681,7 +706,7 @@ transducerOutput_Module c7(
 
 ioOutputLine_ControlModule tl0(
 	.clk(txCLK),
-	.rst(ioLineOutputReset),
+	.rst(ioLineOutputReset[0]),
 	
 	.restLevel(itxIOLineOutputRestLevels[0]),
 	
@@ -699,7 +724,7 @@ ioOutputLine_ControlModule tl0(
 
 ioOutputLine_ControlModule tl1(
 	.clk(txCLK),
-	.rst(ioLineOutputReset),
+	.rst(ioLineOutputReset[0]),
 	
 	.restLevel(itxIOLineOutputRestLevels[1]),
 	
@@ -717,7 +742,7 @@ ioOutputLine_ControlModule tl1(
 
 ioOutputLine_ControlModule tl2(
 	.clk(txCLK),
-	.rst(ioLineOutputReset),
+	.rst(ioLineOutputReset[0]),
 	
 	.restLevel(itxIOLineOutputRestLevels[2]),
 	
@@ -735,7 +760,7 @@ ioOutputLine_ControlModule tl2(
 
 ioOutputLine_ControlModule tl3(
 	.clk(txCLK),
-	.rst(ioLineOutputReset),
+	.rst(ioLineOutputReset[0]),
 	
 	.restLevel(itxIOLineOutputRestLevels[3]),
 	
@@ -754,7 +779,7 @@ ioOutputLine_ControlModule tl3(
 
 ioVarAtten_ControlModule va0(
 	.clk(txCLK),
-	.rst(varAttenOutputReset),
+	.rst(varAttenOutputReset[0]),
 	
 	.restLevel(itxVarAttenRestLevel),
 	
@@ -773,7 +798,7 @@ ioVarAtten_ControlModule va0(
 
 ioRecvSysTrigger_Module rs0(
 	.clk(txCLK),
-	.rst(recvTrigReset),
+	.rst(recvTrigReset[0]),
 	
 	.onYourMark(recvTrigFlag),
 	.GOGOGO_EXCLAMATION(triggerSignal),

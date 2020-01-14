@@ -313,14 +313,13 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
                         printf("rcv interrupt reg:\n");
                         printBinaryInterrupt(interrupt_readout);
                     }
-                    
                     RCV->queryData(RCV); 
                     
-                    if ( RCV->printMsgs ){ 
-                        printf("HERERE\n");
-                    }
+                    //if ( RCV->printMsgs ){ 
+                    //    printf("HERERE\n");
+                    //}
                     
-                    TX->resetRcvTrig(TX);
+                   // TX->resetRcvTrig(TX);
                
                 } else if ( sock->is.tx_interrupt ){
                     if ( TX->printMsgs ){

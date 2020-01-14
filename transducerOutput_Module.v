@@ -112,7 +112,7 @@ begin
 		end
 		else
 		begin
-			if ( marked_flag ) <= 1'b0;
+			if ( marked_flag ) marked_flag <= 1'b0;
 			if ( state ) state <= 2'b0;
 			if ( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
 			if( fireComplete_reg ) fireComplete_reg <= 1'b0;
@@ -122,7 +122,7 @@ begin
 	end
 	else
 	begin
-		if ( marked_flag ) <= 1'b0;
+		if ( marked_flag ) marked_flag <= 1'b0;
 		if ( state ) state <= 2'b0;
 		if ( transducerOutput_reg ) transducerOutput_reg <= 1'b0;
 		if( !fireComplete_reg ) fireComplete_reg <= 1'b1;

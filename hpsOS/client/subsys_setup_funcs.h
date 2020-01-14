@@ -382,7 +382,7 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, BOARDconfig_t *BC, POLLserver_t *PS){
     // board identifiers, active transducers, trig/led rest lvls
     TX->reg1.all = 0;
     TX->reg1.isSolo = 1;
-    TX->reg1.isMaster = 1;
+    TX->reg1.isMaster = 0;
     TX->reg1.isExternallyTriggered = 0;
     //TX->reg1.blnk = 0x1f;
     TX->reg1.activeTransducers = 0xff;
@@ -493,8 +493,8 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, BOARDconfig_t *BC, POLLserver_t *PS){
     TX->calcAndSetPhaseFromLoopIdxsAsCoordVals = &txCalcAndSetPhaseFromLoopIdxsAsCoordVals;
 
     TX->setControlState(TX,0);
-    TX->resetTxInterrupt(TX);
-    TX->resetRcvTrig(TX);
+    //TX->resetTxInterrupt(TX);
+    //TX->resetRcvTrig(TX);
     return(1);
 }
 
