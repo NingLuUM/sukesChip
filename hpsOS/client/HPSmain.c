@@ -98,6 +98,7 @@
 #define ADC_CLK             ( 25 )	// MHz
 #define ADC_NBITS           ( 12 )
 #define ADC_NCHAN           ( 8 )
+#define NTRANSDUCERS_PER_BOARD ( 8 )
 
 #define TX_INTERRUPT_ID             ( 0 )
 #define RCV_INTERRUPT_ID            ( 1 )
@@ -169,6 +170,9 @@
 #define CASE_TX_SET_PHASE_FROM_LOOP_IDX_AS_MEM_IDX              ( 25 )
 #define CASE_TX_CALC_AND_SET_PHASE_AT_SPECIFIED_COORD_VALS      ( 26 )
 #define CASE_TX_CALC_AND_SET_PHASE_FROM_LOOP_IDXS_AS_COORD_VALS ( 27 )
+
+#define CASE_TX_BUFFER_ABERRATION_CORRECTION_DELAYS             ( 28 )
+#define CASE_TX_PING_FROM_LOOP_IDX                              ( 29 )
 
 #define CASE_TX_PRINT_FEEDBACK_MSGS         ( 50 )
 

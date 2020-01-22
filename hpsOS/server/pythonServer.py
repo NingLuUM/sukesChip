@@ -115,7 +115,14 @@ class transmitter():
 		msg = struct.pack(tmp_cmsg,self.CASE_TX_BUFFER_PHASE_DELAYS,pd[0],pd[1],pd[2],pd[3],pd[4],pd[5],pd[6],pd[7],0,0,0)
 		self.sock.send(msg)
 		bb = self.sock.recv(4,socket.MSG_WAITALL)
-		
+	
+	def uploadAberrationCorrectionDelays(self,acd = np.zeros(8)):
+		tmp_cmsg = '1I8H1I2Q' ### [ u32 , u16 , u16 , u16 , u16 , u16 , u16 , u16 , u16 , u32 , u64 , u64 ]
+		acd = (acd_us*100).astype(np.uint16)	
+		msg = struct.pack(tmp_cmsg,self.CASE_TX_BUFFER_PHASE_DELAYS,acd[0],acd[1],acd[2],acd[3],acd[4],acd[5],acd[6],acd[7],0,0,0)
+		self.sock.send(msg)
+		bb = self.sock.recv(4,socket.MSG_WAITALL)
+			
 	def fire(self):		
 		msg = struct.pack(self.u32cmsg,self.CASE_TX_BUFFER_FIRE_CMD,0,0,0,0,0,0,0,0,0)
 		self.sock.send(msg)
@@ -309,7 +316,30 @@ class transmitter():
 		print 'hello'
 		bb = self.pd_sock.recv(4,socket.MSG_WAITALL)
 		print 'goodbye'
-			
+	
+	def pingElements(self, startEl=0, endEl=0, triggerChannel=1, waitVal_ms=100):
+		
+		self.startCounter( cntrId=1 , startIdx=startEl , endIdx=endEl , stepSize=1 )
+		
+		if 1:
+			self.beginSyncCmd()
+			if 1:
+				self.setChargeTime(5)
+				self.fireAtLoc(0,0,0)
+				
+				msg = struct.pack(self.u32cmsg,self.CASE_TX_PING_FROM_LOOP_IDX,0,0,0,0,0,0,0,0,0)
+				self.sock.send(msg)	
+				bb = self.sock.recv(4,socket.MSG_WAITALL)
+				
+				self.setTrig(triggerChannel,duration_us=10)
+				
+				self.wait_sec(waitVal_ms/1000.)
+				
+			self.endSyncCmd()
+	
+		self.endCounter( 1 )
+		
+				
 	def connectToFpga(self):
 		self.sock.connect(('192.168.1.101',3600))
 		
@@ -343,6 +373,9 @@ class transmitter():
 		self.CASE_TX_SET_PHASE_FROM_LOOP_IDX_AS_MEM_IDX = 25
 		self.CASE_TX_CALC_AND_SET_PHASE_AT_SPECIFIED_COORD_VALS = 26
 		self.CASE_TX_CALC_AND_SET_PHASE_FROM_LOOP_IDXS_AS_COORD_VALS = 27
+		
+		self.CASE_TX_BUFFER_ABERRATION_CORRECTION_DELAYS = 28
+		self.CASE_TX_PING_FROM_LOOP_IDX = 29
 		
 		self.CASE_TX_UPLOAD_PHASE_DELAYS = 0
 		self.CASE_TX_UPLOAD_STEERING_LOCS = 1

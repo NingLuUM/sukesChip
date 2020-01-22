@@ -108,8 +108,10 @@ void txBufferChargeTimeCmd(TXsys_t *TX, uint32_t chargeTime);
 void txBufferTmpMaskCmd(TXsys_t *TX, uint32_t tmpMask);
 void txBufferFireCmd(TXsys_t *TX, uint32_t fireDelay);
 void txBufferPhaseDelayCmd(TXsys_t *TX, uint16_t *phaseDelays);
+void txBufferAberrationCorrectionDelayCmd(TXsys_t *TX, uint16_t *aberrationCorrectionDelays);
 void txBufferRecvTrigDelayCmd(TXsys_t *TX, uint32_t recvTrigDelay);
 void txBufferAsyncWaitCmd(TXsys_t *TX, uint64_t timerVal);
+void txBufferPingFromLoopIdxCmd(TXsys_t *TX);
 
 void txResetTxInterrupt(TXsys_t *TX);
 void txResetRcvTrig(TXsys_t *TX);
@@ -395,10 +397,11 @@ typedef struct TXpiocmd_{
             uint32_t isFireAt : 1;
             uint32_t isLoadPhaseFromMemIdx : 1;
             uint32_t isCalcPhaseFromLoopIdxs : 1;
+            uint32_t isPingFromLoopIdx : 1;
 
             uint32_t castLoopIdx : 1;
 
-            uint32_t blnkFlags : 9;
+            uint32_t blnkFlags : 8;
         };
         struct{
             uint32_t isFlags : 7;
@@ -456,6 +459,7 @@ typedef struct TXsys_{
     uint32_t nPhaseDelaysWritten;
     uint32_t printMsgs;
     uint16_t **phaseDelays;
+    uint16_t aberrationCorrectionDelays[NTRANSDUCERS_PER_BOARD];
 
     BOARDconfig_t *bc;
     double *tof;
@@ -499,6 +503,8 @@ typedef struct TXsys_{
     void (*bufferPhaseDelays)(TXsys_t *, uint16_t *);
     void (*bufferRecvTrig)(TXsys_t *, uint32_t);
     void (*bufferAsyncWait)(TXsys_t *, uint64_t);
+    void (*bufferAberrationCorrectionDelays)(TXsys_t *, uint16_t *);
+    void (*bufferPingFromLoopIdx)(TXsys_t *);
 
     void (*resetTxInterrupt)(TXsys_t *);
     void (*resetRcvTrig)(TXsys_t *);

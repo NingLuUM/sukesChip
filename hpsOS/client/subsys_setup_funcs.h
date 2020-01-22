@@ -366,6 +366,9 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, BOARDconfig_t *BC, POLLserver_t *PS){
     TX->nPhaseDelaysWritten = 0;
     TX->phaseDelays = (uint16_t **)malloc(sizeof(uint16_t *));
     *(TX->phaseDelays) = NULL;//(uint16_t *)calloc(8,sizeof(uint16_t));
+    for(int i=0;i<NTRANSDUCERS_PER_BOARD;i++){
+        TX->aberrationCorrectionDelays[i] = 0;
+    }
 
     TX->bc = BC;
     TX->tof = (double *)malloc(BC->boardData.nElementsGlobal*sizeof(double));
@@ -485,6 +488,8 @@ int TX_init(FPGAvars_t *FPGA, TXsys_t *TX, BOARDconfig_t *BC, POLLserver_t *PS){
     TX->setNumSteeringLocs = &txSetNumSteeringLocs;
     TX->storePhaseDelays = &txStorePhaseDelays;
     TX->calcStorePhaseDelays = &txCalcStorePhaseDelays;
+    TX->bufferAberrationCorrectionDelays = &txBufferAberrationCorrectionDelayCmd;
+    TX->bufferPingFromLoopIdx = &txBufferPingFromLoopIdxCmd;
 
     TX->setSoundSpeed = &txSetSoundSpeed;
     TX->calcPhaseDelaysSingle = &txCalcPhaseDelaySingle;

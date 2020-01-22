@@ -501,6 +501,16 @@ void txBufferTmpMaskCmd(TXsys_t *TX, uint32_t tmpMask){
     cmd->reg2.set_amp = 1;
 }
 
+void txBufferPingFromLoopIdxCmd(TXsys_t *TX){
+    TXpiocmd_t *cmd;
+    cmd = *(TX->pio_cmd_list);
+    while(cmd->next != NULL){
+        cmd = cmd->next;
+    }
+    cmd->reg2.isPingFromLoopIdx = 1;
+    cmd->reg2.set_amp = 1;
+}
+
 void txBufferFireCmd(TXsys_t *TX, uint32_t fireDelay){
     TXpiocmd_t *cmd;
     cmd = *(TX->pio_cmd_list);
@@ -679,6 +689,12 @@ void txBufferPhaseDelayCmd(TXsys_t *TX, uint16_t *phaseDelays){
     cmd->reg6.ch6 = phaseDelays[6];
     cmd->reg6.ch7 = phaseDelays[7];
     cmd->reg2.set_phase = 1;
+}
+
+void txBufferAberrationCorrectionDelayCmd(TXsys_t *TX, uint16_t *aberrationCorrectionDelays){
+    for(int i=0;i<NTRANSDUCERS_PER_BOARD;i++){
+        TX->aberrationCorrectionDelays[i] = aberrationCorrectionDelays[i];
+    }
 }
 
 void txBufferRecvTrigDelayCmd(TXsys_t *TX, uint32_t recvTrigDelay){

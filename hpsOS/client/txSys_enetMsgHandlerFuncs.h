@@ -409,6 +409,32 @@ void txSysMsgHandler(TXsys_t *TX, FMSG_t *msg, int nrecvd, int *runner){
             break;
         }
 
+        case(CASE_TX_BUFFER_ABERRATION_CORRECTION_DELAYS):{ // CASE: 28
+            TX->bufferAberrationCorrectionDelays(TX,&msg->u16[2]);
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && TX->printMsgs ){
+                printf("phase delays set successfully\n");
+            }
+            break;
+        }
+
+        case(CASE_TX_PING_FROM_LOOP_IDX):{ // CASE: 29
+            TX->bufferPingFromLoopIdx(TX);
+            if ( !(cmd->flags.all) ){
+                TX->makePioCmd(TX);
+                TX->addCmd(TX);
+                for(int i=0;i<5;i++){
+                    trig_duration[i].all = 0;
+                    trig_delay[i].all = 0;
+                }
+                cmdCntr++;
+                currentTimer = 0;
+            }
+            if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && TX->printMsgs ){
+                printf("charge time set successfully\n");
+            }
+            break;
+        }
+
         case(CASE_TX_PRINT_FEEDBACK_MSGS):{ // CASE: 50
             TX->printMsgs = msg->u32[1];
             if ( send(TX->comm_sock->fd,&(TX->nSteeringLocs),sizeof(uint32_t),MSG_CONFIRM) && TX->printMsgs ){

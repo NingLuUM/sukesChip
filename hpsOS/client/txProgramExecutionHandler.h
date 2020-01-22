@@ -11,6 +11,7 @@ int txProgramExecutionHandler(TXsys_t *TX){
     double xloc,yloc,zloc;
     double xunit,yunit,zunit;
     phaseDelays = *(TX->phaseDelays);
+    aberrationCorrectionDelays = TX->aberrationCorrectionDelays;
     cmd = *(TX->pio_cmd_list);
 
     //printf("tx current:\n");
@@ -88,7 +89,21 @@ int txProgramExecutionHandler(TXsys_t *TX){
 
         if ( cmd->reg2.set_amp ) {
             TX->setChargeTime(TX);
+
+            if ( cmd->flags.isPingFromLoopIdx ){
+                cmd->reg7.tmpMask = 0;
+                for(int i=0;i<NTRANSDUCERS_PER_BOARD;i++){
+                    tmp_idx = *(cmd->cur_idx);
+                    for(int j=0;j<TX->bc->nElementsLocal;j++){
+                        if( TX->bc->localElementIdxs == tmp_idx ){
+                            cmd->reg7.tmpMask |= (1<<j);
+                        }
+                    }
+                }
+            }
+
             TX->setTmpMask(TX);
+            
         }
 
         if ( cmd->reg2.set_phase ) {
@@ -101,14 +116,14 @@ int txProgramExecutionHandler(TXsys_t *TX){
                     //printf("regular loop\n");
                     tmp_idx = *(cmd->cur_idx);
                 }
-                cmd->reg3.ch0 = phaseDelays[tmp_idx*8];
-                cmd->reg3.ch1 = phaseDelays[tmp_idx*8+1];
-                cmd->reg4.ch2 = phaseDelays[tmp_idx*8+2];
-                cmd->reg4.ch3 = phaseDelays[tmp_idx*8+3];
-                cmd->reg5.ch4 = phaseDelays[tmp_idx*8+4];
-                cmd->reg5.ch5 = phaseDelays[tmp_idx*8+5];
-                cmd->reg6.ch6 = phaseDelays[tmp_idx*8+6];
-                cmd->reg6.ch7 = phaseDelays[tmp_idx*8+7];
+                cmd->reg3.ch0 = phaseDelays[tmp_idx*8]+aberrationCorrectionDelays[0];
+                cmd->reg3.ch1 = phaseDelays[tmp_idx*8+1]+aberrationCorrectionDelays[1];
+                cmd->reg4.ch2 = phaseDelays[tmp_idx*8+2]+aberrationCorrectionDelays[2];
+                cmd->reg4.ch3 = phaseDelays[tmp_idx*8+3]+aberrationCorrectionDelays[3];
+                cmd->reg5.ch4 = phaseDelays[tmp_idx*8+4]+aberrationCorrectionDelays[4];
+                cmd->reg5.ch5 = phaseDelays[tmp_idx*8+5]+aberrationCorrectionDelays[5];
+                cmd->reg6.ch6 = phaseDelays[tmp_idx*8+6]+aberrationCorrectionDelays[6];
+                cmd->reg6.ch7 = phaseDelays[tmp_idx*8+7]+aberrationCorrectionDelays[7];
 
             } else if ( cmd->flags.isCalcPhaseFromLoopIdxs ){
                 
@@ -120,14 +135,14 @@ int txProgramExecutionHandler(TXsys_t *TX){
                 zloc = ( *(cmd->cur_zloc) )*zunit;
                 TX->calcPhaseDelaysSingle(TX,pd_tmp,xloc,yloc,zloc);
 
-                cmd->reg3.ch0 = pd_tmp[0];
-                cmd->reg3.ch1 = pd_tmp[1];
-                cmd->reg4.ch2 = pd_tmp[2];
-                cmd->reg4.ch3 = pd_tmp[3];
-                cmd->reg5.ch4 = pd_tmp[4];
-                cmd->reg5.ch5 = pd_tmp[5];
-                cmd->reg6.ch6 = pd_tmp[6];
-                cmd->reg6.ch7 = pd_tmp[7];
+                cmd->reg3.ch0 = pd_tmp[0]+aberrationCorrectionDelays[0];
+                cmd->reg3.ch1 = pd_tmp[1]+aberrationCorrectionDelays[1];
+                cmd->reg4.ch2 = pd_tmp[2]+aberrationCorrectionDelays[2];
+                cmd->reg4.ch3 = pd_tmp[3]+aberrationCorrectionDelays[3];
+                cmd->reg5.ch4 = pd_tmp[4]+aberrationCorrectionDelays[4];
+                cmd->reg5.ch5 = pd_tmp[5]+aberrationCorrectionDelays[5];
+                cmd->reg6.ch6 = pd_tmp[6]+aberrationCorrectionDelays[6];
+                cmd->reg6.ch7 = pd_tmp[7]+aberrationCorrectionDelays[7];
 
             }
 
