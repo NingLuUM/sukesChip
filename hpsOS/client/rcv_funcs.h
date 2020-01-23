@@ -122,14 +122,21 @@ int sendData(RCVsys_t *RCV, char *data, size_t dsize){
     int toSend=0;
     uint32_t nrecvd=0;
     uint32_t recvcount=0;
-    
+    //int state1=1;
+    //int state0=0;
     //setblocking(enet->fd);
     //clock_gettime(CLOCK_MONOTONIC,&st1);
     while(nsent0<dsize){
         toSend = ( ( dsize-nsent0 ) > MAX_PACKETSIZE ) ? MAX_PACKETSIZE : ( dsize-nsent0 );
-        nsent0 += send(enet->fd,&data[nsent0],toSend,MSG_CONFIRM);
+        
+        //setsockopt(enet->fd, IPPROTO_TCP, TCP_CORK, &state1, sizeof(state1));
+        nsent0 += send(enet->fd,&data[nsent0],toSend,0);
+        //setsockopt(enet->fd, IPPROTO_TCP, TCP_CORK, &state0, sizeof(state0));
+        //setsockopt(enet->fd, IPPROTO_TCP, TCP_QUICKACK, &state1, sizeof(state1));
+
         recv(enet->fd,&nrecvd,sizeof(uint32_t),MSG_WAITALL);
         recvcount+=nrecvd;
+        //usleep(1);
         
     //clock_gettime(CLOCK_MONOTONIC,&et1);
     //dt1 = diff(st1,et1);
@@ -157,7 +164,6 @@ int saveData(SOCK_t *enet, char *data, size_t dsize){
 }
 
 int saveDataFile(RCVsys_t *RCV, char *data, size_t dsize){
-    uint32_t dsz = dsize;
     static int pulse_counter = 0;
     if( !RCV->datafile && pulse_counter == 0 ){
         pulse_counter = 0;
@@ -180,13 +186,13 @@ int saveDataFile(RCVsys_t *RCV, char *data, size_t dsize){
 
 
 void rcvQueryData(RCVsys_t *RCV){
-	SOCK_t *enet;
-    enet = RCV->data_sock;
-    static int pulse_counter = 0;
+	//SOCK_t *enet;
+    //enet = RCV->data_sock;
+    //static int pulse_counter = 0;
     
     int dataStatus = 0;
     uint32_t recLen = RCV->refVals.recLen;
-    uint32_t npulses = RCV->npulses;
+    //uint32_t npulses = RCV->npulses;
     
     DREF32(RCV->stateReset)=1;
     usleep(1);

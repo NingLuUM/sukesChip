@@ -4,6 +4,7 @@ int txProgramExecutionHandler(TXsys_t *TX){
     TXpiocmd_t *cmd;
     TXpiocmd_t *loopHead;
     uint16_t *phaseDelays;
+    uint16_t *aberrationCorrectionDelays;
     uint16_t pd_tmp[8];
     uint32_t prog_complete = 1;
     uint32_t tmp_idx = 0;
@@ -91,12 +92,12 @@ int txProgramExecutionHandler(TXsys_t *TX){
             TX->setChargeTime(TX);
 
             if ( cmd->flags.isPingFromLoopIdx ){
-                cmd->reg7.tmpMask = 0;
+                cmd->reg7.tmpMask = 0xff;
                 for(int i=0;i<NTRANSDUCERS_PER_BOARD;i++){
                     tmp_idx = *(cmd->cur_idx);
-                    for(int j=0;j<TX->bc->nElementsLocal;j++){
-                        if( TX->bc->localElementIdxs == tmp_idx ){
-                            cmd->reg7.tmpMask |= (1<<j);
+                    for(int j=0;j<TX->bc->boardData.nElementsLocal;j++){
+                        if( TX->bc->localElementIdxs[j] == tmp_idx ){
+                            cmd->reg7.tmpMask &= ~(1<<j);
                         }
                     }
                 }

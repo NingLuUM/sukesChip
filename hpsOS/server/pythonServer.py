@@ -3,7 +3,7 @@
 import socket
 import struct
 import time
-#~ import select
+import select
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -424,20 +424,20 @@ class receiver():
 	def activateRecvr(self,plotLater=0):
 		self.pid = os.fork()
 		if (self.pid == 0):
-			#~ self.pt = subprocess.Popen(['gnuplot','-e','-p'],shell=True,stdin=subprocess.PIPE,)
-			#~ self.pt.stdin.write("set term x11 size 650,650 font 'Helvetica,16'\n")
+
 			self.connectRcvDataSock()
 			if plotLater:
 				self.allData = np.zeros((self.nplotpulses,self.recLen,8))
-			n=0
-			while n<self.nplotpulses:
-				if plotLater:
-					print 'plot later = 1', self.nplotpulses
-					self.queryData(nthpls=(n+1))
-				else:
-					print 'plot later = 0'
+			
+			if plotLater:
+				print 'plot later = 1', self.nplotpulses
+				self.queryData(nthpls=1)
+			else:
+				print 'plot later = 0'
+				n=0
+				while n<self.nplotpulses:
 					self.queryData()
-				n+=1
+					n+=1
 				
 			self.disconnectDataSock()
 			os._exit(0)
@@ -662,16 +662,52 @@ class receiver():
 		#~ bb = self.sock.recv(4,socket.MSG_WAITALL)
 		aa = 0
 		bb=''
-		while len(bb)<(self.npulses*self.recLen*16):
-			bb += self.dsock.recv(self.npulses*self.recLen*16,0)
-			if len(bb)-aa:
-				self.dsock.send(struct.pack('I',len(bb)-aa))
-			aa = len(bb)
-		print 'len(bb):',len(bb)
+		expected_data_per_pulse = (self.recLen*16)
 		
-		self.cmsg5 = '{}{}'.format(8*self.recLen*self.npulses,'H')
-		self.cmsg6 = '{}{}'.format(4*self.recLen*self.npulses,'I')
+		if (nthpls):
+			breakLength = self.nplotpulses*expected_data_per_pulse
+			self.cmsg5 = '{}{}'.format(8*self.recLen*self.nplotpulses,'H')
+			self.cmsg6 = '{}{}'.format(4*self.recLen*self.nplotpulses,'I')
+			waitCond = 0
+			print 'break length, all pulses', breakLength
+			
+		else:
+			breakLength = expected_data_per_pulse
+			self.cmsg5 = '{}{}'.format(8*self.recLen,'H')
+			self.cmsg6 = '{}{}'.format(4*self.recLen,'I')
+			waitCond = socket.MSG_WAITALL
+			print 'break length, one pulses', breakLength
 		
+		t0 = time.time()	
+		recvNum = 0
+		while 1:
+			ready = select.select([self.dsock],[],[],1) # (recv_ready, send_ready, exception_ready, timeout(sec)
+			if ready[0]:
+				if nthpls:
+					bb += self.dsock.recv(expected_data_per_pulse,0)
+				else:
+					if ((expected_data_per_pulse-len(bb)) > self.MAX_PACKETSIZE ):
+						dsize = self.MAX_PACKETSIZE
+					else:
+						dsize = expected_data_per_pulse-len(bb)
+						
+					bb += self.dsock.recv(dsize,socket.MSG_WAITALL)
+
+				if expected_data_per_pulse-len(bb):
+					self.dsock.send(struct.pack('I',len(bb)-aa))
+					
+				#~ print 'len(bb)/expected',len(bb),expected_data_per_pulse
+				if len(bb)/expected_data_per_pulse > recvNum:
+					recvNum = len(bb)/expected_data_per_pulse
+					print 'plsN:',recvNum,',',np.round((time.time()-t0)*1e3,2),'ms'
+					t0 = time.time()
+				aa = len(bb)
+			
+			if len(bb) == breakLength:
+				break	
+
+		print 'len(bb)/breakLength :',len(bb),'/',breakLength
+
 		if self.isUnsigned:
 			self.ylims = [-200,4300]
 			#~ self.ylims = [1800,2300]
@@ -686,25 +722,31 @@ class receiver():
 		else:
 			cc0 = np.array(struct.unpack(self.cmsg5,bb)).astype(np.int16)
 			cc = -(cc0 & mask) + (cc0 & ~mask)
-		
-		if nthpls == 0:	
-			dd = np.zeros((self.npulses*self.recLen,8))
+		#~ aa = 0
+		#~ bb=''
+		if nthpls:	
+			for m in range(0,self.nplotpulses):
+				for n in range(0,8):
+					self.allData[m,:,n] = cc[n+(m*self.recLen*8):((m+1)*self.recLen*8):8]
+			
+			if pltr:
+				print "pltr later", pltr
+				self.plotDatasLater(self.allData)
+				
+		else:
+			dd = np.zeros((self.recLen,8))
+			print "plot later", pltr, "nthpls", nthpls
 			print 'dd:',dd.shape,'cc:',cc.shape
 				
 			for n in range(0,8):
 				dd[:,n] = cc[n::8]
 
 			if pltr:
-				print "pltr", pltr	
+					
 				self.plotDatas(dd)
-		else:
-			for n in range(0,8):
-				self.allData[nthpls-1,:,n] = cc[n::8]
 			
-			if pltr and (nthpls == self.nplotpulses):
-				print "pltr later", pltr
-				
-				self.plotDatasLater(self.allData)
+			self.dsock.send(struct.pack('I',len(bb)-aa))
+			
 		
 	def queryDataLocal(self):
 		msg = struct.pack(self.u32cmsg,self.CASE_QUERY_DATA,0,0,0,0,0,0,0,0,0)
@@ -954,6 +996,7 @@ class receiver():
 		self.ADC_CLK = 50.0
 		
 		self.MAX_RECLEN = 32768
+		self.MAX_PACKETSIZE = 32768
 		
 		# ethernet sockets for transferring data to/from arm
 		# 'sock' is used to send data to arm
@@ -1012,7 +1055,7 @@ class receiver():
 		self.c6mask = 0xfff00
 		self.c7mask = 0xfff00000
 		
-		self.pid = 1
+		self.pid = 'a'
 		
 		# for for converting enet msg's into c-readable form
 		self.u32cmsg = '10I'
@@ -1032,7 +1075,7 @@ class receiver():
 		
 		
 
-npulses = 250
+npulses = 1000000
 
 r = receiver()
 r.connectToFpga()
@@ -1043,26 +1086,26 @@ r.setClockDivisor(1)
 #~ r.setFclkDelay(2) # accepts values 0-5
 #~ r.setSamplingMode(r.EVERY_NTH)
 #~ r.setCompressorMode(r.RAW16)
-r.setRecLen(12500)
-#~ r.setRecDuration(250.0)
+r.setRecLen(15000)
+#~ r.setRecDuration(100.0)
 
-r.setAdcGain(31.875)
+r.setAdcGain(-5)
 
-r.setNPulses(npulses)
+#~ r.setNPulses(1)
 #~ r.setAdcInternalAcCoupling(0)
 #~ r.setAdcLowNoiseMode(0)
 #~ r.setAdcFilterBw(0)
 #~ r.setAdcUnsigned(0)
 #~ r.setRamp()
 
-r.setQueryMode(realTime=0,transferData=0,saveData=1)
+#~ r.setQueryMode(realTime=1,transferData=0,saveData=0)
 #~ r.plotterSetup(figheight = 15, figwidth = 10, nrows = 4, ncols = 2)
 #~ r.plotterSetup(ylims = [-200,4300], xlims = [-100,2600], figheight = 10, figwidth = 30, nrows = 4, ncols = 2)
 
-r.plotNPulses(npulses)
+#~ r.plotNPulses(npulses)
 #~ r.powerDownAdc()
 
-r.activateRecvr(plotLater=0)
+#~ r.activateRecvr(plotLater=1)
 
 #~ r.interruptSelf(1)
 #~ time.sleep(0.1)
@@ -1136,28 +1179,29 @@ if (r.pid):
 			
 			t.beginSyncCmd()
 			if 1:
-				t.setChargeTime(1)
+				t.setChargeTime(3)
 				
 				t.at_usec(0)
 				t.fireAtLoc(0,0,0)
-				
-				t.rcvData()
+				#~ t.at_usec(100)
+				#~ t.rcvData()
+				#~ t.wait_usec(100)
 				
 			t.endSyncCmd()
 			
 			#~ t.wait_sec(0.01)
 			
-			t.beginSyncCmd()
-			if 1:
-				t.setChargeTime(5)
+			#~ t.beginSyncCmd()
+			#~ if 1:
+				#~ t.setChargeTime(5)
 				
 				
-				t.fire()
-				t.at_usec(20)
+				#~ t.fire()
+				#~ t.at_usec(20)
 				#~ t.toggleVarAtten(10)
 				
-			t.endSyncCmd()
-			t.wait_sec(0.01)
+			#~ t.endSyncCmd()
+			t.wait_sec(0.005)
 	
 		#~ t.endNamedLoop(xID)
 		#~ t.endNamedLoop(yID)
@@ -1171,11 +1215,13 @@ if (r.pid):
 	print 'hello end prog'
 
 
-	os.waitpid(r.pid,0)
-	print "ohms"
-	r.disconnectCommSock()
-	#~ r.closeProgram()
-	print "the child is dead"
+	print r.pid, type(r.pid)
+	if isinstance(r.pid,int):
+		os.waitpid(r.pid,0)
+		print "ohms"
+		r.disconnectCommSock()
+		#~ r.closeProgram()
+		print "the child is dead"
 
 
 

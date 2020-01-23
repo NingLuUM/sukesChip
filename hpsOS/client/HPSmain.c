@@ -84,7 +84,7 @@
 #define TX_DATA_UPLOAD_PORT ( 3700 )
 
 #define MAX_RECLEN          ( 32768 )
-#define MAX_PACKETSIZE      ( 8192 )
+#define MAX_PACKETSIZE      ( 32768 )
 
 #define MAX_SOCKETS         ( 10 )
 #define ENET_MSG_SIZE       ( 10 )
@@ -476,7 +476,7 @@ int main(int argc, char *argv[]) { printf("\ninto main!\nargcount:%d\n\n",argc);
         clock_gettime(CLOCK_MONOTONIC,&et1);
         dt1 = diff(st1,et1);
         dt = dt1.tv_sec+(dt1.tv_nsec*1e-9);
-        if( dt >= 0.50 ){
+        if( dt >= 60.0 ){
             dt1 = diff(st0,et1);
             dt = dt1.tv_sec+(dt1.tv_nsec*1e-9);
             printf("program running: uptime... (%0.2f s)\n", dt);

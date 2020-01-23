@@ -507,7 +507,7 @@ void txBufferPingFromLoopIdxCmd(TXsys_t *TX){
     while(cmd->next != NULL){
         cmd = cmd->next;
     }
-    cmd->reg2.isPingFromLoopIdx = 1;
+    cmd->flags.isPingFromLoopIdx = 1;
     cmd->reg2.set_amp = 1;
 }
 
